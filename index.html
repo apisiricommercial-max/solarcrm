@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolarCRM · ระบบจัดการลูกค้าธุรกิจโซลาร์เซลล์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['IBM Plex Sans Thai','Inter','ui-sans-serif','system-ui','sans-serif'] },
+      colors: {
+        brand: {
+          50:'rgb(var(--b50) / <alpha-value>)',100:'rgb(var(--b100) / <alpha-value>)',200:'rgb(var(--b200) / <alpha-value>)',
+          300:'rgb(var(--b300) / <alpha-value>)',400:'rgb(var(--b400) / <alpha-value>)',500:'rgb(var(--b500) / <alpha-value>)',
+          600:'rgb(var(--b600) / <alpha-value>)',700:'rgb(var(--b700) / <alpha-value>)',800:'rgb(var(--b800) / <alpha-value>)',900:'rgb(var(--b900) / <alpha-value>)'
+        },
+        ink: { 50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',300:'#cbd5e1',400:'#94a3b8',500:'#64748b',600:'#475569',700:'#334155',800:'#1e293b',900:'#0f172a' }
+      }
+    }
+  }
+}
+</script>
+<style>
+  /* ===== THEME PALETTES (accent) ===== */
+  :root,[data-theme="blue"]{   --b50:239 246 255;--b100:219 234 254;--b200:191 219 254;--b300:147 197 253;--b400:96 165 250;--b500:59 130 246;--b600:37 99 235;--b700:29 78 216;--b800:30 64 175;--b900:30 58 138; --accent:#2563eb;}
+  [data-theme="emerald"]{      --b50:236 253 245;--b100:209 250 229;--b200:167 243 208;--b300:110 231 183;--b400:52 211 153;--b500:16 185 129;--b600:5 150 105;--b700:4 120 87;--b800:6 95 70;--b900:6 78 59; --accent:#059669;}
+  [data-theme="violet"]{       --b50:245 243 255;--b100:237 233 254;--b200:221 214 254;--b300:196 181 253;--b400:167 139 250;--b500:139 92 246;--b600:124 58 237;--b700:109 40 217;--b800:91 33 182;--b900:76 29 149; --accent:#7c3aed;}
+  [data-theme="teal"]{         --b50:240 253 250;--b100:204 251 241;--b200:153 246 228;--b300:94 234 212;--b400:45 212 191;--b500:20 184 166;--b600:13 148 136;--b700:15 118 110;--b800:17 94 89;--b900:19 78 74; --accent:#0d9488;}
+  [data-theme="amber"]{        --b50:255 251 235;--b100:254 243 199;--b200:253 230 138;--b300:252 211 77;--b400:251 191 36;--b500:245 158 11;--b600:217 119 6;--b700:180 83 9;--b800:146 64 14;--b900:120 53 15; --accent:#d97706;}
+  [data-theme="rose"]{         --b50:255 241 242;--b100:255 228 230;--b200:254 205 211;--b300:253 164 175;--b400:251 113 133;--b500:244 63 94;--b600:225 29 72;--b700:190 18 60;--b800:159 18 57;--b900:136 19 55; --accent:#e11d48;}
+  [data-theme="indigo"]{       --b50:238 242 255;--b100:224 231 255;--b200:199 210 254;--b300:165 180 252;--b400:129 140 248;--b500:99 102 241;--b600:79 70 229;--b700:67 56 202;--b800:55 48 163;--b900:49 46 129; --accent:#4f46e5;}
+  [data-theme="cyan"]{         --b50:236 254 255;--b100:207 250 254;--b200:165 243 252;--b300:103 232 249;--b400:34 211 238;--b500:6 182 212;--b600:8 145 178;--b700:14 116 144;--b800:21 94 117;--b900:22 78 99; --accent:#0891b2;}
+
+  html{font-family:'IBM Plex Sans Thai','Inter',sans-serif;background:#f1f5f9}
+  body,button,a,input,select,textarea,[class*="bg-"],[class*="text-"],[class*="ring-"],[class*="border-"]{transition:background-color .35s ease,color .35s ease,border-color .35s ease,box-shadow .25s ease,transform .18s ease}
+  ::-webkit-scrollbar{height:9px;width:9px}
+  ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:9px}
+  ::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+  .num{font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums}
+  .kanban-scroll{scrollbar-width:thin}
+  .card-drag{opacity:.45;transform:scale(.98)}
+  .col-over{background:var(--b100,#dbeafe)!important;outline:2px dashed var(--b400,#60a5fa);outline-offset:-4px}
+  [data-modal]{animation:pop .26s cubic-bezier(.2,.9,.3,1.15)}
+  @keyframes pop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+
+  /* ===== ENTRANCE ANIMATIONS ===== */
+  .fade-in{animation:fadeUp .42s cubic-bezier(.2,.7,.3,1)}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  /* stagger children of a grid/space container on entrance */
+  .fade-in > *{animation:fadeUp .5s cubic-bezier(.2,.7,.3,1) backwards}
+  .fade-in > *:nth-child(1){animation-delay:.02s}
+  .fade-in > *:nth-child(2){animation-delay:.07s}
+  .fade-in > *:nth-child(3){animation-delay:.12s}
+  .fade-in > *:nth-child(4){animation-delay:.17s}
+  .fade-in > *:nth-child(5){animation-delay:.22s}
+  .fade-in > *:nth-child(6){animation-delay:.27s}
+
+  /* ===== HOVER LIFT on cards ===== */
+  [class~="rounded-2xl"][class~="shadow-sm"]{transition:transform .2s ease,box-shadow .2s ease}
+  [class~="rounded-2xl"][class~="shadow-sm"]:hover{transform:translateY(-3px);box-shadow:0 14px 30px -12px rgba(15,23,42,.28)}
+  /* primary buttons get a press/scale */
+  button[class*="bg-brand-600"]:hover{filter:brightness(1.05)}
+  button[class*="bg-brand-600"]:active{transform:scale(.96)}
+  /* animated gradient sheen on the highlighted sales card */
+  .sheen{position:relative;overflow:hidden}
+  .sheen::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(110deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);animation:sheen 4.5s ease-in-out infinite}
+  @keyframes sheen{0%,60%{left:-60%}100%{left:130%}}
+
+  /* theme switcher widget */
+  #themeFab{position:fixed;z-index:60;bottom:1.25rem;right:1.25rem;left:auto}
+  #themeFab .fab-btn{width:46px;height:46px;border-radius:9999px;display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 8px 22px -6px rgba(15,23,42,.35);border:1px solid #e2e8f0;cursor:pointer;font-size:20px;transition:transform .15s}
+  #themeFab .fab-btn:hover{transform:scale(1.08) rotate(8deg)}
+  #themePop{position:absolute;bottom:56px;right:0;left:auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:12px;box-shadow:0 18px 40px -12px rgba(15,23,42,.4);display:none;width:188px}
+  #themePop.open{display:block;animation:pop .2s ease}
+  #themePop .ttl{font-size:11px;color:#64748b;font-weight:600;margin-bottom:8px}
+  #themePop .sw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .sw{width:34px;height:34px;border-radius:10px;cursor:pointer;border:2px solid transparent;transition:transform .15s}
+  .sw:hover{transform:scale(1.12)}
+  .sw.on{border-color:#0f172a}
+  /* ===== profile menu / modal ===== */
+  .ov{position:fixed;inset:0;z-index:70;background:rgba(15,23,42,.5);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:16px}
+  .ov.open{display:flex;animation:fade .2s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .sheet{background:#fff;border-radius:22px;width:100%;max-width:360px;box-shadow:0 24px 60px -12px rgba(15,23,42,.5);overflow:hidden;animation:pop .25s cubic-bezier(.2,.9,.3,1.15)}
+  .sheet-h{padding:18px 18px 14px;text-align:center;background:linear-gradient(135deg,rgb(var(--b500)),rgb(var(--b700)));color:#fff}
+  .sheet-av{width:74px;height:74px;border-radius:9999px;margin:0 auto 8px;overflow:hidden;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:38px;border:3px solid rgba(255,255,255,.6)}
+  .sheet-av img{width:100%;height:100%;object-fit:cover}
+  .sheet-b{padding:16px 18px 18px}
+  .sheet-b .lab{font-size:11px;color:#64748b;font-weight:600;margin:10px 0 6px}
+  .icon-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .icon-opt{aspect-ratio:1;border-radius:10px;background:#f1f5f9;border:2px solid transparent;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s}
+  .icon-opt:hover{transform:scale(1.12);background:#e2e8f0}
+  .icon-opt.on{border-color:rgb(var(--b500));background:rgb(var(--b50))}
+  .btn-row{display:flex;gap:8px;margin-top:6px}
+  .pbtn{flex:1;padding:10px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:filter .15s,transform .1s;display:flex;align-items:center;justify-content:center;gap:6px}
+  .pbtn:active{transform:scale(.96)}
+  .pbtn-primary{background:rgb(var(--b600));color:#fff}
+  .pbtn-primary:hover{filter:brightness(1.07)}
+  .pbtn-ghost{background:#f1f5f9;color:#475569}
+  .pbtn-ghost:hover{background:#e2e8f0}
+  .pbtn-danger{background:#fef2f2;color:#dc2626}
+  .pbtn-danger:hover{background:#fee2e2}
+  .pemail{text-align:center;font-size:12px;color:#64748b;margin-top:4px;word-break:break-all}
+
+  /* ===== support / developer buttons ===== */
+  #fabStack{position:fixed;right:1.1rem;left:auto;bottom:4.9rem;z-index:55;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+  .fab2{width:52px;height:52px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:none;box-shadow:0 10px 26px -6px rgba(15,23,42,.4);transition:transform .15s}
+  .fab2:hover{transform:scale(1.1) translateY(-2px)}
+  .fab-heart{background:linear-gradient(135deg,#fb7185,#e11d48);color:#fff;animation:heartbeat 1.6s ease-in-out infinite}
+  @keyframes heartbeat{0%,100%{transform:scale(1)}10%{transform:scale(1.15)}20%{transform:scale(1)}}
+  .fab-dev{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff}
+  .sup-qr{width:188px;height:188px;border-radius:14px;object-fit:contain;margin:0 auto;display:block;background:#fff;border:1px solid #e2e8f0}
+  .sup-amt{display:inline-block;background:rgb(var(--b50));color:rgb(var(--b700));font-weight:700;border-radius:9999px;padding:4px 14px;font-size:14px;margin:8px auto 0}
+
+  /* ===== make SolarCRM brand pop ===== */
+  aside .from-brand-500.to-emerald-500{background:linear-gradient(135deg,rgb(var(--b400)),rgb(var(--b600)),#10b981);background-size:200% 200%;animation:brandshift 5s ease infinite;box-shadow:0 0 0 0 rgba(var(--b500),.5);position:relative}
+  @keyframes brandshift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  aside .text-white.font-bold.leading-tight{background:linear-gradient(90deg,#fff,rgb(var(--b300)));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.3px}
+
+  /* count-up shimmer on stat numbers */
+  @keyframes pulseGlow{0%,100%{opacity:1}50%{opacity:.55}}
+  .ld-pulse{animation:pulseGlow 1s ease-in-out infinite}
+
+  /* ===== mobile tweaks ===== */
+  @media (max-width:640px){
+    #fabStack{left:.8rem;right:auto;bottom:.9rem;align-items:flex-start;flex-direction:row}
+    .fab2{width:42px;height:42px;font-size:17px}
+    #themeFab{bottom:.9rem;left:auto;right:.8rem}
+    #themePop{right:auto;left:0}
+    .avatar-btn{width:38px!important;height:38px!important}
+    .sheet{max-width:none}
+  }
+  /* ===== icon micro-animations (ทุกธีม) ===== */
+  aside nav svg,aside .avatar-slot,button svg{transition:transform .2s cubic-bezier(.2,.8,.3,1.3)}
+  aside nav button:hover svg{transform:scale(1.2) rotate(-6deg)}
+  aside nav .bg-brand-600 svg{animation:iconPulse 2.2s ease-in-out infinite}
+  @keyframes iconPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.14)}}
+  button:hover svg{transform:scale(1.12)}
+  .fab2:hover{transform:scale(1.12) translateY(-3px) rotate(6deg)}
+  header svg{transition:transform .2s}
+  h1:hover ~ * svg,.rounded-2xl:hover svg{transform:scale(1.06)}
+  /* ===== chart flair ===== */
+  .w-32.h-32 svg{animation:donutIn 1s cubic-bezier(.2,.8,.3,1) both}
+  @keyframes donutIn{from{opacity:0;transform:scale(.6) rotate(-30deg)}to{opacity:1;transform:none}}
+  .bg-ink-100.overflow-hidden > .bg-brand-500{transform-origin:left;animation:growX 1s cubic-bezier(.2,.8,.3,1) both}
+  @keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  /* stat number pop */
+  @keyframes numPop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+  .fade-in .num{animation:numPop .6s cubic-bezier(.2,.8,.3,1.2) both}
+  @media print{.no-print,#themeFab,#fabStack,.ov{display:none!important}}
+/* ===================== PREMIUM LOGIN ===================== */
+.lgn{position:fixed;inset:0;overflow:hidden;background:#070b16;display:flex;align-items:center;justify-content:center;padding:24px;perspective:1200px}
+.lgn-aurora,.lgn-aurora i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;pointer-events:none}
+.lgn-aurora{inset:0}
+.lgn-aurora i{display:block}
+.lgn-a1{width:520px;height:520px;background:#10b981;top:-160px;left:-120px;animation:lgnFloat 16s ease-in-out infinite}
+.lgn-a2{width:460px;height:460px;background:#2563eb;bottom:-180px;right:-120px;animation:lgnFloat 19s ease-in-out infinite reverse}
+.lgn-a3{width:380px;height:380px;background:#f59e0b;top:40%;left:55%;opacity:.4;animation:lgnFloat 22s ease-in-out infinite}
+@keyframes lgnFloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(60px,40px) scale(1.15)}66%{transform:translate(-40px,30px) scale(.9)}}
+.lgn-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.lgn-grid{position:absolute;inset:-50%;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:46px 46px;transform:perspective(500px) rotateX(60deg);animation:lgnGrid 18s linear infinite;mask-image:radial-gradient(ellipse at center,black,transparent 70%)}
+@keyframes lgnGrid{to{background-position:0 460px}}
+.lgn-spark{position:absolute;font-size:18px;opacity:0;animation:lgnRise linear infinite;pointer-events:none}
+@keyframes lgnRise{0%{transform:translateY(40px) rotate(0);opacity:0}10%{opacity:.7}90%{opacity:.7}100%{transform:translateY(-110vh) rotate(360deg);opacity:0}}
+
+.lgn-card{position:relative;z-index:5;width:100%;max-width:430px;padding:42px 34px 30px;border-radius:28px;text-align:center;background:linear-gradient(160deg,rgba(255,255,255,.13),rgba(255,255,255,.04));backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.16);box-shadow:0 30px 80px -20px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.25);transform-style:preserve-3d;transition:transform .18s ease-out;animation:lgnIn 1s cubic-bezier(.2,.9,.3,1.1) both}
+@keyframes lgnIn{from{opacity:0;transform:translateY(34px) scale(.94)}to{opacity:1;transform:none}}
+.lgn-card::before{content:"";position:absolute;inset:-1.5px;border-radius:29px;padding:1.5px;background:linear-gradient(130deg,#10b981,#2563eb,#f59e0b,#10b981);background-size:300% 300%;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:lgnBorder 6s linear infinite;opacity:.85;pointer-events:none}
+@keyframes lgnBorder{to{background-position:300% 50%}}
+
+.lgn-logo{position:relative;width:84px;height:84px;margin:0 auto;border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;color:#fff;background:linear-gradient(135deg,#34d399,#059669);box-shadow:0 12px 34px -8px rgba(16,185,129,.7);transform:translateZ(60px);animation:lgnBob 3.5s ease-in-out infinite}
+@keyframes lgnBob{0%,100%{transform:translateZ(60px) translateY(0) rotate(-4deg)}50%{transform:translateZ(60px) translateY(-8px) rotate(4deg)}}
+.lgn-logo::after{content:"";position:absolute;inset:-14px;border-radius:50%;background:conic-gradient(from 0deg,transparent,rgba(52,211,153,.55),transparent 40%);z-index:-1;animation:lgnSpin 4s linear infinite}
+@keyframes lgnSpin{to{transform:rotate(360deg)}}
+.lgn-logo::before{content:"";position:absolute;inset:0;border-radius:24px;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.55),transparent 70%);background-size:250% 100%;animation:lgnShine 3s ease-in-out infinite}
+@keyframes lgnShine{0%{background-position:200% 0}60%,100%{background-position:-120% 0}}
+
+.lgn-title{font-size:30px;font-weight:800;margin:18px 0 0;letter-spacing:.3px;background:linear-gradient(90deg,#fff,#86efac,#93c5fd,#fff);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;transform:translateZ(40px);animation:lgnText 4s linear infinite}
+@keyframes lgnText{to{background-position:200% center}}
+.lgn-sub{color:rgba(255,255,255,.65);font-size:13.5px;margin-top:6px;transform:translateZ(30px)}
+.lgn-desc{color:rgba(255,255,255,.5);font-size:13px;margin:22px 0 20px;line-height:1.7;transform:translateZ(20px)}
+
+.lgn-chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:22px;transform:translateZ(25px)}
+.lgn-chip{font-size:11px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);padding:5px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
+
+.lgn-btn{position:relative;width:100%;display:flex;align-items:center;justify-content:center;gap:11px;padding:14px;border-radius:16px;border:none;cursor:pointer;font-family:inherit;font-size:15px;font-weight:700;color:#1f2937;background:#fff;box-shadow:0 14px 30px -10px rgba(0,0,0,.5);overflow:hidden;transform:translateZ(50px);transition:transform .15s,box-shadow .2s}
+.lgn-btn:hover{transform:translateZ(50px) translateY(-2px);box-shadow:0 18px 40px -10px rgba(16,185,129,.5)}
+.lgn-btn:active{transform:translateZ(50px) scale(.98)}
+.lgn-btn:disabled{opacity:.7;cursor:default}
+.lgn-btn::after{content:"";position:absolute;top:0;left:-80%;width:55%;height:100%;background:linear-gradient(110deg,transparent,rgba(16,185,129,.25),transparent);transform:skewX(-20deg);animation:lgnSweep 3s ease-in-out infinite}
+@keyframes lgnSweep{0%,60%{left:-80%}100%{left:150%}}
+.lgn-foot{color:rgba(255,255,255,.4);font-size:11px;margin-top:20px;transform:translateZ(15px)}
+.lgn-secure{display:inline-flex;align-items:center;gap:5px}
+
+/* ===================== DARK PREMIUM DASHBOARD ===================== */
+/* พื้นหลังหลัก เข้มหรู + ออโรร่า */
+body.dark{background:#070b16!important}
+body.dark{
+.min-h-screen.flex.flex-col.lg\:flex-row{background:#070b16}
+main.flex-1{position:relative;background:
+  radial-gradient(1100px 560px at 10% -10%, rgba(var(--b500),.18), transparent 60%),
+  radial-gradient(950px 560px at 115% 0%, rgba(59,130,246,.14), transparent 55%),
+  radial-gradient(800px 600px at 60% 120%, rgba(245,158,11,.08), transparent 60%),
+  linear-gradient(180deg,#0a1020,#070b16)!important;min-height:100vh}
+main.flex-1::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:
+  linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:40px 40px;mask-image:radial-gradient(ellipse at 50% 0,black,transparent 75%)}
+
+/* การ์ดทั้งหมด → กระจกเข้มเรืองแสง */
+.bg-white,[data-modal]:not(.lgn-card){background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.025))!important;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1)!important;box-shadow:0 20px 50px -24px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.08)!important}
+.min-h-screen .rounded-2xl,[data-modal]:not(.lgn-card){border-radius:20px!important}
+.min-h-screen .rounded-2xl.ring-1,.min-h-screen .bg-white.ring-1{transition:transform .28s cubic-bezier(.2,.8,.3,1),box-shadow .28s,border-color .28s}
+.min-h-screen .rounded-2xl.ring-1:hover{transform:translateY(-5px);border-color:rgba(var(--b400),.5)!important;box-shadow:0 30px 60px -26px rgba(var(--b500),.5),inset 0 1px 0 rgba(255,255,255,.12)!important}
+
+/* ตัวอักษร → โทนสว่าง */
+.text-ink-900,.text-ink-800{color:#f1f5f9!important}
+.text-ink-700,.text-ink-600{color:#cbd5e1!important}
+.text-ink-500{color:#94a3b8!important}
+.text-ink-400,.text-ink-300{color:#7c899c!important}
+.min-h-screen h1,.min-h-screen h3,.min-h-screen h4,[data-modal] h3,[data-modal] h4{color:#f8fafc}
+
+/* พื้นรองต่างๆ (หัวตาราง/พาเนล/ชิป) → เข้ม */
+.bg-ink-50,.bg-ink-50\/40,.bg-ink-100{background:rgba(255,255,255,.05)!important}
+thead.bg-ink-50{background:rgba(255,255,255,.04)!important}
+.bg-emerald-50,.bg-brand-50,.bg-amber-50,.bg-red-50,.bg-blue-50,.bg-violet-50,.bg-rose-50{background:rgba(255,255,255,.06)!important}
+
+/* เส้นขอบ/ring/divide → จาง */
+.ring-ink-100,.ring-ink-200,.border-ink-100,.border-ink-200,.ring-brand-100{border-color:rgba(255,255,255,.1)!important;--tw-ring-color:rgba(255,255,255,.1)!important}
+.divide-ink-50 > :not([hidden]) ~ :not([hidden]),.border-ink-50,.border-t.border-ink-100{border-color:rgba(255,255,255,.08)!important}
+
+/* input/select/textarea → เข้ม */
+.min-h-screen input,.min-h-screen select,.min-h-screen textarea,[data-modal] input,[data-modal] select,[data-modal] textarea{background:rgba(255,255,255,.06)!important;color:#e2e8f0!important;border-color:rgba(255,255,255,.14)!important}
+.min-h-screen input::placeholder{color:#64748b!important}
+.min-h-screen select option,[data-modal] select option{background:#0f1830;color:#e2e8f0}
+.min-h-screen input:focus,.min-h-screen select:focus,[data-modal] input:focus{border-color:rgb(var(--b400))!important;box-shadow:0 0 0 4px rgba(var(--b500),.18)!important}
+
+/* hover แถวตาราง */
+tbody tr:hover,.hover\:bg-brand-50\/40:hover{background:rgba(var(--b500),.12)!important}
+
+/* Pipeline (kanban) ในธีมมืด ให้อ่านออก */
+.bg-ink-100\/60{background:rgba(255,255,255,.045)!important;border:1px solid rgba(255,255,255,.09)}
+.col-over{background:rgba(var(--b500),.18)!important;outline:2px dashed rgb(var(--b400));outline-offset:-4px}
+.kanban-scroll .text-ink-400,.kanban-scroll .text-ink-300{color:#94a3b8!important}
+.kanban-scroll select{background:rgba(255,255,255,.08)!important;color:#e2e8f0!important;border-color:rgba(255,255,255,.16)!important}
+
+/* sidebar หรูขึ้น */
+aside.bg-ink-900{background:linear-gradient(185deg,#0f1a33 0%,#0b1322 55%,#080d1a 100%)!important;position:relative;box-shadow:inset -1px 0 0 rgba(255,255,255,.06),24px 0 70px -36px rgba(0,0,0,.85)}
+aside.bg-ink-900::before{content:"";position:absolute;top:0;left:0;right:0;height:170px;background:radial-gradient(circle at 28% -10%,rgba(var(--b500),.3),transparent 70%);pointer-events:none}
+aside nav .bg-brand-600{box-shadow:0 12px 30px -8px rgba(var(--b500),.85);position:relative;overflow:hidden}
+aside nav .bg-brand-600::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(110deg,transparent,rgba(255,255,255,.3),transparent);transform:skewX(-18deg);animation:sheen 4.5s ease-in-out infinite}
+
+/* header กระจกเบลอเข้ม */
+main > header.sticky{background:rgba(10,16,32,.65)!important;backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border-bottom:1px solid rgba(255,255,255,.08)!important}
+main > header.sticky h1{background:linear-gradient(90deg,#fff,rgb(var(--b400)));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+main > header.sticky::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,transparent,rgb(var(--b500)),transparent);opacity:.6}
+
+/* การ์ดไล่เฉด (ยอดขาย ฯลฯ) เงาฟุ้งสี + ยกลอย */
+main .bg-gradient-to-br{box-shadow:0 22px 48px -18px rgba(var(--b500),.6)!important;transition:transform .28s cubic-bezier(.2,.8,.3,1)}
+main .bg-gradient-to-br:hover{transform:translateY(-5px) scale(1.015)}
+
+/* ปุ่มหลักเรืองแสง */
+main button.bg-brand-600,main .bg-brand-600.shadow-sm{box-shadow:0 14px 30px -10px rgba(var(--b500),.8)!important;transition:transform .15s,filter .2s}
+main button.bg-brand-600:hover{transform:translateY(-2px);filter:brightness(1.08)}
+
+/* badge อ่านง่ายบนพื้นเข้ม */
+main .ring-emerald-200,main .ring-red-200,main .ring-amber-200,main .ring-brand-200,main .ring-ink-200{--tw-ring-color:rgba(255,255,255,.18)!important}
+
+/* scrollbar + selection */
+::-webkit-scrollbar-thumb{background:linear-gradient(rgb(var(--b400)),rgb(var(--b600)))!important;border-radius:9px}
+::selection{background:rgba(var(--b500),.35)}
+
+@media (max-width:1023px){ main.flex-1::before{display:none} aside.bg-ink-900{box-shadow:none} }
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div id="root"><div style="padding:40px;text-align:center;font-family:sans-serif;color:#64748b">กำลังโหลดระบบ… ถ้าค้างนานเกิน 10 วินาที กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต (ระบบโหลด React/Tailwind จาก CDN)</div></div>
+<noscript><div style="padding:40px;text-align:center;font-family:sans-serif">กรุณาเปิดใช้งาน JavaScript ในเบราว์เซอร์</div></noscript>
+
+<!-- LOADER_MARKER -->
+
+<!-- ====================================================================
+     ตั้งค่า Supabase (ใส่ค่า 2 อย่างจากหน้า Settings → API ของ Supabase)
+     ถ้าปล่อยว่างไว้ ระบบจะใช้ LocalStorage (เก็บในเครื่อง) ตามเดิม
+     ==================================================================== -->
+<script>
+  window.SUPABASE_URL = "https://gifcvzyofiopuucajzce.supabase.co";  // Project URL (ใส่ให้แล้ว)
+  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpZmN2enlvZmlvcHV1Y2FqemNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwMTkwNTQsImV4cCI6MjA5NzU5NTA1NH0.Lia85zctXzfRDCQGi8K-CLMdyje5vw_h51tg7AUQ7XM";  // anon public key (ใส่ให้แล้ว)
+  // ===== ลิงก์เครื่องมือใบเสนอราคา (แก้ตรงนี้ถ้าย้ายโฮสต์ หรือกดปุ่ม "ตั้งค่าลิงก์" ในแอป) =====
+  window.QUOTE_URL = "https://quotation1.vercel.app";
+</script>
+
+<script type="text/app" id="appcode">
+const { useState, useEffect, useMemo, useRef } = React;
+const STORAGE_KEY = "solar_crm_v1";
+let _mem = null;
+function safeGet() {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch (e) {
+    return _mem;
+  }
+}
+function safeSet(v) {
+  try {
+    localStorage.setItem(STORAGE_KEY, v);
+  } catch (e) {
+    _mem = v;
+  }
+}
+const USE_SUPABASE = !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY && window.supabase);
+let sb = null;
+let currentUser = null;
+if (USE_SUPABASE) {
+  try { sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY); }
+  catch (e) { console.error("Supabase init failed:", e); }
+}
+/* ===== ลิงก์เครื่องมือใบเสนอราคา ===== */
+function getQuoteUrl() {
+  let u = "";
+  try { u = localStorage.getItem("solar_quote_url") || ""; } catch (e) {}
+  return (u || window.QUOTE_URL || "").trim();
+}
+function setQuoteUrl() {
+  const cur = getQuoteUrl();
+  const v = prompt("ใส่ลิงก์เว็บใบเสนอราคาของคุณ (เช่น https://xxx.netlify.app)", cur);
+  if (v === null) return;
+  try { localStorage.setItem("solar_quote_url", v.trim()); } catch (e) {}
+  alert("บันทึกลิงก์แล้ว");
+}
+function buildQuoteLink(c, auto) {
+  const base = getQuoteUrl();
+  if (!base) return "";
+  const p = new URLSearchParams();
+  // ฝังอีเมลเจ้าของเสมอ เพื่อให้ lead เข้าเฉพาะ user คนนี้
+  const owner = (window.__userEmail || "").trim();
+  if (owner) p.set("owner", owner);
+  if (c) {
+    if (c.name) p.set("name", c.name);
+    if (c.phone) p.set("phone", c.phone);
+    if (c.province) p.set("province", c.province);
+    const bill = c.monthlyBill || c.bill || "";
+    if (bill) p.set("bill", String(bill).replace(/[^0-9.]/g, ""));
+    if (auto) p.set("auto", "1");
+  }
+  const qs = p.toString();
+  return base + (qs ? "?" + qs : "");
+}
+function openQuote(c, auto) {
+  const url = buildQuoteLink(c, auto) || getQuoteUrl();
+  if (!url) { if (confirm("ยังไม่ได้ตั้งลิงก์ใบเสนอราคา ตั้งตอนนี้เลยไหม?")) setQuoteUrl(); return; }
+  window.open(url, "_blank");
+}
+function copyQuoteLink(c) {
+  const url = buildQuoteLink(c, false) || getQuoteUrl();
+  if (!url) { if (confirm("ยังไม่ได้ตั้งลิงก์ใบเสนอราคา ตั้งตอนนี้เลยไหม?")) setQuoteUrl(); return; }
+  const done = () => alert("คัดลอกลิงก์แล้ว!\n" + url);
+  try { navigator.clipboard.writeText(url).then(done, () => { prompt("คัดลอกลิงก์นี้:", url); }); }
+  catch (e) { prompt("คัดลอกลิงก์นี้:", url); }
+}
+const db = {
+  async list() {
+    if (sb) {
+      const { data, error } = await sb.from("customers").select("*").order("createdAt", { ascending: true });
+      if (error) { console.error(error); return null; }
+      return data;
+    }
+    try { const raw = safeGet(); return raw ? JSON.parse(raw) : null; }
+    catch (e) { return null; }
+  },
+  async saveAll(rows) {
+    if (sb) {
+      try {
+        const uid = currentUser ? currentUser.id : null;
+        const stamped = rows.map(r => uid ? { ...r, user_id: uid } : r);
+        await sb.from("customers").upsert(stamped);
+        const { data } = await sb.from("customers").select("id");
+        const ids = new Set(rows.map(r => r.id));
+        const toDel = (data || []).filter(r => !ids.has(r.id)).map(r => r.id);
+        if (toDel.length) await sb.from("customers").delete().in("id", toDel);
+      } catch (e) { console.error("Supabase save failed:", e); }
+      return rows;
+    }
+    safeSet(JSON.stringify(rows));
+    return rows;
+  }
+};
+const STATUSES = [
+  { key: "new", label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48", color: "bg-blue-500", soft: "bg-blue-50 text-blue-700 ring-blue-200" },
+  { key: "talking", label: "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E04\u0E38\u0E22", color: "bg-indigo-500", soft: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
+  { key: "sent", label: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E41\u0E25\u0E49\u0E27", color: "bg-cyan-500", soft: "bg-cyan-50 text-cyan-700 ring-cyan-200" },
+  { key: "waiting", label: "\u0E23\u0E2D\u0E42\u0E2D\u0E19", color: "bg-amber-500", soft: "bg-amber-50 text-amber-700 ring-amber-200" },
+  { key: "won", label: "\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", color: "bg-emerald-500", soft: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  { key: "later", label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E20\u0E32\u0E22\u0E2B\u0E25\u0E31\u0E07", color: "bg-violet-500", soft: "bg-violet-50 text-violet-700 ring-violet-200" },
+  { key: "lost", label: "\u0E44\u0E21\u0E48\u0E2A\u0E19\u0E43\u0E08", color: "bg-slate-400", soft: "bg-slate-100 text-slate-600 ring-slate-200" }
+];
+const statusOf = (k) => STATUSES.find((s) => s.key === k) || STATUSES[0];
+const FOLLOWING = ["talking", "sent", "waiting", "later"];
+const HEATS = [
+  { key: "hot", label: "\u0E23\u0E49\u0E2D\u0E19\u0E21\u0E32\u0E01", emoji: "\u{1F525}", soft: "bg-red-50 text-red-600 ring-red-200" },
+  { key: "warm", label: "\u0E01\u0E25\u0E32\u0E07", emoji: "\u{1F324}\uFE0F", soft: "bg-amber-50 text-amber-600 ring-amber-200" },
+  { key: "cold", label: "\u0E40\u0E22\u0E47\u0E19", emoji: "\u2744\uFE0F", soft: "bg-sky-50 text-sky-600 ring-sky-200" }
+];
+const heatOf = (k) => HEATS.find((h) => h.key === k) || HEATS[1];
+const TYPES = ["\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "\u0E0A\u0E48\u0E32\u0E07", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E2A\u0E27\u0E19", "\u0E42\u0E23\u0E07\u0E07\u0E32\u0E19", "\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07"];
+const SOURCES = ["Facebook", "TikTok", "\u0E01\u0E25\u0E38\u0E48\u0E21\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C", "Inbox", "\u0E41\u0E19\u0E30\u0E19\u0E33\u0E15\u0E48\u0E2D"];
+const SIZES = ["3kW", "5kW", "10kW", "Hybrid", "Battery"];
+const TAGS = ["\u0E2A\u0E19\u0E43\u0E08\u0E2B\u0E19\u0E31\u0E07\u0E2A\u0E37\u0E2D 990", "\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07", "\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F", "\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27", "\u0E42\u0E14\u0E19\u0E0A\u0E48\u0E32\u0E07\u0E40\u0E2A\u0E19\u0E2D\u0E41\u0E1E\u0E07", "\u0E2A\u0E19\u0E43\u0E08\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48", "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E48\u0E27\u0E19"];
+const PROVINCES = ["\u0E01\u0E23\u0E38\u0E07\u0E40\u0E17\u0E1E\u0E21\u0E2B\u0E32\u0E19\u0E04\u0E23", "\u0E19\u0E19\u0E17\u0E1A\u0E38\u0E23\u0E35", "\u0E1B\u0E17\u0E38\u0E21\u0E18\u0E32\u0E19\u0E35", "\u0E2A\u0E21\u0E38\u0E17\u0E23\u0E1B\u0E23\u0E32\u0E01\u0E32\u0E23", "\u0E1E\u0E23\u0E30\u0E19\u0E04\u0E23\u0E28\u0E23\u0E35\u0E2D\u0E22\u0E38\u0E18\u0E22\u0E32", "\u0E0A\u0E25\u0E1A\u0E38\u0E23\u0E35", "\u0E23\u0E30\u0E22\u0E2D\u0E07", "\u0E19\u0E04\u0E23\u0E23\u0E32\u0E0A\u0E2A\u0E35\u0E21\u0E32", "\u0E02\u0E2D\u0E19\u0E41\u0E01\u0E48\u0E19", "\u0E2D\u0E38\u0E14\u0E23\u0E18\u0E32\u0E19\u0E35", "\u0E40\u0E0A\u0E35\u0E22\u0E07\u0E43\u0E2B\u0E21\u0E48", "\u0E40\u0E0A\u0E35\u0E22\u0E07\u0E23\u0E32\u0E22", "\u0E1E\u0E34\u0E29\u0E13\u0E38\u0E42\u0E25\u0E01", "\u0E19\u0E04\u0E23\u0E2A\u0E27\u0E23\u0E23\u0E04\u0E4C", "\u0E2A\u0E38\u0E1E\u0E23\u0E23\u0E13\u0E1A\u0E38\u0E23\u0E35", "\u0E23\u0E32\u0E0A\u0E1A\u0E38\u0E23\u0E35", "\u0E40\u0E1E\u0E0A\u0E23\u0E1A\u0E38\u0E23\u0E35", "\u0E1B\u0E23\u0E30\u0E08\u0E27\u0E1A\u0E04\u0E35\u0E23\u0E35\u0E02\u0E31\u0E19\u0E18\u0E4C", "\u0E2A\u0E07\u0E02\u0E25\u0E32", "\u0E2A\u0E38\u0E23\u0E32\u0E29\u0E0E\u0E23\u0E4C\u0E18\u0E32\u0E19\u0E35", "\u0E20\u0E39\u0E40\u0E01\u0E47\u0E15", "\u0E19\u0E04\u0E23\u0E28\u0E23\u0E35\u0E18\u0E23\u0E23\u0E21\u0E23\u0E32\u0E0A", "\u0E2D\u0E38\u0E1A\u0E25\u0E23\u0E32\u0E0A\u0E18\u0E32\u0E19\u0E35", "\u0E2A\u0E23\u0E30\u0E1A\u0E38\u0E23\u0E35", "\u0E25\u0E1E\u0E1A\u0E38\u0E23\u0E35"];
+const fmt = (n) => (Number(n) || 0).toLocaleString("th-TH");
+const baht = (n) => "\u0E3F" + fmt(n);
+const uid = () => "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const todayISO = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+function dayOffset(n) {
+  const d = /* @__PURE__ */ new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function thDate(iso) {
+  if (!iso) return "\u2014";
+  const d = /* @__PURE__ */ new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
+}
+function daysUntil(iso) {
+  if (!iso) return null;
+  const a = /* @__PURE__ */ new Date(iso + "T00:00:00"), b = /* @__PURE__ */ new Date(todayISO() + "T00:00:00");
+  return Math.round((a - b) / 864e5);
+}
+function seed() {
+  const base = [
+    ["\u0E04\u0E38\u0E13\u0E2A\u0E21\u0E0A\u0E32\u0E22 \u0E43\u0E08\u0E14\u0E35", "081-234-5678", "@somchai_d", "\u0E2A\u0E21\u0E0A\u0E32\u0E22 \u0E43\u0E08\u0E14\u0E35", "\u0E19\u0E19\u0E17\u0E1A\u0E38\u0E23\u0E35", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "Facebook", "3200", "5kW", "180000", "165000", "hot", "sent", ["\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F", "\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27"], "\u0E2A\u0E19\u0E43\u0E08\u0E21\u0E32\u0E01 \u0E02\u0E2D\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32 5kW \u0E41\u0E25\u0E49\u0E27 \u0E23\u0E2D\u0E40\u0E17\u0E35\u0E22\u0E1A\u0E23\u0E32\u0E04\u0E32", -1],
+    ["\u0E04\u0E38\u0E13\u0E27\u0E34\u0E20\u0E32 \u0E2A\u0E38\u0E02\u0E2A\u0E31\u0E19\u0E15\u0E4C", "089-887-1122", "vipha.s", "Vipha Suk", "\u0E0A\u0E25\u0E1A\u0E38\u0E23\u0E35", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E2A\u0E27\u0E19", "TikTok", "5400", "10kW", "420000", "390000", "hot", "waiting", "\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27,\u0E2A\u0E19\u0E43\u0E08\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48".split(","), "\u0E2A\u0E27\u0E19\u0E17\u0E38\u0E40\u0E23\u0E35\u0E22\u0E19 \u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E23\u0E30\u0E1A\u0E1A\u0E43\u0E2B\u0E0D\u0E48 + \u0E41\u0E1A\u0E15 \u0E23\u0E2D\u0E42\u0E2D\u0E19\u0E21\u0E31\u0E14\u0E08\u0E33", 0],
+    ["\u0E0A\u0E48\u0E32\u0E07\u0E40\u0E2D\u0E01 \u0E44\u0E1F\u0E1F\u0E49\u0E32", "092-555-7788", "choengaek", "\u0E0A\u0E48\u0E32\u0E07\u0E40\u0E2D\u0E01", "\u0E1B\u0E17\u0E38\u0E21\u0E18\u0E32\u0E19\u0E35", "\u0E0A\u0E48\u0E32\u0E07", "\u0E01\u0E25\u0E38\u0E48\u0E21\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C", "0", "Hybrid", "95000", "60000", "warm", "talking", ["\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07", "\u0E2A\u0E19\u0E43\u0E08\u0E2B\u0E19\u0E31\u0E07\u0E2A\u0E37\u0E2D 990"], "\u0E0A\u0E48\u0E32\u0E07\u0E2D\u0E22\u0E32\u0E01\u0E0B\u0E37\u0E49\u0E2D\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E44\u0E1B\u0E15\u0E34\u0E14\u0E40\u0E2D\u0E07 \u0E2A\u0E19\u0E43\u0E08\u0E04\u0E2D\u0E23\u0E4C\u0E2A", 2],
+    ["\u0E04\u0E38\u0E13\u0E21\u0E32\u0E19\u0E1E \u0E40\u0E01\u0E29\u0E15\u0E23", "085-321-9090", "manop_k", "\u0E21\u0E32\u0E19\u0E1E \u0E40\u0E01\u0E29\u0E15\u0E23", "\u0E19\u0E04\u0E23\u0E23\u0E32\u0E0A\u0E2A\u0E35\u0E21\u0E32", "\u0E42\u0E23\u0E07\u0E07\u0E32\u0E19", "\u0E41\u0E19\u0E30\u0E19\u0E33\u0E15\u0E48\u0E2D", "28000", "10kW", "850000", "820000", "hot", "waiting", ["\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F"], "\u0E42\u0E23\u0E07\u0E07\u0E32\u0E19\u0E19\u0E49\u0E33\u0E41\u0E02\u0E47\u0E07 \u0E04\u0E48\u0E32\u0E44\u0E1F\u0E41\u0E1E\u0E07\u0E21\u0E32\u0E01 \u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E25\u0E14\u0E14\u0E48\u0E27\u0E19", -3],
+    ["\u0E04\u0E38\u0E13\u0E19\u0E20\u0E32 \u0E17\u0E2D\u0E07\u0E04\u0E33", "081-999-2345", "napha.t", "Napha Thong", "\u0E01\u0E23\u0E38\u0E07\u0E40\u0E17\u0E1E\u0E21\u0E2B\u0E32\u0E19\u0E04\u0E23", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "Facebook", "2100", "3kW", "120000", "110000", "warm", "new", ["\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07"], "\u0E17\u0E31\u0E01\u0E21\u0E32\u0E08\u0E32\u0E01\u0E42\u0E1E\u0E2A\u0E15\u0E4C\u0E23\u0E35\u0E27\u0E34\u0E27 \u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E15\u0E31\u0E14\u0E2A\u0E34\u0E19\u0E43\u0E08", 1],
+    ["\u0E04\u0E38\u0E13\u0E1B\u0E23\u0E30\u0E40\u0E2A\u0E23\u0E34\u0E10 \u0E21\u0E31\u0E48\u0E07\u0E21\u0E35", "086-112-3344", "prasert.m", "\u0E1B\u0E23\u0E30\u0E40\u0E2A\u0E23\u0E34\u0E10", "\u0E2A\u0E21\u0E38\u0E17\u0E23\u0E1B\u0E23\u0E32\u0E01\u0E32\u0E23", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "Inbox", "4500", "5kW", "190000", "175000", "hot", "won", ["\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F", "\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27"], "\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22\u0E41\u0E25\u0E49\u0E27 \u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E14\u0E37\u0E2D\u0E19\u0E2B\u0E19\u0E49\u0E32", -10],
+    ["\u0E04\u0E38\u0E13\u0E01\u0E32\u0E19\u0E14\u0E32 \u0E23\u0E48\u0E21\u0E40\u0E22\u0E47\u0E19", "089-456-7788", "kanda.r", "Kanda R", "\u0E40\u0E0A\u0E35\u0E22\u0E07\u0E43\u0E2B\u0E21\u0E48", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E2A\u0E27\u0E19", "\u0E01\u0E25\u0E38\u0E48\u0E21\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C", "3800", "5kW", "210000", "0", "cold", "later", ["\u0E2A\u0E19\u0E43\u0E08\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48"], "\u0E02\u0E2D\u0E40\u0E01\u0E47\u0E1A\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E01\u0E48\u0E2D\u0E19 \u0E1B\u0E35\u0E2B\u0E19\u0E49\u0E32\u0E04\u0E48\u0E2D\u0E22\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07", 14],
+    ["\u0E04\u0E38\u0E13\u0E27\u0E35\u0E23\u0E30 \u0E0A\u0E48\u0E32\u0E07\u0E01\u0E25", "092-778-9911", "weera.c", "\u0E27\u0E35\u0E23\u0E30", "\u0E23\u0E30\u0E22\u0E2D\u0E07", "\u0E0A\u0E48\u0E32\u0E07", "TikTok", "0", "Hybrid", "78000", "45000", "warm", "sent", ["\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07", "\u0E2A\u0E19\u0E43\u0E08\u0E2B\u0E19\u0E31\u0E07\u0E2A\u0E37\u0E2D 990"], "\u0E02\u0E2D\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C inverter hybrid", 3],
+    ["\u0E04\u0E38\u0E13\u0E2A\u0E38\u0E19\u0E34\u0E2A\u0E32 \u0E43\u0E08\u0E1A\u0E38\u0E0D", "081-223-4455", "sunisa.j", "Sunisa", "\u0E02\u0E2D\u0E19\u0E41\u0E01\u0E48\u0E19", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "Facebook", "2800", "3kW", "125000", "0", "cold", "lost", [], "\u0E41\u0E08\u0E49\u0E07\u0E27\u0E48\u0E32\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E1E\u0E23\u0E49\u0E2D\u0E21 \u0E07\u0E1A\u0E44\u0E21\u0E48\u0E1E\u0E2D", null],
+    ["\u0E04\u0E38\u0E13\u0E18\u0E19\u0E32 \u0E23\u0E38\u0E48\u0E07\u0E40\u0E23\u0E37\u0E2D\u0E07", "088-334-5566", "thana.r", "\u0E18\u0E19\u0E32 \u0E23\u0E38\u0E48\u0E07\u0E40\u0E23\u0E37\u0E2D\u0E07", "\u0E20\u0E39\u0E40\u0E01\u0E47\u0E15", "\u0E42\u0E23\u0E07\u0E07\u0E32\u0E19", "\u0E41\u0E19\u0E30\u0E19\u0E33\u0E15\u0E48\u0E2D", "42000", "10kW", "1200000", "1150000", "hot", "waiting", ["\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F", "\u0E2A\u0E19\u0E43\u0E08\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48"], "\u0E23\u0E35\u0E2A\u0E2D\u0E23\u0E4C\u0E17 \u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E23\u0E30\u0E1A\u0E1A\u0E43\u0E2B\u0E0D\u0E48+\u0E41\u0E1A\u0E15\u0E2A\u0E33\u0E23\u0E2D\u0E07 \u0E23\u0E2D\u0E40\u0E0B\u0E47\u0E19\u0E2A\u0E31\u0E0D\u0E0D\u0E32", 0],
+    ["\u0E04\u0E38\u0E13\u0E2D\u0E23\u0E38\u0E13 \u0E41\u0E2A\u0E07\u0E17\u0E2D\u0E07", "085-667-8899", "arun.s", "\u0E2D\u0E23\u0E38\u0E13", "\u0E2D\u0E38\u0E14\u0E23\u0E18\u0E32\u0E19\u0E35", "\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07", "\u0E01\u0E25\u0E38\u0E48\u0E21\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C", "3100", "5kW", "160000", "55000", "warm", "talking", ["\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07", "\u0E2A\u0E19\u0E43\u0E08\u0E2B\u0E19\u0E31\u0E07\u0E2A\u0E37\u0E2D 990", "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E48\u0E27\u0E19"], "\u0E2D\u0E22\u0E32\u0E01\u0E15\u0E34\u0E14\u0E40\u0E2D\u0E07 \u0E16\u0E32\u0E21\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E02\u0E2D\u0E2D\u0E19\u0E38\u0E0D\u0E32\u0E15", -2],
+    ["\u0E04\u0E38\u0E13\u0E40\u0E21\u0E18\u0E35 \u0E27\u0E31\u0E12\u0E19\u0E32", "089-998-7766", "methee.w", "Methee", "\u0E2A\u0E07\u0E02\u0E25\u0E32", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "Inbox", "3600", "5kW", "185000", "170000", "hot", "sent", ["\u0E42\u0E14\u0E19\u0E0A\u0E48\u0E32\u0E07\u0E40\u0E2A\u0E19\u0E2D\u0E41\u0E1E\u0E07", "\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27"], "\u0E42\u0E14\u0E19\u0E0A\u0E48\u0E32\u0E07\u0E40\u0E2A\u0E19\u0E2D 2.5 \u0E41\u0E2A\u0E19 \u0E21\u0E32\u0E40\u0E17\u0E35\u0E22\u0E1A\u0E23\u0E32\u0E04\u0E32\u0E40\u0E23\u0E32", 1],
+    ["\u0E04\u0E38\u0E13\u0E1E\u0E34\u0E21\u0E1E\u0E4C\u0E43\u0E08 \u0E14\u0E2D\u0E01\u0E44\u0E21\u0E49", "081-445-6677", "pimjai.d", "\u0E1E\u0E34\u0E21\u0E1E\u0E4C\u0E43\u0E08", "\u0E40\u0E0A\u0E35\u0E22\u0E07\u0E23\u0E32\u0E22", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E2A\u0E27\u0E19", "Facebook", "4200", "10kW", "360000", "0", "warm", "new", ["\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F"], "\u0E2A\u0E27\u0E19\u0E0A\u0E32 \u0E2A\u0E19\u0E43\u0E08\u0E25\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F\u0E1B\u0E31\u0E4A\u0E21\u0E19\u0E49\u0E33", 2],
+    ["\u0E04\u0E38\u0E13\u0E2A\u0E21\u0E1A\u0E31\u0E15\u0E34 \u0E17\u0E23\u0E31\u0E1E\u0E22\u0E4C\u0E14\u0E35", "086-778-1122", "sombat.s", "\u0E2A\u0E21\u0E1A\u0E31\u0E15\u0E34", "\u0E2A\u0E38\u0E23\u0E32\u0E29\u0E0E\u0E23\u0E4C\u0E18\u0E32\u0E19\u0E35", "\u0E42\u0E23\u0E07\u0E07\u0E32\u0E19", "\u0E41\u0E19\u0E30\u0E19\u0E33\u0E15\u0E48\u0E2D", "35000", "Hybrid", "920000", "0", "warm", "later", ["\u0E2A\u0E19\u0E43\u0E08\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48"], "\u0E42\u0E23\u0E07\u0E07\u0E32\u0E19\u0E22\u0E32\u0E07 \u0E23\u0E2D\u0E1C\u0E25\u0E1B\u0E23\u0E30\u0E01\u0E2D\u0E1A\u0E01\u0E32\u0E23 Q \u0E16\u0E31\u0E14\u0E44\u0E1B", 21],
+    ["\u0E04\u0E38\u0E13\u0E23\u0E31\u0E15\u0E19\u0E32 \u0E40\u0E1E\u0E0A\u0E23\u0E07\u0E32\u0E21", "088-221-3344", "rattana.p", "Rattana", "\u0E19\u0E04\u0E23\u0E28\u0E23\u0E35\u0E18\u0E23\u0E23\u0E21\u0E23\u0E32\u0E0A", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "TikTok", "2400", "3kW", "115000", "108000", "hot", "won", ["\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F"], "\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22 \u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E23\u0E35\u0E22\u0E1A\u0E23\u0E49\u0E2D\u0E22 \u0E23\u0E35\u0E27\u0E34\u0E27\u0E43\u0E2B\u0E49\u0E41\u0E25\u0E49\u0E27", -20],
+    ["\u0E04\u0E38\u0E13\u0E01\u0E34\u0E15\u0E15\u0E34 \u0E21\u0E07\u0E04\u0E25", "092-334-5567", "kitti.m", "\u0E01\u0E34\u0E15\u0E15\u0E34", "\u0E1E\u0E34\u0E29\u0E13\u0E38\u0E42\u0E25\u0E01", "\u0E0A\u0E48\u0E32\u0E07", "\u0E01\u0E25\u0E38\u0E48\u0E21\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C", "0", "Battery", "135000", "70000", "warm", "talking", ["\u0E2A\u0E19\u0E43\u0E08\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48", "\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07"], "\u0E2A\u0E19\u0E43\u0E08\u0E23\u0E30\u0E1A\u0E1A\u0E41\u0E1A\u0E15\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E40\u0E14\u0E35\u0E22\u0E27\u0E44\u0E1B\u0E15\u0E48\u0E2D\u0E22\u0E2D\u0E14", 5],
+    ["\u0E04\u0E38\u0E13\u0E27\u0E23\u0E23\u0E13\u0E32 \u0E2A\u0E14\u0E43\u0E2A", "081-556-7788", "wanna.s", "\u0E27\u0E23\u0E23\u0E13\u0E32", "\u0E23\u0E32\u0E0A\u0E1A\u0E38\u0E23\u0E35", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "Facebook", "3000", "5kW", "175000", "160000", "hot", "waiting", ["\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27", "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E48\u0E27\u0E19"], "\u0E15\u0E01\u0E25\u0E07\u0E41\u0E25\u0E49\u0E27 \u0E23\u0E2D\u0E42\u0E2D\u0E19\u0E21\u0E31\u0E14\u0E08\u0E33 50%", -1],
+    ["\u0E04\u0E38\u0E13\u0E19\u0E34\u0E23\u0E31\u0E19\u0E14\u0E23\u0E4C \u0E22\u0E31\u0E48\u0E07\u0E22\u0E37\u0E19", "089-667-8890", "niran.y", "Niran", "\u0E2D\u0E38\u0E1A\u0E25\u0E23\u0E32\u0E0A\u0E18\u0E32\u0E19\u0E35", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E2A\u0E27\u0E19", "Inbox", "5800", "10kW", "450000", "0", "cold", "new", [], "\u0E2A\u0E27\u0E19\u0E22\u0E32\u0E07 \u0E17\u0E31\u0E01\u0E21\u0E32\u0E16\u0E32\u0E21\u0E23\u0E32\u0E04\u0E32\u0E40\u0E09\u0E22\u0E46", 3],
+    ["\u0E04\u0E38\u0E13\u0E08\u0E31\u0E19\u0E17\u0E23\u0E4C\u0E40\u0E1E\u0E47\u0E0D \u0E28\u0E23\u0E35\u0E2A\u0E38\u0E02", "085-889-1234", "janpen.s", "\u0E08\u0E31\u0E19\u0E17\u0E23\u0E4C\u0E40\u0E1E\u0E47\u0E0D", "\u0E2A\u0E23\u0E30\u0E1A\u0E38\u0E23\u0E35", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "\u0E41\u0E19\u0E30\u0E19\u0E33\u0E15\u0E48\u0E2D", "3400", "5kW", "188000", "172000", "hot", "sent", ["\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F", "\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27"], "\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E19\u0E41\u0E19\u0E30\u0E19\u0E33 \u0E2A\u0E48\u0E07\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27", 0],
+    ["\u0E04\u0E38\u0E13\u0E2D\u0E20\u0E34\u0E2A\u0E34\u0E17\u0E18\u0E34\u0E4C \u0E0A\u0E32\u0E0D\u0E0A\u0E31\u0E22", "081-000-9999", "apisit.c", "Apisit", "\u0E01\u0E23\u0E38\u0E07\u0E40\u0E17\u0E1E\u0E21\u0E2B\u0E32\u0E19\u0E04\u0E23", "\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07", "TikTok", "2600", "3kW", "110000", "30000", "warm", "talking", ["\u0E2A\u0E19\u0E43\u0E08\u0E2B\u0E19\u0E31\u0E07\u0E2A\u0E37\u0E2D 990", "\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07"], "\u0E14\u0E39\u0E04\u0E25\u0E34\u0E1B\u0E41\u0E25\u0E49\u0E27\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E40\u0E2D\u0E07 \u0E0B\u0E37\u0E49\u0E2D\u0E2B\u0E19\u0E31\u0E07\u0E2A\u0E37\u0E2D\u0E04\u0E39\u0E48\u0E21\u0E37\u0E2D", -4]
+  ];
+  return base.map((r, i) => ({
+    id: uid(),
+    name: r[0],
+    phone: r[1],
+    lineId: r[2],
+    facebook: r[3],
+    province: r[4],
+    address: "",
+    type: r[5],
+    source: r[6],
+    monthlyBill: +r[7],
+    systemSize: r[8],
+    budget: +r[9],
+    value: +r[10],
+    heat: r[11],
+    status: r[12],
+    tags: r[13],
+    note: r[14],
+    lastContact: dayOffset(-(i % 9) - 1),
+    nextFollowup: r[15] == null ? "" : dayOffset(r[15]),
+    timeline: [
+      { id: uid(), date: dayOffset(-(i % 9) - 1), topic: "\u0E04\u0E38\u0E22\u0E04\u0E23\u0E31\u0E49\u0E07\u0E41\u0E23\u0E01", interest: r[8] + " \xB7 " + r[5], sent: i % 2 ? "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32" : "\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E41\u0E1E\u0E47\u0E01\u0E40\u0E01\u0E08", next: "\u0E19\u0E31\u0E14\u0E04\u0E38\u0E22\u0E23\u0E32\u0E22\u0E25\u0E30\u0E40\u0E2D\u0E35\u0E22\u0E14" }
+    ],
+    createdAt: dayOffset(-(20 - i) * 2)
+  }));
+}
+function Badge({ children, cls = "" }) {
+  return /* @__PURE__ */ React.createElement("span", { className: `inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}` }, children);
+}
+function StatusBadge({ s }) {
+  const o = statusOf(s);
+  return /* @__PURE__ */ React.createElement(Badge, { cls: o.soft }, /* @__PURE__ */ React.createElement("span", { className: `w-1.5 h-1.5 rounded-full ${o.color}` }), o.label);
+}
+function HeatBadge({ h }) {
+  const o = heatOf(h);
+  return /* @__PURE__ */ React.createElement(Badge, { cls: o.soft }, o.emoji, " ", o.label);
+}
+function Icon({ d, cls = "w-5 h-5" }) {
+  return /* @__PURE__ */ React.createElement("svg", { className: cls, fill: "none", viewBox: "0 0 24 24", strokeWidth: "1.8", stroke: "currentColor" }, /* @__PURE__ */ React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d }));
+}
+const I = {
+  dash: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
+  users: "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
+  board: "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z",
+  bell: "M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0",
+  plus: "M12 4.5v15m7.5-7.5h-15",
+  search: "M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z",
+  edit: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z",
+  trash: "M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0",
+  x: "M6 18L18 6M6 6l12 12",
+  close: "M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  filter: "M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z",
+  money: "M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z",
+  check: "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  fire: "M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z",
+  inbox: "M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H6.911a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661z",
+  doc: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z",
+  copy: "M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m11.25 6.5V17.25",
+  calc: "M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V13.5zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V18zm2.498-6.75h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V13.5zm0 2.25h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V18zm2.504-6.75h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V13.5zm0 2.25h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V18zM8.25 6h7.5v2.25h-7.5V6zM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 002.25 2.25h10.5a2.25 2.25 0 002.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0012 2.25z",
+  phone: "M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z",
+  pin: "M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z",
+  menu: "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5",
+  clock: "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z",
+  download: "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+};
+function Modal({ open, onClose, children, wide }) {
+  useEffect(() => {
+    const h = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (open) window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open]);
+  if (!open) return null;
+  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 bg-slate-900/50 backdrop-blur-sm overflow-y-auto no-print", onMouseDown: (e) => {
+    if (e.target === e.currentTarget) onClose();
+  } }, /* @__PURE__ */ React.createElement("div", { "data-modal": true, className: `bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-4xl" : "max-w-2xl"} my-4` }, children));
+}
+const EMPTY = { name: "", phone: "", lineId: "", facebook: "", province: "", address: "", type: TYPES[0], source: SOURCES[0], monthlyBill: "", systemSize: SIZES[0], budget: "", value: "", heat: "warm", status: "new", tags: [], note: "", lastContact: todayISO(), nextFollowup: "" };
+function Field({ label, children, full }) {
+  return /* @__PURE__ */ React.createElement("label", { className: `block ${full ? "sm:col-span-2" : ""}` }, /* @__PURE__ */ React.createElement("span", { className: "block text-xs font-medium text-ink-500 mb-1" }, label), children);
+}
+const inputCls = "w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition";
+function CustomerForm({ open, initial, onClose, onSave }) {
+  const [f, setF] = useState(EMPTY);
+  useEffect(() => {
+    setF(initial ? { ...EMPTY, ...initial } : EMPTY);
+  }, [initial, open]);
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const toggleTag = (t) => setF((p) => ({ ...p, tags: p.tags.includes(t) ? p.tags.filter((x) => x !== t) : [...p.tags, t] }));
+  const submit = () => {
+    if (!f.name.trim()) {
+      alert("\u0E01\u0E23\u0E38\u0E13\u0E32\u0E01\u0E23\u0E2D\u0E01\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32");
+      return;
+    }
+    onSave({ ...f, monthlyBill: +f.monthlyBill || 0, budget: +f.budget || 0, value: +f.value || 0 });
+  };
+  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800" }, initial ? "\u0E41\u0E01\u0E49\u0E44\u0E02\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" : "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48"), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x }))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-5 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: "\u0E0A\u0E37\u0E48\u0E2D-\u0E19\u0E32\u0E21\u0E2A\u0E01\u0E38\u0E25 *" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.name, onChange: (e) => set("name", e.target.value), placeholder: "\u0E40\u0E0A\u0E48\u0E19 \u0E04\u0E38\u0E13\u0E2A\u0E21\u0E0A\u0E32\u0E22 \u0E43\u0E08\u0E14\u0E35" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.phone, onChange: (e) => set("phone", e.target.value), placeholder: "08x-xxx-xxxx" })), /* @__PURE__ */ React.createElement(Field, { label: "Line ID" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.lineId, onChange: (e) => set("lineId", e.target.value), placeholder: "@lineid" })), /* @__PURE__ */ React.createElement(Field, { label: "Facebook" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.facebook, onChange: (e) => set("facebook", e.target.value), placeholder: "\u0E0A\u0E37\u0E48\u0E2D/\u0E25\u0E34\u0E07\u0E01\u0E4C Facebook" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, list: "provinces", value: f.province, onChange: (e) => set("province", e.target.value), placeholder: "\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E2B\u0E23\u0E37\u0E2D\u0E1E\u0E34\u0E21\u0E1E\u0E4C\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }), /* @__PURE__ */ React.createElement("datalist", { id: "provinces" }, PROVINCES.map((p) => /* @__PURE__ */ React.createElement("option", { key: p, value: p })))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.address, onChange: (e) => set("address", e.target.value), placeholder: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.type, onChange: (e) => set("type", e.target.value) }, TYPES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.source, onChange: (e) => set("source", e.target.value) }, SOURCES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F\u0E15\u0E48\u0E2D\u0E40\u0E14\u0E37\u0E2D\u0E19 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.monthlyBill, onChange: (e) => set("monthlyBill", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.systemSize, onChange: (e) => set("systemSize", e.target.value) }, SIZES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.budget, onChange: (e) => set("budget", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E14\u0E22\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.value, onChange: (e) => set("value", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E04\u0E27\u0E32\u0E21\u0E2A\u0E19\u0E43\u0E08" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.heat, onChange: (e) => set("heat", e.target.value) }, HEATS.map((h) => /* @__PURE__ */ React.createElement("option", { key: h.key, value: h.key }, h.emoji, " ", h.label)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E2A\u0E16\u0E32\u0E19\u0E30" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.status, onChange: (e) => set("status", e.target.value) }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.key, value: s.key }, s.label)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.lastContact, onChange: (e) => set("lastContact", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.nextFollowup, onChange: (e) => set("nextFollowup", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Tag / \u0E2B\u0E21\u0E27\u0E14\u0E2B\u0E21\u0E39\u0E48", full: true }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, TAGS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, type: "button", onClick: () => toggleTag(t), className: `px-3 py-1.5 rounded-full text-xs font-medium ring-1 ring-inset transition ${f.tags.includes(t) ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-ink-500 ring-ink-200 hover:ring-brand-300"}` }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38", full: true }, /* @__PURE__ */ React.createElement("textarea", { className: inputCls + " h-20 resize-none", value: f.note, onChange: (e) => set("note", e.target.value), placeholder: "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E22\u0E48\u0E2D\u0E40\u0E01\u0E35\u0E48\u0E22\u0E27\u0E01\u0E31\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" }))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-3 px-6 py-4 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01"), /* @__PURE__ */ React.createElement("button", { onClick: submit, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, initial ? "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E41\u0E01\u0E49\u0E44\u0E02" : "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")));
+}
+function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus }) {
+  const [log, setLog] = useState({ topic: "", interest: "", sent: "", next: "" });
+  useEffect(() => {
+    setLog({ topic: "", interest: "", sent: "", next: "" });
+  }, [customer, open]);
+  if (!customer) return null;
+  const c = customer;
+  const addLog = () => {
+    if (!log.topic.trim()) {
+      alert("\u0E01\u0E23\u0E2D\u0E01\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E17\u0E35\u0E48\u0E04\u0E38\u0E22\u0E01\u0E48\u0E2D\u0E19");
+      return;
+    }
+    onAddLog(c.id, { id: uid(), date: todayISO(), ...log });
+    setLog({ topic: "", interest: "", sent: "", next: "" });
+  };
+  const Line = ({ label, val, href }) => /* @__PURE__ */ React.createElement("div", { className: "flex justify-between gap-3 py-1.5 border-b border-ink-50 last:border-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-400" }, label), href && val ? /* @__PURE__ */ React.createElement("a", { href, target: "_blank", className: "text-sm text-brand-600 font-medium text-right break-all" }, val) : /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-700 font-medium text-right break-all" }, val || "\u2014"));
+  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shrink-0" }, c.name.replace(/^คุณ|^ช่าง/, "").trim().charAt(0) || "?"), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-1" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.type)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => openQuote(c, true), className: "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:brightness-110 shadow-sm", title: "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E19\u0E35\u0E49" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32")), /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-2 rounded-lg text-ink-500 hover:bg-ink-100", title: "\u0E41\u0E01\u0E49\u0E44\u0E02" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit })), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 rounded-lg text-ink-400 hover:bg-ink-100" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x })))), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-0 max-h-[72vh] overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "p-6 md:border-r border-ink-100 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-600" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-emerald-700" }, baht(c.value))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600" }, "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-brand-700" }, baht(c.budget)))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" }, /* @__PURE__ */ React.createElement(Line, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23", val: c.phone, href: c.phone ? `tel:${c.phone}` : null }), /* @__PURE__ */ React.createElement(Line, { label: "Line ID", val: c.lineId }), /* @__PURE__ */ React.createElement(Line, { label: "Facebook", val: c.facebook }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14", val: c.province }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48", val: c.address }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32", val: c.source }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F/\u0E40\u0E14\u0E37\u0E2D\u0E19", val: c.monthlyBill ? baht(c.monthlyBill) : "\u2014" }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08", val: c.systemSize }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14", val: thDate(c.lastContact) }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B", val: thDate(c.nextFollowup) })), c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, c.tags.map((t) => /* @__PURE__ */ React.createElement(Badge, { key: t, cls: "bg-amber-50 text-amber-700 ring-amber-200" }, "\u{1F3F7}\uFE0F ", t))), c.note && /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-ink-50 p-3 text-sm text-ink-600" }, "\u{1F4DD} ", c.note), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-medium text-ink-500 mb-1.5" }, "\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5" }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, onClick: () => onStatus(c.id, s.key), className: `px-2.5 py-1 rounded-lg text-xs font-medium transition ${c.status === s.key ? s.color + " text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, s.label))))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-ink-50/40" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white ring-1 ring-ink-100 p-3 space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E04\u0E38\u0E22\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2D\u0E30\u0E44\u0E23 *", value: log.topic, onChange: (e) => setLog((p) => ({ ...p, topic: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E2A\u0E19\u0E43\u0E08\u0E2D\u0E30\u0E44\u0E23", value: log.interest, onChange: (e) => setLog((p) => ({ ...p, interest: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E30\u0E44\u0E23\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27", value: log.sent, onChange: (e) => setLog((p) => ({ ...p, sent: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E48\u0E2D\u0E44\u0E1B\u0E04\u0E37\u0E2D\u0E2D\u0E30\u0E44\u0E23", value: log.next, onChange: (e) => setLog((p) => ({ ...p, next: e.target.value })) }), /* @__PURE__ */ React.createElement("button", { onClick: addLog, className: "w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, (c.timeline || []).slice().reverse().map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "relative pl-5" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-4 ring-brand-100" }), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mb-0.5" }, thDate(t.date)), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg bg-white ring-1 ring-ink-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-ink-800" }, t.topic), t.interest && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500 mt-1" }, "\u0E2A\u0E19\u0E43\u0E08: ", t.interest), t.sent && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500" }, "\u0E2A\u0E48\u0E07\u0E41\u0E25\u0E49\u0E27: ", t.sent), t.next && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600 mt-1" }, "\u2192 \u0E16\u0E31\u0E14\u0E44\u0E1B: ", t.next)))), (!c.timeline || c.timeline.length === 0) && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 text-center py-6" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")))));
+}
+function Donut({ data }) {
+  const total = data.reduce((s, d) => s + d.value, 0) || 1;
+  let acc = 0;
+  const R = 52, C = 2 * Math.PI * R;
+  return /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-5" }, /* @__PURE__ */ React.createElement("div", { className: "relative w-32 h-32 shrink-0" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 140 140", className: "w-32 h-32" }, /* @__PURE__ */ React.createElement("g", { transform: "rotate(-90 70 70)" }, /* @__PURE__ */ React.createElement("circle", { cx: "70", cy: "70", r: R, fill: "none", stroke: "#f1f5f9", strokeWidth: "16" }), data.map((d, i) => {
+    const len = d.value / total * C;
+    const el = /* @__PURE__ */ React.createElement("circle", { key: i, cx: "70", cy: "70", r: R, fill: "none", stroke: d.color, strokeWidth: "16", strokeDasharray: `${len} ${C - len}`, strokeDashoffset: -acc });
+    acc += len;
+    return el;
+  }))), /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex flex-col items-center justify-center" }, /* @__PURE__ */ React.createElement("span", { className: "num text-2xl font-bold text-ink-900 leading-none" }, fmt(total)), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-ink-400 mt-0.5" }, "\u0E23\u0E32\u0E22"))), /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5 flex-1 min-w-0" }, data.map((d, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2 text-sm" }, /* @__PURE__ */ React.createElement("span", { className: "w-2.5 h-2.5 rounded-sm shrink-0", style: { background: d.color } }), /* @__PURE__ */ React.createElement("span", { className: "text-ink-600 truncate flex-1" }, d.label), /* @__PURE__ */ React.createElement("span", { className: "num font-semibold text-ink-800" }, d.value)))));
+}
+function Stat({ label, value, sub, icon, tone }) {
+  const tones = { blue: "bg-brand-50 text-brand-600", green: "bg-emerald-50 text-emerald-600", amber: "bg-amber-50 text-amber-600", violet: "bg-violet-50 text-violet-600", slate: "bg-ink-100 text-ink-600", red: "bg-red-50 text-red-600" };
+  return /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-500" }, label), /* @__PURE__ */ React.createElement("span", { className: `w-9 h-9 rounded-xl flex items-center justify-center ${tones[tone]}` }, /* @__PURE__ */ React.createElement(Icon, { d: icon, cls: "w-5 h-5" }))), /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900 mt-2" }, value), sub && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, sub));
+}
+function Dashboard({ rows, onOpen }) {
+  const total = rows.length;
+  const isNew = rows.filter((r) => r.status === "new").length;
+  const following = rows.filter((r) => FOLLOWING.includes(r.status)).length;
+  const won = rows.filter((r) => r.status === "won");
+  const totalValue = rows.reduce((s, r) => s + (r.value || 0), 0);
+  const wonValue = won.reduce((s, r) => s + (r.value || 0), 0);
+  const statusData = STATUSES.filter((s) => s.key !== "lost").map((s) => ({ label: s.label, value: rows.filter((r) => r.status === s.key).length, color: { new: "#3b82f6", talking: "#6366f1", sent: "#06b6d4", waiting: "#f59e0b", won: "#10b981", later: "#8b5cf6" }[s.key] }));
+  const srcData = SOURCES.map((s) => ({ label: s, value: rows.filter((r) => r.source === s).length })).sort((a, b) => b.value - a.value);
+  const maxSrc = Math.max(...srcData.map((s) => s.value), 1);
+  const dueToday = rows.filter((r) => r.nextFollowup && daysUntil(r.nextFollowup) <= 0 && r.status !== "won" && r.status !== "lost");
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-5 fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4" }, /* @__PURE__ */ React.createElement(Stat, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14", value: fmt(total), sub: "\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A", icon: I.users, tone: "blue" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48", value: fmt(isNew), sub: "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D", icon: I.plus, tone: "violet" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", value: fmt(following), sub: "\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E44\u0E1B\u0E1B\u0E4C\u0E44\u0E25\u0E19\u0E4C", icon: I.bell, tone: "amber" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22\u0E41\u0E25\u0E49\u0E27", value: fmt(won.length), sub: `\u0E2D\u0E31\u0E15\u0E23\u0E32\u0E1B\u0E34\u0E14 ${total ? Math.round(won.length / total * 100) : 0}%`, icon: I.check, tone: "green" })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "sheen bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-emerald-50" }, "\u0E22\u0E2D\u0E14\u0E02\u0E32\u0E22\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E44\u0E14\u0E49"), /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold mt-1" }, baht(wonValue)), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-100 mt-1" }, "\u0E08\u0E32\u0E01 ", won.length, " \u0E14\u0E35\u0E25\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08")), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-500" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E23\u0E27\u0E21\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 (Pipeline)"), /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold text-ink-900 mt-1" }, baht(totalValue)), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, "\u0E23\u0E27\u0E21\u0E17\u0E38\u0E01\u0E2A\u0E16\u0E32\u0E19\u0E30")), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2.5" }, srcData.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-500 w-20 shrink-0" }, s.label), /* @__PURE__ */ React.createElement("div", { className: "flex-1 h-2.5 rounded-full bg-ink-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full bg-brand-500", style: { width: `${s.value / maxSrc * 100}%` } })), /* @__PURE__ */ React.createElement("span", { className: "num text-xs font-semibold text-ink-700 w-6 text-right" }, s.value)))))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "\u0E2A\u0E23\u0E38\u0E1B\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement(Donut, { data: statusData }))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-3" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700" }, "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49/\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14"), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-red-50 text-red-600 ring-red-200" }, "\u{1F514} ", dueToday.length, " \u0E23\u0E32\u0E22")), dueToday.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 py-4 text-center" }, "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49 \u{1F389}") : /* @__PURE__ */ React.createElement("div", { className: "grid sm:grid-cols-2 lg:grid-cols-3 gap-3" }, dueToday.slice(0, 6).map((c) => {
+    const du = daysUntil(c.nextFollowup);
+    return /* @__PURE__ */ React.createElement("button", { key: c.id, onClick: () => onOpen(c), className: "text-left rounded-xl ring-1 ring-ink-100 hover:ring-brand-300 hover:shadow p-3 transition" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "font-medium text-ink-800 text-sm truncate" }, c.name), du < 0 ? /* @__PURE__ */ React.createElement(Badge, { cls: "bg-red-50 text-red-600 ring-red-200" }, "\u0E40\u0E25\u0E22 ", Math.abs(du), " \u0E27\u0E31\u0E19") : /* @__PURE__ */ React.createElement(Badge, { cls: "bg-amber-50 text-amber-600 ring-amber-200" }, "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49")), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, c.province, " \xB7 ", c.systemSize, " \xB7 ", baht(c.value)));
+  }))));
+}
+function Customers({ rows, onOpen, onEdit, onDelete, onAdd }) {
+  const [q, setQ] = useState("");
+  const [showFilter, setShowFilter] = useState(false);
+  const [flt, setFlt] = useState({ province: "", status: "", heat: "", type: "", source: "", tag: "", minValue: "", due: "" });
+  const setF = (k, v) => setFlt((p) => ({ ...p, [k]: v }));
+  const provincesPresent = useMemo(() => [...new Set(rows.map((r) => r.province).filter(Boolean))].sort(), [rows]);
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (q) {
+        const s = (r.name + r.phone + r.lineId + r.facebook + r.province + r.note).toLowerCase();
+        if (!s.includes(q.toLowerCase())) return false;
+      }
+      if (flt.province && r.province !== flt.province) return false;
+      if (flt.status && r.status !== flt.status) return false;
+      if (flt.heat && r.heat !== flt.heat) return false;
+      if (flt.type && r.type !== flt.type) return false;
+      if (flt.source && r.source !== flt.source) return false;
+      if (flt.tag && !r.tags.includes(flt.tag)) return false;
+      if (flt.minValue && (r.value || 0) < +flt.minValue) return false;
+      if (flt.due) {
+        const du = daysUntil(r.nextFollowup);
+        if (flt.due === "overdue" && !(r.nextFollowup && du < 0)) return false;
+        if (flt.due === "today" && du !== 0) return false;
+        if (flt.due === "week" && !(du >= 0 && du <= 7)) return false;
+      }
+      return true;
+    });
+  }, [rows, q, flt]);
+  const activeFilters = Object.values(flt).filter(Boolean).length;
+  const selCls = "rounded-lg border border-ink-200 bg-white px-2.5 py-2 text-sm text-ink-700 outline-none focus:border-brand-500";
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-4 fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-col sm:flex-row gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "relative flex-1" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" }, /* @__PURE__ */ React.createElement(Icon, { d: I.search, cls: "w-5 h-5" })), /* @__PURE__ */ React.createElement("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: "\u0E04\u0E49\u0E19\u0E2B\u0E32\u0E0A\u0E37\u0E48\u0E2D \u0E40\u0E1A\u0E2D\u0E23\u0E4C Line \u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14 \u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38\u2026", className: "w-full pl-10 pr-3 py-2.5 rounded-xl border border-ink-200 bg-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" })), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowFilter((v) => !v), className: `px-4 py-2.5 rounded-xl text-sm font-medium ring-1 inline-flex items-center gap-2 ${activeFilters ? "bg-brand-50 text-brand-700 ring-brand-200" : "bg-white text-ink-600 ring-ink-200"}` }, /* @__PURE__ */ React.createElement(Icon, { d: I.filter, cls: "w-4 h-4" }), "\u0E15\u0E31\u0E27\u0E01\u0E23\u0E2D\u0E07", activeFilters > 0 && /* @__PURE__ */ React.createElement("span", { className: "num bg-brand-600 text-white rounded-full px-1.5 text-xs" }, activeFilters)), /* @__PURE__ */ React.createElement("button", { onClick: onAdd, className: "px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm inline-flex items-center gap-2 justify-center" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")), showFilter && /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 fade-in" }, /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.province, onChange: (e) => setF("province", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14"), provincesPresent.map((p) => /* @__PURE__ */ React.createElement("option", { key: p }, p))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.status, onChange: (e) => setF("status", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E2A\u0E16\u0E32\u0E19\u0E30"), STATUSES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.key, value: s.key }, s.label))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.heat, onChange: (e) => setF("heat", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E23\u0E30\u0E14\u0E31\u0E1A"), HEATS.map((h) => /* @__PURE__ */ React.createElement("option", { key: h.key, value: h.key }, h.label))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.type, onChange: (e) => setF("type", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17"), TYPES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.source, onChange: (e) => setF("source", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32"), SOURCES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s }, s))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.tag, onChange: (e) => setF("tag", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01 Tag"), TAGS.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.due, onChange: (e) => setF("due", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E01\u0E32\u0E23\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21: \u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14"), /* @__PURE__ */ React.createElement("option", { value: "overdue" }, "\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14"), /* @__PURE__ */ React.createElement("option", { value: "today" }, "\u0E04\u0E23\u0E1A\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49"), /* @__PURE__ */ React.createElement("option", { value: "week" }, "\u0E20\u0E32\u0E22\u0E43\u0E19 7 \u0E27\u0E31\u0E19")), /* @__PURE__ */ React.createElement("input", { type: "number", className: selCls, value: flt.minValue, onChange: (e) => setF("minValue", e.target.value), placeholder: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E02\u0E31\u0E49\u0E19\u0E15\u0E48\u0E33 (\u0E3F)" }), activeFilters > 0 && /* @__PURE__ */ React.createElement("button", { onClick: () => setFlt({ province: "", status: "", heat: "", type: "", source: "", tag: "", minValue: "", due: "" }), className: "col-span-2 sm:col-span-4 text-sm text-brand-600 font-medium hover:underline text-left" }, "\u0E25\u0E49\u0E32\u0E07\u0E15\u0E31\u0E27\u0E01\u0E23\u0E2D\u0E07\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14")), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-500" }, "\u0E1E\u0E1A ", /* @__PURE__ */ React.createElement("b", { className: "text-ink-800 num" }, filtered.length), " \u0E23\u0E32\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "hidden md:block bg-white rounded-2xl ring-1 ring-ink-100 overflow-hidden shadow-sm" }, /* @__PURE__ */ React.createElement("table", { className: "w-full text-sm" }, /* @__PURE__ */ React.createElement("thead", { className: "bg-ink-50 text-ink-500 text-xs uppercase tracking-wide" }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E23\u0E30\u0E1A\u0E1A"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E23\u0E30\u0E14\u0E31\u0E1A"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21"), /* @__PURE__ */ React.createElement("th", { className: "px-4 py-3" }))), /* @__PURE__ */ React.createElement("tbody", { className: "divide-y divide-ink-50" }, filtered.map((c) => {
+    const du = daysUntil(c.nextFollowup);
+    return /* @__PURE__ */ React.createElement("tr", { key: c.id, className: "hover:bg-brand-50/40 transition cursor-pointer", onClick: () => onOpen(c) }, /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-medium text-ink-800" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400" }, c.phone || "\u2014", " \xB7 ", c.type)), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3 text-ink-600" }, c.province || "\u2014"), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3 text-ink-600" }, c.systemSize), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3 num font-semibold text-ink-800" }, baht(c.value)), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat })), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status })), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, c.nextFollowup ? /* @__PURE__ */ React.createElement("span", { className: `text-xs font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup)) : /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-300" }, "\u2014")), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-1" }, /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-brand-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit, cls: "w-4 h-4" })), /* @__PURE__ */ React.createElement("button", { onClick: () => onDelete(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.trash, cls: "w-4 h-4" })))));
+  }))), filtered.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "py-12 text-center text-ink-400 text-sm" }, "\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E40\u0E07\u0E37\u0E48\u0E2D\u0E19\u0E44\u0E02 \u2014 \u0E25\u0E2D\u0E07\u0E25\u0E49\u0E32\u0E07\u0E15\u0E31\u0E27\u0E01\u0E23\u0E2D\u0E07\u0E2B\u0E23\u0E37\u0E2D\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48")), /* @__PURE__ */ React.createElement("div", { className: "md:hidden space-y-3" }, filtered.map((c) => {
+    const du = daysUntil(c.nextFollowup);
+    return /* @__PURE__ */ React.createElement("div", { key: c.id, className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm", onClick: () => onOpen(c) }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province || "\u2014", " \xB7 ", c.phone || "\u2014")), /* @__PURE__ */ React.createElement("span", { className: "num font-bold text-emerald-600 shrink-0 ml-2" }, baht(c.value))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-2" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.systemSize)), c.nextFollowup && /* @__PURE__ */ React.createElement("div", { className: `text-xs mt-2 font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21: ", du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup)), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-3 pt-3 border-t border-ink-50", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "flex-1 py-1.5 rounded-lg bg-ink-100 text-ink-600 text-xs font-medium" }, "\u0E41\u0E01\u0E49\u0E44\u0E02"), /* @__PURE__ */ React.createElement("button", { onClick: () => onDelete(c), className: "flex-1 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium" }, "\u0E25\u0E1A")));
+  }), filtered.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "py-12 text-center text-ink-400 text-sm" }, "\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E40\u0E07\u0E37\u0E48\u0E2D\u0E19\u0E44\u0E02")));
+}
+function Pipeline({ rows, onOpen, onStatus }) {
+  const cols = STATUSES.filter((s) => s.key !== "lost");
+  const [over, setOver] = useState(null);
+  const dragId = useRef(null);
+  return /* @__PURE__ */ React.createElement("div", { className: "fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-4 overflow-x-auto pb-4 kanban-scroll" }, cols.map((col) => {
+    const items = rows.filter((r) => r.status === col.key);
+    const sum = items.reduce((s, r) => s + (r.value || 0), 0);
+    return /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        key: col.key,
+        className: `w-72 shrink-0 rounded-2xl bg-ink-100/60 p-3 transition ${over === col.key ? "col-over" : ""}`,
+        onDragOver: (e) => {
+          e.preventDefault();
+          setOver(col.key);
+        },
+        onDragLeave: () => setOver((o) => o === col.key ? null : o),
+        onDrop: (e) => {
+          e.preventDefault();
+          setOver(null);
+          if (dragId.current) onStatus(dragId.current, col.key);
+          dragId.current = null;
+        }
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-3 px-1" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { className: `w-2.5 h-2.5 rounded-full ${col.color}` }), /* @__PURE__ */ React.createElement("span", { className: "font-semibold text-ink-700 text-sm" }, col.label), /* @__PURE__ */ React.createElement("span", { className: "num text-xs text-ink-400" }, items.length))),
+      /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 px-1 mb-2 num" }, baht(sum)),
+      /* @__PURE__ */ React.createElement("div", { className: "space-y-2.5 min-h-[60px]" }, items.map((c) => /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          key: c.id,
+          draggable: true,
+          onDragStart: (e) => {
+            dragId.current = c.id;
+            e.currentTarget.classList.add("card-drag");
+          },
+          onDragEnd: (e) => e.currentTarget.classList.remove("card-drag"),
+          onClick: () => onOpen(c),
+          className: "bg-white rounded-xl ring-1 ring-ink-100 p-3 shadow-sm cursor-grab active:cursor-grabbing hover:ring-brand-300 transition"
+        },
+        /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "font-medium text-ink-800 text-sm truncate" }, c.name), /* @__PURE__ */ React.createElement("span", { className: "text-xs shrink-0" }, heatOf(c.heat).emoji)),
+        /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province || "\u2014", " \xB7 ", c.systemSize),
+        /* @__PURE__ */ React.createElement("div", { className: "num text-sm font-bold text-emerald-600 mt-1.5" }, baht(c.value)),
+        c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1 mt-2" }, c.tags.slice(0, 2).map((t) => /* @__PURE__ */ React.createElement("span", { key: t, className: "text-[10px] bg-amber-50 text-amber-700 rounded px-1.5 py-0.5" }, t))),
+        /* @__PURE__ */ React.createElement("select", { value: c.status, onClick: (e) => e.stopPropagation(), onChange: (e) => onStatus(c.id, e.target.value), className: "mt-2 w-full text-xs rounded-lg border border-ink-200 px-2 py-1 text-ink-500 bg-ink-50 outline-none" }, cols.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.key, value: s.key }, "\u0E22\u0E49\u0E32\u0E22\u0E44\u0E1B: ", s.label)))
+      )), items.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-300 text-center py-4 border border-dashed border-ink-200 rounded-xl" }, "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E21\u0E32\u0E17\u0E35\u0E48\u0E19\u0E35\u0E48"))
+    );
+  })), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400 mt-2" }, '\u{1F4A1} \u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E02\u0E49\u0E32\u0E21\u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30 \u0E2B\u0E23\u0E37\u0E2D\u0E43\u0E0A\u0E49\u0E40\u0E21\u0E19\u0E39 "\u0E22\u0E49\u0E32\u0E22\u0E44\u0E1B" \u0E1A\u0E19\u0E01\u0E32\u0E23\u0E4C\u0E14 (\u0E40\u0E2B\u0E21\u0E32\u0E30\u0E01\u0E31\u0E1A\u0E21\u0E37\u0E2D\u0E16\u0E37\u0E2D)'));
+}
+function FollowUp({ rows, onOpen }) {
+  const active = rows.filter((r) => r.nextFollowup && r.status !== "won" && r.status !== "lost");
+  const groups = {
+    overdue: active.filter((r) => daysUntil(r.nextFollowup) < 0).sort((a, b) => a.nextFollowup < b.nextFollowup ? -1 : 1),
+    today: active.filter((r) => daysUntil(r.nextFollowup) === 0),
+    tomorrow: active.filter((r) => daysUntil(r.nextFollowup) === 1),
+    upcoming: active.filter((r) => daysUntil(r.nextFollowup) > 1 && daysUntil(r.nextFollowup) <= 14).sort((a, b) => a.nextFollowup < b.nextFollowup ? -1 : 1)
+  };
+  const Section = ({ title, list, tone, icon }) => /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-3" }, /* @__PURE__ */ React.createElement("h4", { className: `text-sm font-semibold ${tone}` }, icon, " ", title), /* @__PURE__ */ React.createElement("span", { className: "num text-sm font-bold text-ink-700" }, list.length)), list.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 py-3 text-center" }, "\u2014 \u0E44\u0E21\u0E48\u0E21\u0E35 \u2014") : /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, list.map((c) => {
+    const du = daysUntil(c.nextFollowup);
+    return /* @__PURE__ */ React.createElement("button", { key: c.id, onClick: () => onOpen(c), className: "w-full text-left flex items-center justify-between gap-3 rounded-xl ring-1 ring-ink-100 hover:ring-brand-300 hover:bg-brand-50/30 p-3 transition" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-medium text-ink-800 text-sm truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400" }, c.phone || "\u2014", " \xB7 ", c.province, " \xB7 ", c.systemSize)), /* @__PURE__ */ React.createElement("div", { className: "text-right shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "num font-semibold text-emerald-600 text-sm" }, baht(c.value)), /* @__PURE__ */ React.createElement("div", { className: `text-xs ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-400"}` }, du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : du === 1 ? "\u0E1E\u0E23\u0E38\u0E48\u0E07\u0E19\u0E35\u0E49" : thDate(c.nextFollowup))));
+  })));
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-4 fade-in" }, /* @__PURE__ */ React.createElement(Section, { title: "\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E41\u0E25\u0E49\u0E27", list: groups.overdue, tone: "text-red-600", icon: "\u26A0\uFE0F" }), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Section, { title: "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49", list: groups.today, tone: "text-amber-600", icon: "\u{1F4CC}" }), /* @__PURE__ */ React.createElement(Section, { title: "\u0E1E\u0E23\u0E38\u0E48\u0E07\u0E19\u0E35\u0E49", list: groups.tomorrow, tone: "text-brand-600", icon: "\u{1F5D3}\uFE0F" })), /* @__PURE__ */ React.createElement(Section, { title: "\u0E20\u0E32\u0E22\u0E43\u0E19 14 \u0E27\u0E31\u0E19\u0E02\u0E49\u0E32\u0E07\u0E2B\u0E19\u0E49\u0E32", list: groups.upcoming, tone: "text-ink-700", icon: "\u23F3" }));
+}
+const NAV = [
+  { key: "dash", label: "\u0E41\u0E14\u0E0A\u0E1A\u0E2D\u0E23\u0E4C\u0E14", icon: I.dash },
+  { key: "leads", label: "Leads \u0E43\u0E2B\u0E21\u0E48", icon: I.inbox },
+  { key: "cust", label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", icon: I.users },
+  { key: "pipe", label: "\u0E44\u0E1B\u0E1B\u0E4C\u0E44\u0E25\u0E19\u0E4C", icon: I.board },
+  { key: "follow", label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", icon: I.bell },
+  { key: "profit", label: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E01\u0E33\u0E44\u0E23", icon: I.calc }
+];
+function Leads({ leads, loading, onAccept, onRefresh }) {
+  const fmtDate = (s) => { try { return new Date(s).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch (e) { return s || ""; } };
+  return /* @__PURE__ */ React.createElement("div", null,
+    /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-4" },
+      /* @__PURE__ */ React.createElement("p", { className: "text-sm text-ink-500" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E01\u0E23\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E08\u0E32\u0E01\u0E2B\u0E19\u0E49\u0E32\u0E2A\u0E32\u0E18\u0E32\u0E23\u0E13\u0E30 \u00B7 \u0E17\u0E35\u0E21\u0E40\u0E2B\u0E47\u0E19\u0E23\u0E48\u0E27\u0E21\u0E01\u0E31\u0E19"),
+      /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement("button", { onClick: () => copyQuoteLink(null), className: "text-xs px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold hover:brightness-110 inline-flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement(Icon, { d: I.copy, cls: "w-3.5 h-3.5" }), "\u0E04\u0E31\u0E14\u0E25\u0E2D\u0E01\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E23\u0E31\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("button", { onClick: onRefresh, className: "text-xs px-3 py-1.5 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 font-medium" }, "\u21BB \u0E23\u0E35\u0E40\u0E1F\u0E23\u0E0A"))),
+    loading ? /* @__PURE__ */ React.createElement("div", { className: "text-center text-ink-400 py-20" }, "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E42\u0E2B\u0E25\u0E14 Leads\u2026") :
+    leads.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "text-center text-ink-400 py-20" }, /* @__PURE__ */ React.createElement(Icon, { d: I.inbox, cls: "w-12 h-12 mx-auto mb-3 text-ink-300" }), "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35 lead \u0E43\u0E2B\u0E21\u0E48 \u00B7 \u0E40\u0E21\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E01\u0E23\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32 \u0E08\u0E30\u0E21\u0E32\u0E42\u0E1C\u0E25\u0E48\u0E17\u0E35\u0E48\u0E19\u0E35\u0E48") :
+    /* @__PURE__ */ React.createElement("div", { className: "grid gap-3" }, leads.map((l) =>
+      /* @__PURE__ */ React.createElement("div", { key: l.id, className: `bg-white rounded-2xl border p-4 ${l.status === "accepted" ? "border-emerald-200" : "border-ink-100"}` },
+        /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between gap-3" },
+          /* @__PURE__ */ React.createElement("div", { className: "min-w-0" },
+            /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 flex-wrap" },
+              /* @__PURE__ */ React.createElement("span", { className: "font-bold text-ink-900" }, l.name || "(\u0E44\u0E21\u0E48\u0E23\u0E30\u0E1A\u0E38\u0E0A\u0E37\u0E48\u0E2D)"),
+              l.status === "accepted" ? /* @__PURE__ */ React.createElement("span", { className: "text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold" }, "\u2713 \u0E23\u0E31\u0E1A\u0E41\u0E25\u0E49\u0E27") : /* @__PURE__ */ React.createElement("span", { className: "text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold" }, "\u2022 \u0E43\u0E2B\u0E21\u0E48")),
+            /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-500 mt-0.5" }, (l.phone || "-"), l.province ? " \u00B7 " + l.province : ""),
+            /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, fmtDate(l.createdAt))),
+          /* @__PURE__ */ React.createElement("div", { className: "text-right shrink-0" },
+            /* @__PURE__ */ React.createElement("div", { className: "text-lg font-bold text-brand-600" }, l.estPrice ? "\u0E3F" + Number(l.estPrice).toLocaleString("th-TH") : "-"),
+            /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-ink-400" }, l.systemSize || ""))),
+        /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-4 mt-3 pt-3 border-t border-ink-50 text-xs text-ink-500 flex-wrap" },
+          /* @__PURE__ */ React.createElement("span", null, "\u0E04\u0E48\u0E32\u0E44\u0E1F: ", /* @__PURE__ */ React.createElement("b", { className: "text-ink-700" }, l.monthlyBill ? Number(l.monthlyBill).toLocaleString("th-TH") + " \u0E1A./\u0E14." : "-")),
+          /* @__PURE__ */ React.createElement("span", null, "\u0E23\u0E30\u0E1A\u0E1A: ", /* @__PURE__ */ React.createElement("b", { className: "text-ink-700" }, l.systemType || "-")),
+          l.paybackYears ? /* @__PURE__ */ React.createElement("span", null, "\u0E04\u0E37\u0E19\u0E17\u0E38\u0E19: ", /* @__PURE__ */ React.createElement("b", { className: "text-ink-700" }, l.paybackYears + " \u0E1B\u0E35")) : null,
+          /* @__PURE__ */ React.createElement("div", { className: "ml-auto flex gap-2" },
+            l.phone ? /* @__PURE__ */ React.createElement("a", { href: "tel:" + String(l.phone).replace(/[^0-9+]/g, ""), className: "px-3 py-1.5 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-700 font-semibold" }, "\u{1F4DE} \u0E42\u0E17\u0E23") : null,
+            /* @__PURE__ */ React.createElement("button", { onClick: () => openQuote(l, true), className: "px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold" }, "\u{1F4C4} \u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), l.status !== "accepted" ? /* @__PURE__ */ React.createElement("button", { onClick: () => onAccept(l), className: "px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold" }, "\u2795 \u0E40\u0E1E\u0E34\u0E48\u0E21\u0E40\u0E02\u0E49\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32") : /* @__PURE__ */ React.createElement("span", { className: "px-3 py-1.5 text-emerald-600 font-semibold" }, "\u0E40\u0E02\u0E49\u0E32\u0E23\u0E30\u0E1A\u0E1A\u0E41\u0E25\u0E49\u0E27")))))));
+}
+function ProfitCalc() {
+  const [v, setV] = useState({ sell: 280000, panel: 70000, inverter: 35000, battery: 0, mount: 18000, wiring: 12000, labor: 35000, transport: 5000, other: 8000, tax: 0 });
+  const set = (k) => (e) => setV((p) => ({ ...p, [k]: e.target.value }));
+  const n = (x) => parseFloat(x) || 0;
+  const costKeys = ["panel", "inverter", "battery", "mount", "wiring", "labor", "transport", "other"];
+  const cost = costKeys.reduce((s, k) => s + n(v[k]), 0);
+  const sell = n(v.sell), gross = sell - cost, tax = gross > 0 ? gross * n(v.tax) / 100 : 0, net = gross - tax;
+  const margin = sell > 0 ? net / sell * 100 : 0, markup = cost > 0 ? gross / cost * 100 : 0;
+  const B = (x) => "\u0E3F" + Math.round(x).toLocaleString("th-TH");
+  const fields = [["\u0E41\u0E1C\u0E07\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C", "panel"], ["\u0E2D\u0E34\u0E19\u0E40\u0E27\u0E2D\u0E23\u0E4C\u0E40\u0E15\u0E2D\u0E23\u0E4C", "inverter"], ["\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48", "battery"], ["\u0E42\u0E04\u0E23\u0E07\u0E2A\u0E23\u0E49\u0E32\u0E07/\u0E23\u0E32\u0E07", "mount"], ["\u0E2A\u0E32\u0E22\u0E44\u0E1F/\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C", "wiring"], ["\u0E04\u0E48\u0E32\u0E41\u0E23\u0E07\u0E0A\u0E48\u0E32\u0E07", "labor"], ["\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07", "transport"], ["\u0E2D\u0E37\u0E48\u0E19\u0E46/\u0E01\u0E32\u0E23\u0E15\u0E25\u0E32\u0E14", "other"]];
+  const numInput = (k, accent) => React.createElement("input", { type: "number", value: v[k], onChange: set(k), className: "w-full mt-1 px-3 py-2 rounded-lg border text-sm num " + (accent ? "border-amber-300 font-bold text-base" : "border-ink-200") });
+  const costFields = fields.map(([lab, k]) => React.createElement("div", { key: k }, React.createElement("label", { className: "text-xs text-ink-500" }, lab), numInput(k)));
+  const statCard = (label, value, sub, cls) => React.createElement("div", { className: "rounded-2xl ring-1 ring-ink-100 p-4 " + cls }, React.createElement("div", { className: "text-xs opacity-80" }, label), React.createElement("div", { className: "num text-2xl font-extrabold mt-1" }, value), sub ? React.createElement("div", { className: "text-xs opacity-70 mt-0.5" }, sub) : null);
+  const profitPct = sell > 0 ? Math.max(0, Math.min(100, net / sell * 100)) : 0;
+  return React.createElement("div", { className: "space-y-5 fade-in max-w-5xl" },
+    React.createElement("div", { className: "grid lg:grid-cols-2 gap-5" },
+      React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u{1F4B0} \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22 & \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19"),
+        React.createElement("div", { className: "rounded-xl bg-amber-50 ring-1 ring-amber-200 p-3 mb-4" },
+          React.createElement("label", { className: "text-xs font-semibold text-amber-700" }, "\u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22\u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32 (\u0E1A\u0E32\u0E17)"), numInput("sell", true)),
+        React.createElement("div", { className: "text-xs font-semibold text-ink-500 mb-2" }, "\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19\u0E41\u0E22\u0E01\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23 (\u0E1A\u0E32\u0E17)"),
+        React.createElement("div", { className: "grid grid-cols-2 gap-3" }, costFields),
+        React.createElement("div", { className: "mt-4 pt-4 border-t border-ink-100" },
+          React.createElement("label", { className: "text-xs text-ink-500" }, "\u0E2D\u0E31\u0E15\u0E23\u0E32\u0E20\u0E32\u0E29\u0E35\u0E08\u0E32\u0E01\u0E01\u0E33\u0E44\u0E23 (%) \u2014 \u0E43\u0E2A\u0E48 0 \u0E16\u0E49\u0E32\u0E44\u0E21\u0E48\u0E04\u0E34\u0E14\u0E20\u0E32\u0E29\u0E35"), numInput("tax"))),
+      React.createElement("div", { className: "space-y-4" },
+        React.createElement("div", { className: "grid grid-cols-2 gap-4" },
+          statCard("\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19\u0E23\u0E27\u0E21", B(cost), costKeys.length + " \u0E23\u0E32\u0E22\u0E01\u0E32\u0E23", "bg-white text-ink-800"),
+          statCard("\u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35", B(gross), "Markup " + markup.toFixed(0) + "%", "bg-white " + (gross >= 0 ? "text-emerald-600" : "text-red-600")),
+          statCard("\u0E20\u0E32\u0E29\u0E35\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E08\u0E48\u0E32\u0E22", B(tax), n(v.tax) + "% \u0E02\u0E2D\u0E07\u0E01\u0E33\u0E44\u0E23", "bg-white text-ink-700"),
+          React.createElement("div", { className: "rounded-2xl p-4 text-white " + (net >= 0 ? "bg-gradient-to-br from-emerald-500 to-emerald-600" : "bg-gradient-to-br from-red-500 to-red-600") },
+            React.createElement("div", { className: "text-xs opacity-90" }, "\u{1F3AF} \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34"), React.createElement("div", { className: "num text-2xl font-extrabold mt-1" }, B(net)), React.createElement("div", { className: "text-xs opacity-90 mt-0.5" }, "\u0E21\u0E32\u0E23\u0E4C\u0E08\u0E34\u0E19 " + margin.toFixed(1) + "%"))),
+        React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+          React.createElement("div", { className: "flex justify-between text-xs text-ink-500 mb-2" }, React.createElement("span", null, "\u0E2A\u0E31\u0E14\u0E2A\u0E48\u0E27\u0E19\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 vs \u0E01\u0E33\u0E44\u0E23"), React.createElement("span", { className: "font-semibold " + (net >= 0 ? "text-emerald-600" : "text-red-600") }, net >= 0 ? "\u0E01\u0E33\u0E44\u0E23 " + margin.toFixed(0) + "%" : "\u0E02\u0E32\u0E14\u0E17\u0E38\u0E19")),
+          React.createElement("div", { className: "h-5 rounded-full overflow-hidden flex bg-ink-100" },
+            React.createElement("div", { className: "h-full bg-gradient-to-r from-slate-400 to-slate-500", style: { width: (sell > 0 ? Math.min(100, cost / sell * 100) : 100) + "%" } }),
+            React.createElement("div", { className: "h-full bg-gradient-to-r from-emerald-400 to-emerald-500", style: { width: profitPct + "%" } })),
+          React.createElement("div", { className: "flex justify-between text-[11px] text-ink-400 mt-2" }, React.createElement("span", null, "\u25A0 \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 " + B(cost)), React.createElement("span", null, "\u25A0 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 " + B(net)))),
+        React.createElement("div", { className: "text-xs text-ink-400 leading-relaxed" }, "* \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 = \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22 - \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19\u0E23\u0E27\u0E21 \u00B7 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 = \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 - \u0E20\u0E32\u0E29\u0E35 \u00B7 \u0E21\u0E32\u0E23\u0E4C\u0E08\u0E34\u0E19 = \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 \u00F7 \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22"))));
+}
+function App() {
+  const [rows, setRows] = useState([]);
+  const [view, setView] = useState("dash");
+  const [loaded, setLoaded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [leads, setLeads] = useState([]);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  const loadLeads = async () => {
+    if (!sb) return;
+    setLeadsLoading(true);
+    try {
+      const { data } = await sb.from("leads").select("*").order("createdAt", { ascending: false });
+      setLeads(data || []);
+    } catch (e) {}
+    setLeadsLoading(false);
+  };
+  useEffect(() => { loadLeads(); }, []);
+  const acceptLead = async (l) => {
+    const cust = {
+      id: uid(), name: l.name || "(จาก lead)", phone: l.phone || "", province: l.province || "",
+      type: "บ้านพักอาศัย", source: "ใบเสนอราคาออนไลน์", status: "ติดต่อแล้ว",
+      monthlyBill: l.monthlyBill ? String(l.monthlyBill) : "", systemSize: l.systemSize || "",
+      value: l.estPrice ? Number(l.estPrice) : 0, note: "มาจากใบเสนอราคาออนไลน์ · ระบบ " + (l.systemType || "") + " " + (l.systemSize || ""),
+      tags: ["lead"], createdAt: todayISO(), lastContact: todayISO(),
+      timeline: [{ t: todayISO(), text: "รับเข้าจากใบเสนอราคาออนไลน์" }]
+    };
+    setRows((p) => [cust, ...p]);
+    if (sb) { try { await sb.from("leads").update({ status: "accepted", acceptedBy: (window.__userEmail || "") }).eq("id", l.id); } catch (e) {} }
+    setLeads((p) => p.map((x) => x.id === l.id ? { ...x, status: "accepted", acceptedBy: (window.__userEmail || "") } : x));
+    alert("เพิ่มเข้าลูกค้าแล้ว! ดูได้ที่เมนู ลูกค้า");
+  };
+  useEffect(() => {
+    (async () => {
+      let d = null;
+      try {
+        d = await db.list();
+      } catch (e) {
+      }
+      if (!d) d = [];
+      if (d.length === 0 && !USE_SUPABASE) {
+        d = seed();
+        try {
+          await db.saveAll(d);
+        } catch (e) {
+        }
+      }
+      setRows(d);
+      setLoaded(true);
+    })();
+  }, []);
+  useEffect(() => {
+    if (loaded) db.saveAll(rows);
+  }, [rows, loaded]);
+  const upsert = (c) => {
+    setRows((p) => {
+      const i = p.findIndex((x) => x.id === c.id);
+      if (i >= 0) {
+        const n = [...p];
+        n[i] = c;
+        return n;
+      }
+      return [{ ...c, id: uid(), createdAt: todayISO(), timeline: c.timeline || [] }, ...p];
+    });
+  };
+  const remove = (c) => {
+    if (confirm(`\u0E25\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32 "${c.name}" ?`)) {
+      setRows((p) => p.filter((x) => x.id !== c.id));
+      setProfile(null);
+    }
+  };
+  const setStatus = (id, status) => setRows((p) => p.map((x) => x.id === id ? { ...x, status } : x));
+  const addLog = (id, log) => setRows((p) => p.map((x) => x.id === id ? { ...x, timeline: [...x.timeline || [], log], lastContact: log.date } : x));
+  const openForm = (c) => {
+    setEditing(c || null);
+    setFormOpen(true);
+  };
+  const openProfile = (c) => setProfile(c);
+  const liveProfile = profile ? rows.find((r) => r.id === profile.id) : null;
+  const exportJSON = () => {
+    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "solar_crm_backup_" + todayISO() + ".json";
+    a.click();
+  };
+  const exportExcel = () => {
+    if (!window.XLSX) { alert("ไลบรารี Excel ยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง"); return; }
+    const stLabel = (k) => { const s = STATUSES.find((x) => x.key === k); return s ? s.label : (k || ""); };
+    const htLabel = (k) => { const h = HEATS.find((x) => x.key === k); return h ? h.label : (k || ""); };
+    const custRows = rows.map((c) => ({
+      "ชื่อ": c.name || "", "เบอร์โทร": c.phone || "", "Line ID": c.lineId || "", "Facebook": c.facebook || "",
+      "จังหวัด": c.province || "", "ที่อยู่": c.address || "", "ประเภท": c.type || "", "แหล่งที่มา": c.source || "",
+      "ค่าไฟ/เดือน": Number(c.monthlyBill) || 0, "ขนาดระบบ": c.systemSize || "",
+      "งบประมาณ": Number(c.budget) || 0, "มูลค่าดีล": Number(c.value) || 0,
+      "ระดับความสนใจ": htLabel(c.heat), "สถานะ": stLabel(c.status),
+      "แท็ก": (c.tags || []).join(", "), "โน้ต": c.note || "",
+      "ติดต่อล่าสุด": c.lastContact || "", "นัดติดตามถัดไป": c.nextFollowup || "",
+      "จำนวนบันทึกติดตาม": (c.timeline || []).length, "วันที่สร้าง": c.createdAt ? String(c.createdAt).slice(0, 10) : ""
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(custRows.length ? custRows : [{ "ชื่อ": "(ยังไม่มีข้อมูลลูกค้า)" }]);
+    ws["!cols"] = [{ wch: 18 }, { wch: 13 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 24 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 20 }, { wch: 28 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws, "ลูกค้า");
+    // ชีตสรุปตามสถานะ
+    const sum = STATUSES.map((s) => ({ "สถานะ": s.label, "จำนวน": rows.filter((r) => r.status === s.key).length, "มูลค่ารวม": rows.filter((r) => r.status === s.key).reduce((a, r) => a + (Number(r.value) || 0), 0) }));
+    sum.push({ "สถานะ": "รวมทั้งหมด", "จำนวน": rows.length, "มูลค่ารวม": rows.reduce((a, r) => a + (Number(r.value) || 0), 0) });
+    const ws2 = XLSX.utils.json_to_sheet(sum);
+    ws2["!cols"] = [{ wch: 16 }, { wch: 10 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, ws2, "สรุปตามสถานะ");
+    // ชีต Leads (ถ้ามี)
+    if (leads && leads.length) {
+      const leadRows = leads.map((l) => ({ "ชื่อ": l.name || "", "เบอร์": l.phone || "", "จังหวัด": l.province || "", "ค่าไฟ/เดือน": Number(l.monthlyBill) || 0, "ระบบ": l.systemType || "", "ขนาด": l.systemSize || "", "ราคาประเมิน": Number(l.estPrice) || 0, "คืนทุน(ปี)": Number(l.paybackYears) || 0, "สถานะ": l.status === "accepted" ? "รับแล้ว" : "ใหม่", "วันที่": l.createdAt ? String(l.createdAt).slice(0, 10) : "" }));
+      const ws3 = XLSX.utils.json_to_sheet(leadRows);
+      ws3["!cols"] = [{ wch: 18 }, { wch: 13 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 11 }, { wch: 10 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(wb, ws3, "Leads");
+    }
+    XLSX.writeFile(wb, "รายงานลูกค้า_SolarCRM_" + todayISO() + ".xlsx");
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: () => {
+    setView(n.key);
+    setMenuOpen(false);
+  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition ${view === n.key ? "bg-brand-600 text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: "w-5 h-5" }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold" }, leads.filter((l) => l.status !== "accepted").length) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement("button", { onClick: () => openQuote(null, false), className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:brightness-110 shadow mb-1" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-5 h-5" }), "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), /* @__PURE__ */ React.createElement("button", { onClick: () => copyQuoteLink(null), className: "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-ink-400 hover:bg-ink-800" }, /* @__PURE__ */ React.createElement(Icon, { d: I.copy, cls: "w-4 h-4" }), "\u0E04\u0E31\u0E14\u0E25\u0E2D\u0E01\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E2A\u0E48\u0E07\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("button", { onClick: setQuoteUrl, className: "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-ink-500 hover:bg-ink-800" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit, cls: "w-4 h-4" }), "\u0E15\u0E31\u0E49\u0E07\u0E04\u0E48\u0E32\u0E25\u0E34\u0E07\u0E01\u0E4C")))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48\u0E08\u0E32\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19" }[view])), view !== "cust" && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement("div", { className: "text-center text-ink-400 py-20" }, "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E42\u0E2B\u0E25\u0E14\u2026") : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "pipe" && /* @__PURE__ */ React.createElement(Pipeline, { rows, onOpen: openProfile, onStatus: setStatus }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
+    upsert(c);
+    setFormOpen(false);
+  } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
+    setProfile(null);
+    openForm(c);
+  }, onAddLog: addLog, onStatus: setStatus }), /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-brand-600 text-white shadow-lg flex items-center justify-center" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus })));
+}
+function LoginScreen() {
+  const [busy, setBusy] = React.useState(false);
+  const canvasRef = React.useRef(null);
+  const cardRef = React.useRef(null);
+  const go = async () => {
+    setBusy(true);
+    try {
+      await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + window.location.pathname } });
+    } catch (e) { alert("เข้าสู่ระบบไม่สำเร็จ: " + (e && e.message)); setBusy(false); }
+  };
+  // particle network
+  React.useEffect(() => {
+    const cv = canvasRef.current; if (!cv) return;
+    const ctx = cv.getContext("2d"); let raf, W, H, pts = [];
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => { W = cv.clientWidth; H = cv.clientHeight; cv.width = W * DPR; cv.height = H * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); };
+    resize();
+    const N = Math.min(70, Math.floor(W / 16));
+    for (let i = 0; i < N; i++) pts.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .5, vy: (Math.random() - .5) * .5 });
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      for (const p of pts) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > W) p.vx *= -1;
+        if (p.y < 0 || p.y > H) p.vy *= -1;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 1.6, 0, 7); ctx.fillStyle = "rgba(52,211,153,.8)"; ctx.fill();
+      }
+      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i], b = pts[j], dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy);
+        if (d < 120) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.strokeStyle = "rgba(96,165,250," + (0.18 * (1 - d / 120)) + ")"; ctx.lineWidth = 1; ctx.stroke(); }
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    window.addEventListener("resize", resize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+  // 3D tilt
+  React.useEffect(() => {
+    const card = cardRef.current; if (!card) return;
+    const move = (e) => {
+      const r = card.getBoundingClientRect();
+      const rx = ((e.clientY - r.top) / r.height - .5) * -10;
+      const ry = ((e.clientX - r.left) / r.width - .5) * 12;
+      card.style.transform = "rotateX(" + rx + "deg) rotateY(" + ry + "deg)";
+    };
+    const reset = () => { card.style.transform = "rotateX(0) rotateY(0)"; };
+    window.addEventListener("mousemove", move);
+    card.addEventListener("mouseleave", reset);
+    return () => { window.removeEventListener("mousemove", move); card.removeEventListener("mouseleave", reset); };
+  }, []);
+  const sparks = [];
+  for (let i = 0; i < 9; i++) sparks.push(React.createElement("div", { key: i, className: "lgn-spark", style: { left: (8 + i * 10) + "%", fontSize: (12 + (i % 4) * 5) + "px", animationDuration: (8 + (i % 5) * 2) + "s", animationDelay: (i * 1.3) + "s" } }, ["\u2600\uFE0F", "\u2728", "\u26A1", "\u{1F31E}"][i % 4]));
+  return React.createElement("div", { className: "lgn" },
+    React.createElement("div", { className: "lgn-aurora" }, React.createElement("i", { className: "lgn-a1" }), React.createElement("i", { className: "lgn-a2" }), React.createElement("i", { className: "lgn-a3" })),
+    React.createElement("div", { className: "lgn-grid" }),
+    React.createElement("canvas", { ref: canvasRef, className: "lgn-canvas" }),
+    sparks,
+    React.createElement("div", { ref: cardRef, className: "lgn-card", "data-modal": "" },
+      React.createElement("div", { className: "lgn-logo" }, "\u2600\uFE0F"),
+      React.createElement("h1", { className: "lgn-title" }, "SolarCRM"),
+      React.createElement("p", { className: "lgn-sub" }, "\u0E23\u0E30\u0E1A\u0E1A\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"),
+      React.createElement("div", { className: "lgn-chips" },
+        React.createElement("span", { className: "lgn-chip" }, "\u26A1 \u0E40\u0E23\u0E35\u0E22\u0E25\u0E44\u0E17\u0E21\u0E4C"),
+        React.createElement("span", { className: "lgn-chip" }, "\u{1F510} \u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22"),
+        React.createElement("span", { className: "lgn-chip" }, "\u{1F4C8} \u0E04\u0E23\u0E1A\u0E27\u0E07\u0E08\u0E23")),
+      React.createElement("p", { className: "lgn-desc" }, "\u0E40\u0E02\u0E49\u0E32\u0E2A\u0E39\u0E48\u0E23\u0E30\u0E1A\u0E1A\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32 \u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E35\u0E25 \u0E41\u0E25\u0E30\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E44\u0E14\u0E49\u0E43\u0E19\u0E17\u0E35\u0E48\u0E40\u0E14\u0E35\u0E22\u0E27"),
+      React.createElement("button", { onClick: go, disabled: busy, className: "lgn-btn" },
+        React.createElement("svg", { width: "20", height: "20", viewBox: "0 0 48 48" },
+          React.createElement("path", { fill: "#FFC107", d: "M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.3 5.1 29.4 3 24 3 12.9 3 4 11.9 4 23s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" }),
+          React.createElement("path", { fill: "#FF3D00", d: "M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.3 7.1 29.4 5 24 5 16.3 5 9.7 9.3 6.3 14.7z" }),
+          React.createElement("path", { fill: "#4CAF50", d: "M24 43c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 34.5 26.7 35 24 35c-5.3 0-9.7-2.6-11.3-7l-6.5 5C9.6 38.6 16.2 43 24 43z" }),
+          React.createElement("path", { fill: "#1976D2", d: "M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4-4.1 5.3l6.2 5.2C41.4 35.7 44 30.3 44 23c0-1.3-.1-2.5-.4-3.5z" })),
+        busy ? "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E40\u0E1B\u0E34\u0E14 Google\u2026" : "\u0E40\u0E02\u0E49\u0E32\u0E2A\u0E39\u0E48\u0E23\u0E30\u0E1A\u0E1A\u0E14\u0E49\u0E27\u0E22 Google"),
+      React.createElement("p", { className: "lgn-foot" }, React.createElement("span", { className: "lgn-secure" }, "\u{1F512} \u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E40\u0E02\u0E49\u0E32\u0E23\u0E2B\u0E31\u0E2A\u0E1A\u0E19 Supabase \u00B7 \u0E41\u0E22\u0E01\u0E15\u0E32\u0E21\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49"))));
+}
+
+function AccountChip({ session }) {
+  const email = session && session.user ? (session.user.email || "บัญชีของฉัน") : "";
+  if (typeof window !== "undefined") {
+    window.__userEmail = email;
+    window.__signOut = async () => { try { await sb.auth.signOut(); } catch (e) {} };
+  }
+  return null;
+}
+
+function Gate() {
+  const [ready, setReady] = React.useState(false);
+  const [session, setSession] = React.useState(null);
+  React.useEffect(() => {
+    if (!sb) { setReady(true); return; }
+    sb.auth.getSession().then(({ data }) => {
+      currentUser = data.session ? data.session.user : null;
+      setSession(data.session);
+      setReady(true);
+    });
+    const { data: sub } = sb.auth.onAuthStateChange((_e, s) => {
+      currentUser = s ? s.user : null;
+      setSession(s);
+    });
+    return () => { try { sub.subscription.unsubscribe(); } catch (e) {} };
+  }, []);
+  if (!ready) return React.createElement("div", { className: "min-h-screen flex items-center justify-center text-ink-400" }, "กำลังโหลด\u2026");
+  if (sb && !session) return React.createElement(LoginScreen, null);
+  return React.createElement(React.Fragment, null,
+    sb ? React.createElement(AccountChip, { session, key: session && session.user ? session.user.id : "anon" }) : null,
+    React.createElement(App, { key: session && session.user ? session.user.id : "local" }));
+}
+try {
+  ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(Gate, null));
+} catch (err) {
+  document.getElementById("root").innerHTML = '<div style="padding:40px;font-family:sans-serif;color:#b91c1c">\u0E40\u0E01\u0E34\u0E14\u0E02\u0E49\u0E2D\u0E1C\u0E34\u0E14\u0E1E\u0E25\u0E32\u0E14\u0E43\u0E19\u0E01\u0E32\u0E23\u0E41\u0E2A\u0E14\u0E07\u0E1C\u0E25: ' + (err && err.message) + "<br>\u0E01\u0E23\u0E38\u0E13\u0E32\u0E25\u0E2D\u0E07\u0E40\u0E1B\u0E34\u0E14\u0E1C\u0E48\u0E32\u0E19\u0E40\u0E0B\u0E34\u0E23\u0E4C\u0E1F\u0E40\u0E27\u0E2D\u0E23\u0E4C (\u0E40\u0E0A\u0E48\u0E19 python3 -m http.server) \u0E2B\u0E23\u0E37\u0E2D\u0E2D\u0E31\u0E1B\u0E42\u0E2B\u0E25\u0E14\u0E02\u0E36\u0E49\u0E19 Netlify \u0E41\u0E17\u0E19\u0E01\u0E32\u0E23\u0E40\u0E1B\u0E34\u0E14\u0E44\u0E1F\u0E25\u0E4C\u0E15\u0E23\u0E07\u0E46</div>";
+}
+
+</script>
+
+<script>
+/* ===== Resilient loader: โหลด React/ReactDOM/Supabase พร้อม CDN สำรอง แล้วค่อยรันแอป ===== */
+(function(){
+  function loadOne(urls, test, done){
+    if(test()) return done();
+    var i=0;
+    (function go(){
+      if(i>=urls.length) return done(); // หมดตัวสำรองแล้ว ปล่อยผ่าน (Supabase เป็น optional)
+      var s=document.createElement('script');
+      s.src=urls[i++];
+      s.onload=function(){ test()?done():go(); };
+      s.onerror=go;
+      document.head.appendChild(s);
+    })();
+  }
+  function chain(steps, fin){ var i=0; (function nx(){ if(i>=steps.length) return fin(); steps[i++](nx); })(); }
+  var setLoad=document.getElementById('root');
+  chain([
+    function(n){ loadOne([
+      'https://unpkg.com/react@18/umd/react.production.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js',
+      'https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js'
+    ], function(){return !!window.React;}, n); },
+    function(n){ loadOne([
+      'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js',
+      'https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js'
+    ], function(){return !!window.ReactDOM;}, n); },
+    function(n){ loadOne([
+      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+      'https://unpkg.com/@supabase/supabase-js@2'
+    ], function(){return !!window.supabase;}, n); }
+  ], function(){
+    if(!window.React || !window.ReactDOM){
+      if(setLoad) setLoad.innerHTML='<div style="padding:40px;font-family:sans-serif;color:#b91c1c;text-align:center">โหลดไลบรารีหลัก (React) ไม่สำเร็จ<br>กรุณาเช็กการเชื่อมต่ออินเทอร์เน็ตแล้วรีเฟรช (Ctrl+Shift+R)</div>';
+      return;
+    }
+    try {
+      var code=document.getElementById('appcode').textContent;
+      (0, eval)(code);
+    } catch(e){
+      if(setLoad) setLoad.innerHTML='<div style="padding:40px;font-family:sans-serif;color:#b91c1c">เริ่มระบบไม่สำเร็จ: '+(e&&e.message)+'</div>';
+    }
+  });
+})();
+</script>
+<div id="themeFab" class="no-print">
+  <div id="themePop">
+    <div class="ttl">เลือกสีธีม</div>
+    <div class="sw-grid">
+      <div class="sw" data-theme="blue"    style="background:#2563eb" title="น้ำเงิน"></div>
+      <div class="sw" data-theme="emerald" style="background:#059669" title="เขียว"></div>
+      <div class="sw" data-theme="teal"    style="background:#0d9488" title="เขียวมิ้นต์"></div>
+      <div class="sw" data-theme="cyan"    style="background:#0891b2" title="ฟ้าคราม"></div>
+      <div class="sw" data-theme="indigo"  style="background:#4f46e5" title="คราม"></div>
+      <div class="sw" data-theme="violet"  style="background:#7c3aed" title="ม่วง"></div>
+      <div class="sw" data-theme="rose"    style="background:#e11d48" title="กุหลาบ"></div>
+      <div class="sw" data-theme="amber"   style="background:#d97706" title="ส้มอำพัน"></div>
+    </div>
+  </div>
+  <button class="fab-btn" id="themeFabBtn" title="เปลี่ยนธีมสี" aria-label="เปลี่ยนธีมสี">🎨</button>
+</div>
+<script>
+(function(){
+  var KEY='solar_crm_theme';
+  var themes=['blue','emerald','teal','cyan','indigo','violet','rose','amber'];
+  var root=document.documentElement;
+  function apply(t){
+    if(themes.indexOf(t)<0) t='blue';
+    root.setAttribute('data-theme', t);
+    try{ localStorage.setItem(KEY, t); }catch(e){}
+    document.querySelectorAll('#themePop .sw').forEach(function(s){
+      s.classList.toggle('on', s.getAttribute('data-theme')===t);
+    });
+  }
+  // โหลดธีมที่บันทึกไว้ หรือสุ่มสีตอนเปิดครั้งแรก
+  var saved=null; try{ saved=localStorage.getItem(KEY); }catch(e){}
+  apply(saved || themes[Math.floor(Math.random()*themes.length)]);
+  var btn=document.getElementById('themeFabBtn');
+  var pop=document.getElementById('themePop');
+  btn.addEventListener('click', function(e){ e.stopPropagation(); pop.classList.toggle('open'); });
+  document.addEventListener('click', function(e){ if(!document.getElementById('themeFab').contains(e.target)) pop.classList.remove('open'); });
+  document.querySelectorAll('#themePop .sw').forEach(function(s){
+    s.addEventListener('click', function(){ apply(s.getAttribute('data-theme')); pop.classList.remove('open'); });
+  });
+})();
+</script>
+
+<!-- ===== Profile + Support + Developer widgets (vanilla, decoupled) ===== -->
+<div class="ov" id="profileOv">
+  <div class="sheet">
+    <div class="sheet-h">
+      <div class="sheet-av" id="profilePreview">🙂</div>
+      <div style="font-weight:700;font-size:15px">โปรไฟล์ของฉัน</div>
+      <div class="pemail" id="profileEmail" style="color:rgba(255,255,255,.85)"></div>
+    </div>
+    <div class="sheet-b">
+      <div class="lab">ชื่อบริษัท / ร้าน (แสดงมุมซ้ายบน)</div>
+      <input type="text" id="companyInput" placeholder="เช่น แบงค์โซลาร์เซลล์" style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:12px;font-size:14px;outline:none">
+      <div class="lab">อัปโหลดรูปของตัวเอง</div>
+      <div class="btn-row">
+        <button class="pbtn pbtn-primary" id="uploadBtn">📷 เลือกรูป</button>
+        <button class="pbtn pbtn-ghost" id="removePhoto">ลบรูป</button>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" style="display:none">
+      <div class="lab">หรือเลือกไอคอน (กรณีอัปรูปไม่ได้)</div>
+      <div class="icon-grid" id="iconGrid"></div>
+      <div style="height:10px"></div>
+      <button class="pbtn pbtn-danger" id="logoutBtn" style="width:100%">🚪 ออกจากระบบ</button>
+      <button class="pbtn pbtn-ghost" id="closeProfile" style="width:100%;margin-top:8px">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="supportOv">
+  <div class="sheet">
+    <div class="sheet-h" style="background:linear-gradient(135deg,#fb7185,#e11d48)">
+      <div style="font-size:30px">❤️</div>
+      <div style="font-weight:700;font-size:16px;margin-top:4px">สนับสนุนผู้พัฒนา</div>
+      <div class="pemail" style="color:rgba(255,255,255,.9)">ถ้าชอบเครื่องมือนี้ เลี้ยงกาแฟกันได้นะครับ</div>
+    </div>
+    <div class="sheet-b" style="text-align:center">
+      <img class="sup-qr" src="https://img2.pic.in.th/bab8693c-688c-49fa-98ef-6a13575ff6a1.jpeg" alt="QR พร้อมเพย์" onerror="this.style.display='none'">
+      <div class="sup-amt">☕ 49 บาท</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:6px">สแกน QR ด้วยแอปธนาคารเพื่อสนับสนุน</div>
+      <div class="lab" style="text-align:center">ติดต่อ / ปรึกษาผู้พัฒนา</div>
+      <div class="btn-row">
+        <button class="pbtn pbtn-primary" id="devInbox" style="background:#0084ff">💬 ทักแชต Inbox</button>
+        <button class="pbtn pbtn-ghost" id="devPage">เพจ Facebook</button>
+      </div>
+      <button class="pbtn pbtn-ghost" id="closeSupport" style="width:100%;margin-top:10px">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<div id="fabStack" class="no-print">
+  <button class="fab2 fab-dev" id="devFab" title="ติดต่อผู้พัฒนา">💬</button>
+  <button class="fab2 fab-heart" id="supportFab" title="สนับสนุนผู้พัฒนา">❤️</button>
+</div>
+
+<script>
+(function(){
+  var AKEY='solar_crm_avatar';
+  var DEV_INBOX='https://m.me/apisit.chan.73';
+  var DEV_PAGE='https://www.facebook.com/apisit.chan.73/';
+  var ICONS=['🙂','😎','🦊','🐯','🦁','🐻','🐼','🦄','🐲','☀️','⚡','🔋','🏠','🌱','💡','🛠️','📈','💰','🚀','🔥','⭐','👑','🎯','🧑‍💼'];
+
+  function getAv(){ try{return JSON.parse(localStorage.getItem(AKEY)||'null');}catch(e){return null;} }
+  function setAv(v){ try{localStorage.setItem(AKEY,JSON.stringify(v));}catch(e){} applyAvatar(); }
+  var CKEY='solar_crm_company';
+  function getCo(){ try{return localStorage.getItem(CKEY)||'';}catch(e){return '';} }
+  function setCo(v){ try{localStorage.setItem(CKEY,v);}catch(e){} applyCompany(); }
+  function applyCompany(){
+    var name=getCo();
+    document.querySelectorAll('.company-name').forEach(function(el){
+      var want = name || 'SolarCRM';
+      if(el.textContent!==want) el.textContent=want;
+    });
+    var ci=document.getElementById('companyInput');
+    if(ci && document.activeElement!==ci && ci.value!==name) ci.value=name;
+  }
+  // ใส่อวาตาร์ (เซ็ตเฉพาะเมื่อค่าต่างจริง เพื่อไม่ให้กระตุ้น observer ซ้ำ)
+  function fill(el,av){
+    if(!el) return;
+    var def = el.getAttribute('data-default') || '🙂';
+    if(av && av.type==='img'){
+      var want='<img src="'+av.val+'" style="width:100%;height:100%;object-fit:cover">';
+      if(el.innerHTML!==want) el.innerHTML=want;
+    } else {
+      var ch=(av && av.type==='icon') ? av.val : def;
+      if(el.textContent!==ch) el.textContent=ch;
+    }
+  }
+  var mo=null;
+  var applying=false;
+  function applyAvatar(){
+    if(applying) return;
+    applying=true;
+    if(mo) mo.disconnect();             // ปิด observer ระหว่างแก้ DOM กัน loop
+    try{
+      var av=getAv();
+      document.querySelectorAll('.avatar-slot').forEach(function(s){ fill(s,av); });
+      fill(document.getElementById('profilePreview'),av);
+      document.querySelectorAll('#iconGrid .icon-opt').forEach(function(b){
+        b.classList.toggle('on', av&&av.type==='icon'&&av.val===b.textContent);
+      });
+      var e=document.getElementById('profileEmail'); if(e&&window.__userEmail&&e.textContent!==window.__userEmail)e.textContent=window.__userEmail;
+      applyCompany();
+    }catch(err){}
+    if(mo) mo.observe(document.body,{childList:true,subtree:true});
+    applying=false;
+  }
+  // คอยเติมอวาตาร์เมื่อ React re-render (debounce กันถี่เกิน)
+  var deb=null;
+  mo=new MutationObserver(function(){ if(deb)clearTimeout(deb); deb=setTimeout(applyAvatar,120); });
+  mo.observe(document.body,{childList:true,subtree:true});
+
+  // สร้างตัวเลือกไอคอน
+  var grid=document.getElementById('iconGrid');
+  ICONS.forEach(function(ic){
+    var b=document.createElement('div'); b.className='icon-opt'; b.textContent=ic;
+    b.onclick=function(){ setAv({type:'icon',val:ic}); };
+    grid.appendChild(b);
+  });
+
+  // อัปโหลดรูป
+  document.getElementById('uploadBtn').onclick=function(){ document.getElementById('photoInput').click(); };
+  document.getElementById('photoInput').onchange=function(e){
+    var f=e.target.files&&e.target.files[0]; if(!f) return;
+    if(f.size>2*1024*1024){ alert('ไฟล์ใหญ่เกิน 2MB กรุณาเลือกรูปเล็กลง'); return; }
+    var r=new FileReader();
+    r.onload=function(){ setAv({type:'img',val:r.result}); };
+    r.readAsDataURL(f);
+  };
+  document.getElementById('removePhoto').onclick=function(){ setAv(null); };
+  var coInput=document.getElementById('companyInput');
+  if(coInput){ coInput.value=getCo(); coInput.addEventListener('input',function(){ setCo(coInput.value); }); }
+
+  // เปิด/ปิดโมดัลโปรไฟล์
+  var pOv=document.getElementById('profileOv');
+  window.__openProfile=function(){ var e=document.getElementById('profileEmail'); if(e&&window.__userEmail)e.textContent=window.__userEmail; applyAvatar(); pOv.classList.add('open'); };
+  document.getElementById('closeProfile').onclick=function(){ pOv.classList.remove('open'); };
+  pOv.onclick=function(e){ if(e.target===pOv)pOv.classList.remove('open'); };
+  document.getElementById('logoutBtn').onclick=function(){ if(confirm('ออกจากระบบ?')){ if(window.__signOut)window.__signOut(); pOv.classList.remove('open'); } };
+
+  // ปุ่มสนับสนุน
+  var sOv=document.getElementById('supportOv');
+  function openSup(){ sOv.classList.add('open'); }
+  function closeSup(){ sOv.classList.remove('open'); }
+  document.getElementById('supportFab').onclick=openSup;
+  document.getElementById('closeSupport').onclick=closeSup;
+  sOv.onclick=function(e){ if(e.target===sOv)closeSup(); };
+  document.getElementById('devInbox').onclick=function(){ window.open(DEV_INBOX,'_blank'); };
+  document.getElementById('devPage').onclick=function(){ window.open(DEV_PAGE,'_blank'); };
+  // ปุ่มติดต่อผู้พัฒนา (ลอย) → เปิด inbox ตรง
+  document.getElementById('devFab').onclick=function(){ window.open(DEV_INBOX,'_blank'); };
+
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ pOv.classList.remove('open'); closeSup(); } });
+
+  applyAvatar();
+  applyCompany();
+})();
+</script>
+<button id="modeToggle" class="fab2 no-print" title="สลับโหมดสว่าง/มืด" style="background:linear-gradient(135deg,#64748b,#1e293b);color:#fff">🌙</button>
+<script>
+(function(){
+  var KEY='solar_crm_mode';
+  var btn=document.getElementById('modeToggle');
+  var stack=document.getElementById('fabStack');
+  if(stack && btn){ stack.insertBefore(btn, stack.firstChild); }
+  function apply(m){
+    if(m==='dark'){ document.body.classList.add('dark'); btn.textContent='☀️'; }
+    else { document.body.classList.remove('dark'); btn.textContent='🌙'; }
+  }
+  var saved='light'; try{ saved=localStorage.getItem(KEY)||'light'; }catch(e){}
+  apply(saved);
+  btn.onclick=function(){
+    var now=document.body.classList.contains('dark')?'light':'dark';
+    try{ localStorage.setItem(KEY,now); }catch(e){}
+    apply(now);
+  };
+})();
+</script>
+</body>
+</html>
