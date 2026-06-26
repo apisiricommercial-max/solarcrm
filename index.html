@@ -46,30 +46,30 @@ tailwind.config = {
   .col-over{background:var(--b100,#dbeafe)!important;outline:2px dashed var(--b400,#60a5fa);outline-offset:-4px}
   [data-modal]{animation:pop .26s cubic-bezier(.2,.9,.3,1.15)}
   @keyframes pop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
-  #onbOverlay{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.6);backdrop-filter:blur(4px)}
-  #onbOverlay.open{display:flex;animation:fade .2s ease}
-  #onbCard{position:relative;background:#fff;border-radius:24px;box-shadow:0 30px 60px -12px rgba(15,23,42,.5);width:100%;max-width:400px;overflow:hidden;animation:pop .3s cubic-bezier(.2,.8,.3,1.1)}
-  #onbHead{position:relative;height:140px;background:#0f172a;overflow:hidden;display:flex;align-items:center;justify-content:center}
-  #onbHead::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 30%, rgb(var(--b500) / .55), transparent 65%)}
-  #onbHead::after{content:"";position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;border-radius:50%;background:rgb(var(--b600) / .25);filter:blur(30px)}
-  #onbClose{position:absolute;top:12px;right:12px;z-index:2;width:32px;height:32px;border-radius:50%;border:none;background:rgba(255,255,255,.12);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
-  #onbClose:hover{background:rgba(255,255,255,.25)}
-  #onbIconWrap{position:relative;z-index:1;width:64px;height:64px;border-radius:18px;background:#fff;box-shadow:0 10px 24px -4px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:28px;animation:pop .35s cubic-bezier(.2,.8,.3,1.2)}
-  #onbBarTrack{height:4px;background:#f1f5f9;display:flex}
-  #onbBarTrack .seg{flex:1;height:100%;background:#f1f5f9;position:relative;overflow:hidden}
-  #onbBarTrack .seg i{position:absolute;inset:0;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .4s ease}
-  #onbBody{padding:22px 24px 6px}
-  #onbEyebrow{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
-  #onbTitle{font-size:18px;font-weight:800;color:#0f172a;margin:0 0 8px}
-  #onbText{font-size:13.5px;color:#64748b;line-height:1.6;margin:0}
-  #onbFoot{display:flex;align-items:center;justify-content:space-between;padding:18px 24px 22px}
-  #onbSkip{background:none;border:none;font-size:12px;color:#94a3b8;cursor:pointer;font-weight:500}
-  #onbSkip:hover{color:#64748b}
-  #onbNavWrap{display:flex;align-items:center;gap:8px}
-  #onbPrev{width:36px;height:36px;border-radius:12px;border:none;background:transparent;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center}
-  #onbPrev:hover{background:#f8fafc;color:#475569}
-  #onbNext{padding:10px 20px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 6px 16px -4px rgb(var(--b600) / .5);transition:filter .15s}
-  #onbNext:hover{filter:brightness(1.08)}
+  #onbOverlay{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(8,10,16,.72);backdrop-filter:blur(6px)}
+  #onbOverlay.open{display:flex;animation:fade .25s ease}
+  #onbCard{position:relative;background:linear-gradient(165deg,#1c1f2b 0%,#11131c 100%);border-radius:20px;border:1px solid rgba(212,175,109,.18);box-shadow:0 40px 80px -16px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.03) inset;width:100%;max-width:408px;overflow:hidden;animation:pop .35s cubic-bezier(.2,.8,.3,1.1)}
+  #onbHead{position:relative;height:124px;overflow:hidden;display:flex;align-items:center;justify-content:center;border-bottom:1px solid rgba(212,175,109,.14)}
+  #onbHead::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 20%, rgba(212,175,109,.22), transparent 68%)}
+  #onbHead::after{content:"";position:absolute;top:-50%;left:50%;width:220px;height:220px;border-radius:50%;background:rgba(212,175,109,.10);filter:blur(36px);transform:translateX(-50%)}
+  #onbClose{position:absolute;top:14px;right:14px;z-index:2;width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(255,255,255,.65);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+  #onbClose:hover{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.25)}
+  #onbIconWrap{position:relative;z-index:1;width:60px;height:60px;border-radius:16px;background:linear-gradient(150deg,#2a2e3d,#1a1c26);border:1px solid rgba(212,175,109,.35);box-shadow:0 12px 28px -6px rgba(0,0,0,.5),0 0 0 1px rgba(212,175,109,.06) inset;display:flex;align-items:center;justify-content:center;font-size:24px;animation:pop .4s cubic-bezier(.2,.8,.3,1.2)}
+  #onbBarTrack{height:2px;background:rgba(255,255,255,.06);display:flex;margin:0 24px}
+  #onbBarTrack .seg{flex:1;height:100%;position:relative;overflow:hidden}
+  #onbBarTrack .seg i{position:absolute;inset:0;background:linear-gradient(90deg,#d4af6d,#e8caa0);transform:scaleX(0);transform-origin:left;transition:transform .45s cubic-bezier(.4,0,.2,1)}
+  #onbBody{padding:26px 26px 8px}
+  #onbEyebrow{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:linear-gradient(90deg,#d4af6d,#f0dcb4);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:8px}
+  #onbTitle{font-size:19px;font-weight:700;color:#f8f6f1;margin:0 0 10px;letter-spacing:.01em}
+  #onbText{font-size:13.5px;color:rgba(226,228,235,.62);line-height:1.7;margin:0}
+  #onbFoot{display:flex;align-items:center;justify-content:space-between;padding:20px 26px 24px}
+  #onbSkip{background:none;border:none;font-size:11.5px;color:rgba(226,228,235,.4);cursor:pointer;font-weight:500;letter-spacing:.02em;transition:color .15s}
+  #onbSkip:hover{color:rgba(226,228,235,.7)}
+  #onbNavWrap{display:flex;align-items:center;gap:10px}
+  #onbPrev{width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:rgba(226,228,235,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+  #onbPrev:hover{background:rgba(255,255,255,.08);color:#f8f6f1;border-color:rgba(255,255,255,.18)}
+  #onbNext{padding:11px 22px;border-radius:11px;border:none;background:linear-gradient(120deg,#d4af6d,#c79a52);color:#1a1410;font-size:13.5px;font-weight:700;letter-spacing:.01em;cursor:pointer;box-shadow:0 8px 20px -4px rgba(212,175,109,.45);transition:all .18s}
+  #onbNext:hover{transform:translateY(-1px);box-shadow:0 10px 24px -4px rgba(212,175,109,.6)}
 
   /* ===== ENTRANCE ANIMATIONS ===== */
   .fade-in{animation:fadeUp .42s cubic-bezier(.2,.7,.3,1)}
@@ -1378,7 +1378,11 @@ try {
     nextBtn.textContent = step === STEPS.length - 1 ? 'เริ่มใช้งานเลย' : 'ถัดไป →';
   }
   function open(){ step = 0; render(); overlay.classList.add('open'); }
-  function finish(){ try{ localStorage.setItem(ONB_KEY, '1'); }catch(e){} overlay.classList.remove('open'); }
+  function finish(){
+    try{ localStorage.setItem(ONB_KEY, '1'); }catch(e){}
+    overlay.classList.remove('open');
+    markDoneInSupabase();
+  }
   nextBtn.onclick = function(){
     if (step === STEPS.length - 1) { finish(); return; }
     step++; render();
@@ -1389,21 +1393,68 @@ try {
   overlay.addEventListener('mousedown', function(e){ if (e.target === overlay) finish(); });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && overlay.classList.contains('open')) finish(); });
 
+  // ===== ผูกสถานะ "เคยเห็นแล้ว" กับอีเมลผู้ใช้จริงผ่าน Supabase =====
+  // ตาราง user_settings: owner (text, = อีเมล), onboarding_done (bool)
+  // สร้าง client แยกของตัวเอง เพราะตัวแปร sb ของแอปหลักเป็น local scope เข้าถึงจากนอกไม่ได้
+  var onbSb = null;
+  function getOnbClient(){
+    if (onbSb) return onbSb;
+    try {
+      if (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
+        onbSb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+      }
+    } catch(e){}
+    return onbSb;
+  }
+  function markDoneInSupabase(){
+    var client = getOnbClient();
+    if (!client) return;
+    try {
+      client.auth.getUser().then(function(res){
+        var email = res && res.data && res.data.user && res.data.user.email;
+        if (!email) return;
+        client.from('user_settings')
+          .upsert({ owner: email, onboarding_done: true, updated_at: new Date().toISOString() }, { onConflict: 'owner' })
+          .then(function(){});
+      });
+    } catch(e){}
+  }
+
   // เปิดอัตโนมัติครั้งแรกหลัง login: เฝ้าดู DOM จนกว่าเมนูแอป (sidebar) จะ render เสร็จ
-  var already = false;
-  try { already = !!localStorage.getItem(ONB_KEY); } catch(e){}
+  // เช็คสถานะจาก Supabase ก่อน (ผูกกับอีเมล ใช้ได้ทุกเครื่อง) ถ้าเช็คไม่ได้ ใช้ localStorage เป็น fallback
   var tries = 0;
   var waitForApp = setInterval(function(){
     tries++;
     var navButtons = document.querySelectorAll('aside nav button');
     if (navButtons.length > 0) {
       clearInterval(waitForApp);
-      if (!already) setTimeout(open, 400);
       attachMenuButton();
+      decideAndMaybeOpen();
     } else if (tries > 100) {
       clearInterval(waitForApp);
     }
   }, 150);
+
+  function decideAndMaybeOpen(){
+    var client = getOnbClient();
+    if (!client) { openIfNotSeenLocally(); return; }
+    client.auth.getUser().then(function(res){
+      var email = res && res.data && res.data.user && res.data.user.email;
+      if (!email) { openIfNotSeenLocally(); return; }
+      client.from('user_settings').select('onboarding_done').eq('owner', email).maybeSingle()
+        .then(function(r){
+          var done = r && r.data && r.data.onboarding_done;
+          if (!done) { try{ localStorage.removeItem(ONB_KEY); }catch(e){} setTimeout(open, 400); }
+          else { try{ localStorage.setItem(ONB_KEY, '1'); }catch(e){} }
+        })
+        .catch(function(){ openIfNotSeenLocally(); });
+    }).catch(function(){ openIfNotSeenLocally(); });
+  }
+  function openIfNotSeenLocally(){
+    var seen = false;
+    try { seen = !!localStorage.getItem(ONB_KEY); } catch(e){}
+    if (!seen) setTimeout(open, 400);
+  }
 
   // แทรกปุ่ม "วิธีใช้งาน" ต่อจากปุ่ม "ตั้งค่าลิงก์" ที่แอป React render ไว้ (DOM ภายนอก ไม่แก้ React)
   function attachMenuButton(){
