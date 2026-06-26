@@ -46,6 +46,30 @@ tailwind.config = {
   .col-over{background:var(--b100,#dbeafe)!important;outline:2px dashed var(--b400,#60a5fa);outline-offset:-4px}
   [data-modal]{animation:pop .26s cubic-bezier(.2,.9,.3,1.15)}
   @keyframes pop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+  #onbOverlay{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.6);backdrop-filter:blur(4px)}
+  #onbOverlay.open{display:flex;animation:fade .2s ease}
+  #onbCard{position:relative;background:#fff;border-radius:24px;box-shadow:0 30px 60px -12px rgba(15,23,42,.5);width:100%;max-width:400px;overflow:hidden;animation:pop .3s cubic-bezier(.2,.8,.3,1.1)}
+  #onbHead{position:relative;height:140px;background:#0f172a;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  #onbHead::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 30%, rgb(var(--b500) / .55), transparent 65%)}
+  #onbHead::after{content:"";position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;border-radius:50%;background:rgb(var(--b600) / .25);filter:blur(30px)}
+  #onbClose{position:absolute;top:12px;right:12px;z-index:2;width:32px;height:32px;border-radius:50%;border:none;background:rgba(255,255,255,.12);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+  #onbClose:hover{background:rgba(255,255,255,.25)}
+  #onbIconWrap{position:relative;z-index:1;width:64px;height:64px;border-radius:18px;background:#fff;box-shadow:0 10px 24px -4px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:28px;animation:pop .35s cubic-bezier(.2,.8,.3,1.2)}
+  #onbBarTrack{height:4px;background:#f1f5f9;display:flex}
+  #onbBarTrack .seg{flex:1;height:100%;background:#f1f5f9;position:relative;overflow:hidden}
+  #onbBarTrack .seg i{position:absolute;inset:0;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .4s ease}
+  #onbBody{padding:22px 24px 6px}
+  #onbEyebrow{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+  #onbTitle{font-size:18px;font-weight:800;color:#0f172a;margin:0 0 8px}
+  #onbText{font-size:13.5px;color:#64748b;line-height:1.6;margin:0}
+  #onbFoot{display:flex;align-items:center;justify-content:space-between;padding:18px 24px 22px}
+  #onbSkip{background:none;border:none;font-size:12px;color:#94a3b8;cursor:pointer;font-weight:500}
+  #onbSkip:hover{color:#64748b}
+  #onbNavWrap{display:flex;align-items:center;gap:8px}
+  #onbPrev{width:36px;height:36px;border-radius:12px;border:none;background:transparent;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  #onbPrev:hover{background:#f8fafc;color:#475569}
+  #onbNext{padding:10px 20px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 6px 16px -4px rgb(var(--b600) / .5);transition:filter .15s}
+  #onbNext:hover{filter:brightness(1.08)}
 
   /* ===== ENTRANCE ANIMATIONS ===== */
   .fade-in{animation:fadeUp .42s cubic-bezier(.2,.7,.3,1)}
@@ -1287,6 +1311,114 @@ try {
     try{ localStorage.setItem(KEY,now); }catch(e){}
     apply(now);
   };
+})();
+</script>
+<div id="onbOverlay">
+  <div id="onbCard">
+    <div id="onbHead">
+      <button id="onbClose" aria-label="ปิด">✕</button>
+      <div id="onbIconWrap">🏠</div>
+    </div>
+    <div id="onbBarTrack"></div>
+    <div id="onbBody">
+      <div id="onbEyebrow"></div>
+      <h3 id="onbTitle"></h3>
+      <p id="onbText"></p>
+    </div>
+    <div id="onbFoot">
+      <button id="onbSkip">ข้ามทั้งหมด</button>
+      <div id="onbNavWrap">
+        <button id="onbPrev" aria-label="ก่อนหน้า">←</button>
+        <button id="onbNext">ถัดไป →</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var ONB_KEY = 'solar_onboarding_done_v3';
+  var STEPS = [
+    { icon:'🏠', eyebrow:'ภาพรวม', title:'แดชบอร์ด', text:'หน้าแรกหลังเข้าระบบ สรุปจำนวนลูกค้า มูลค่ารวมในไปป์ไลน์ และอัตราการปิดงาน ให้เห็นสถานะธุรกิจได้ในแว่บเดียว' },
+    { icon:'📥', eyebrow:'ลูกค้าเข้าใหม่', title:'Leads ใหม่', text:'ทุกครั้งที่มีคนกรอกขอใบเสนอราคาจากหน้าเว็บ จะเด้งเข้ามารอที่นี่ก่อน กดปุ่มรับเป็นลูกค้าเพื่อย้ายเข้าระบบหลัก' },
+    { icon:'👥', eyebrow:'ฐานข้อมูล', title:'ลูกค้า', text:'รายชื่อลูกค้าทั้งหมดของคุณ ค้นหาด้วยชื่อหรือเบอร์ กรองตามจังหวัดและสถานะ พร้อมแก้ไขข้อมูลได้ทันที' },
+    { icon:'📊', eyebrow:'ติดตามการขาย', title:'ไปป์ไลน์', text:'ลากการ์ดลูกค้าข้ามคอลัมน์เพื่อเลื่อนสถานะ ตั้งแต่ติดต่อแรกไปจนถึงปิดการขาย เห็นภาพรวมว่างานอยู่ตรงไหนบ้าง' },
+    { icon:'🔔', eyebrow:'ไม่พลาดทุกนัด', title:'ติดตาม', text:'ระบบรวบรวมลูกค้าที่ครบกำหนดติดตามไว้ให้ในที่เดียว เปิดดูทุกเช้าเพื่อไม่ให้ลูกค้าหลุดมือ' },
+    { icon:'🧮', eyebrow:'วางแผนกำไร', title:'คำนวณกำไร', text:'กรอกต้นทุนอุปกรณ์และค่าแรง เทียบกับราคาขาย ระบบคิดกำไรสุทธิและมาร์จิ้นให้อัตโนมัติ ก่อนเสนอราคาจริง' },
+    { icon:'📄', eyebrow:'ปิดดีล', title:'ออกใบเสนอราคา', text:'ปุ่มสีส้มด้านล่างเมนู สร้างลิงก์ใบเสนอราคาส่งให้ลูกค้ากรอกเองได้ทันที หรือคัดลอกลิงก์ไปแชร์ทางไลน์/เฟซบุ๊กก็ได้' }
+  ];
+  var step = 0;
+  var overlay = document.getElementById('onbOverlay');
+  var barTrack = document.getElementById('onbBarTrack');
+  var iconWrap = document.getElementById('onbIconWrap');
+  var eyebrow = document.getElementById('onbEyebrow');
+  var titleEl = document.getElementById('onbTitle');
+  var textEl = document.getElementById('onbText');
+  var prevBtn = document.getElementById('onbPrev');
+  var nextBtn = document.getElementById('onbNext');
+  var skipBtn = document.getElementById('onbSkip');
+  var closeBtn = document.getElementById('onbClose');
+
+  STEPS.forEach(function(){
+    var seg = document.createElement('div');
+    seg.className = 'seg';
+    var fill = document.createElement('i');
+    seg.appendChild(fill);
+    barTrack.appendChild(seg);
+  });
+  var segs = barTrack.querySelectorAll('.seg i');
+
+  function render(){
+    var s = STEPS[step];
+    iconWrap.textContent = s.icon;
+    eyebrow.textContent = 'ขั้นที่ ' + (step + 1) + ' จาก ' + STEPS.length + ' · ' + s.eyebrow;
+    titleEl.textContent = s.title;
+    textEl.textContent = s.text;
+    segs.forEach(function(f, i){ f.style.transform = 'scaleX(' + (i <= step ? 1 : 0) + ')'; });
+    prevBtn.style.visibility = step === 0 ? 'hidden' : 'visible';
+    nextBtn.textContent = step === STEPS.length - 1 ? 'เริ่มใช้งานเลย' : 'ถัดไป →';
+  }
+  function open(){ step = 0; render(); overlay.classList.add('open'); }
+  function finish(){ try{ localStorage.setItem(ONB_KEY, '1'); }catch(e){} overlay.classList.remove('open'); }
+  nextBtn.onclick = function(){
+    if (step === STEPS.length - 1) { finish(); return; }
+    step++; render();
+  };
+  prevBtn.onclick = function(){ if (step > 0) { step--; render(); } };
+  skipBtn.onclick = finish;
+  closeBtn.onclick = finish;
+  overlay.addEventListener('mousedown', function(e){ if (e.target === overlay) finish(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && overlay.classList.contains('open')) finish(); });
+
+  // เปิดอัตโนมัติครั้งแรกหลัง login: เฝ้าดู DOM จนกว่าเมนูแอป (sidebar) จะ render เสร็จ
+  var already = false;
+  try { already = !!localStorage.getItem(ONB_KEY); } catch(e){}
+  var tries = 0;
+  var waitForApp = setInterval(function(){
+    tries++;
+    var navButtons = document.querySelectorAll('aside nav button');
+    if (navButtons.length > 0) {
+      clearInterval(waitForApp);
+      if (!already) setTimeout(open, 400);
+      attachMenuButton();
+    } else if (tries > 100) {
+      clearInterval(waitForApp);
+    }
+  }, 150);
+
+  // แทรกปุ่ม "วิธีใช้งาน" ต่อจากปุ่ม "ตั้งค่าลิงก์" ที่แอป React render ไว้ (DOM ภายนอก ไม่แก้ React)
+  function attachMenuButton(){
+    var allButtons = document.querySelectorAll('aside button');
+    var target = null;
+    allButtons.forEach(function(b){ if (b.textContent.indexOf('ตั้งค่าลิงก์') > -1) target = b; });
+    if (!target || document.getElementById('onbMenuBtn')) return;
+    var btn = target.cloneNode(true);
+    btn.id = 'onbMenuBtn';
+    btn.innerHTML = target.innerHTML.replace(/ตั้งค่าลิงก์/, 'วิธีใช้งาน');
+    var svg = btn.querySelector('svg path');
+    if (svg) svg.setAttribute('d', 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z');
+    btn.onclick = open;
+    target.parentNode.insertBefore(btn, target.nextSibling);
+  }
 })();
 </script>
 </body>
