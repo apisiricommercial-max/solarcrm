@@ -630,6 +630,7 @@ function Donut({ data }) {
 }
 function TrendChart({ rows }) {
   const [hover, setHover] = useState(null);
+  const [margin, setMargin] = useState(30);
   const months = useMemo(() => {
     const out = [];
     const now = /* @__PURE__ */ new Date();
@@ -647,36 +648,50 @@ function TrendChart({ rows }) {
     });
     return { ...mo, value: won.reduce((s, r) => s + (r.value || 0), 0), count: won.length };
   }), [rows, months]);
-  const max = Math.max(...series.map((s) => s.value), 1);
+  const seriesWithProfit = useMemo(() => series.map((s) => ({ ...s, profit: s.value * margin / 100 })), [series, margin]);
+  const max = Math.max(...seriesWithProfit.map((s) => s.value), 1);
   const W = 560, H = 180, PAD = 28;
-  const stepX = (W - PAD * 2) / (series.length - 1 || 1);
-  const pts = series.map((s, i) => ({ ...s, x: PAD + i * stepX, y: H - PAD - s.value / max * (H - PAD * 2 - 16) }));
+  const stepX = (W - PAD * 2) / (seriesWithProfit.length - 1 || 1);
+  const yFor = (val) => H - PAD - val / max * (H - PAD * 2 - 16);
+  const pts = seriesWithProfit.map((s, i) => ({ ...s, x: PAD + i * stepX, y: yFor(s.value), yProfit: yFor(s.profit) }));
   const path = pts.map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" ");
+  const profitPath = pts.map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + "," + p.yProfit.toFixed(1)).join(" ");
   const areaPath = path + ` L${pts[pts.length - 1].x.toFixed(1)},${H - PAD} L${pts[0].x.toFixed(1)},${H - PAD} Z`;
-  const totalWon = series.reduce((s, m) => s + m.value, 0);
-  const lastMonth = series[series.length - 1], prevMonth = series[series.length - 2];
+  const totalWon = seriesWithProfit.reduce((s, m) => s + m.value, 0);
+  const totalProfit = seriesWithProfit.reduce((s, m) => s + m.profit, 0);
+  const lastMonth = seriesWithProfit[seriesWithProfit.length - 1], prevMonth = seriesWithProfit[seriesWithProfit.length - 2];
   const growth = prevMonth && prevMonth.value > 0 ? Math.round((lastMonth.value - prevMonth.value) / prevMonth.value * 100) : null;
   return /* @__PURE__ */ React.createElement("div", null,
-    /* @__PURE__ */ React.createElement("div", { className: "flex items-end justify-between mb-1" },
-      /* @__PURE__ */ React.createElement("div", null,
-        /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400" }, "\u0E22\u0E2D\u0E14\u0E02\u0E32\u0E22\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E44\u0E14\u0E49 6 \u0E40\u0E14\u0E37\u0E2D\u0E19\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14"),
-        /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900" }, baht(totalWon))),
+    /* @__PURE__ */ React.createElement("div", { className: "flex items-end justify-between mb-1 flex-wrap gap-2" },
+      /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-4" },
+        /* @__PURE__ */ React.createElement("div", null,
+          /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "w-2 h-2 rounded-full bg-brand-600 inline-block" }), "\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A 6 \u0E40\u0E14\u0E37\u0E2D\u0E19\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14"),
+          /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900" }, baht(totalWon))),
+        /* @__PURE__ */ React.createElement("div", null,
+          /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "w-2 h-2 rounded-full bg-emerald-500 inline-block" }), "\u0E01\u0E33\u0E44\u0E23\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13\u0E01\u0E32\u0E23"),
+          /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-emerald-600" }, baht(totalProfit)))),
       growth !== null && /* @__PURE__ */ React.createElement("div", { className: `text-xs font-semibold px-2 py-1 rounded-lg ${growth >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}` }, growth >= 0 ? "\u2191 " : "\u2193 ", Math.abs(growth), "% \u0E08\u0E32\u0E01\u0E40\u0E14\u0E37\u0E2D\u0E19\u0E01\u0E48\u0E2D\u0E19")),
     /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, className: "w-full h-auto mt-2", style: { maxHeight: 190 } },
       /* @__PURE__ */ React.createElement("defs", null,
         /* @__PURE__ */ React.createElement("linearGradient", { id: "trendFill", x1: "0", y1: "0", x2: "0", y2: "1" },
-          /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: "rgb(var(--b500))", stopOpacity: "0.28" }),
+          /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: "rgb(var(--b500))", stopOpacity: "0.22" }),
           /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: "rgb(var(--b500))", stopOpacity: "0" }))),
       [0.25, 0.5, 0.75].map((f) => /* @__PURE__ */ React.createElement("line", { key: f, x1: PAD, x2: W - PAD, y1: PAD + f * (H - PAD * 2 - 16), y2: PAD + f * (H - PAD * 2 - 16), stroke: "#f1f5f9", strokeWidth: "1" })),
       /* @__PURE__ */ React.createElement("path", { d: areaPath, fill: "url(#trendFill)" }),
       /* @__PURE__ */ React.createElement("path", { d: path, fill: "none", stroke: "rgb(var(--b600))", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }),
+      /* @__PURE__ */ React.createElement("path", { d: profitPath, fill: "none", stroke: "#10b981", strokeWidth: "2.5", strokeDasharray: "5 4", strokeLinecap: "round", strokeLinejoin: "round" }),
       pts.map((p, i) => /* @__PURE__ */ React.createElement("g", { key: i },
         /* @__PURE__ */ React.createElement("circle", { cx: p.x, cy: p.y, r: hover === i ? 6 : 4, fill: "#fff", stroke: "rgb(var(--b600))", strokeWidth: "2.5", className: "transition-all cursor-pointer", onMouseEnter: () => setHover(i), onMouseLeave: () => setHover(null) }),
+        /* @__PURE__ */ React.createElement("circle", { cx: p.x, cy: p.yProfit, r: hover === i ? 5 : 3, fill: "#10b981", className: "transition-all cursor-pointer", onMouseEnter: () => setHover(i), onMouseLeave: () => setHover(null) }),
         /* @__PURE__ */ React.createElement("text", { x: p.x, y: H - 6, textAnchor: "middle", className: "fill-ink-400", style: { fontSize: 11 } }, p.label),
         hover === i && /* @__PURE__ */ React.createElement("g", null,
-          /* @__PURE__ */ React.createElement("rect", { x: p.x - 38, y: p.y - 38, width: 76, height: 26, rx: 8, className: "fill-ink-900" }),
-          /* @__PURE__ */ React.createElement("text", { x: p.x, y: p.y - 21, textAnchor: "middle", className: "fill-white font-semibold num", style: { fontSize: 11 } }, baht(p.value))))))
-  );
+          /* @__PURE__ */ React.createElement("rect", { x: p.x - 42, y: Math.min(p.y, p.yProfit) - 46, width: 84, height: 38, rx: 8, className: "fill-ink-900" }),
+          /* @__PURE__ */ React.createElement("text", { x: p.x, y: Math.min(p.y, p.yProfit) - 31, textAnchor: "middle", className: "fill-white font-semibold num", style: { fontSize: 10.5 } }, baht(p.value)),
+          /* @__PURE__ */ React.createElement("text", { x: p.x, y: Math.min(p.y, p.yProfit) - 17, textAnchor: "middle", className: "fill-emerald-300 font-semibold num", style: { fontSize: 10.5 } }, baht(p.profit), " \u0E01\u0E33\u0E44\u0E23"))))),
+    /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 mt-3 pt-3 border-t border-ink-100" },
+      /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-400 shrink-0" }, "\u0E21\u0E32\u0E23\u0E4C\u0E08\u0E34\u0E19\u0E40\u0E1F\u0E25\u0E35\u0E48\u0E22\u0E2A\u0E33\u0E2B\u0E23\u0E31\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13\u0E01\u0E32\u0E23"),
+      /* @__PURE__ */ React.createElement("input", { type: "range", min: "5", max: "60", value: margin, onChange: (e) => setMargin(+e.target.value), className: "flex-1 accent-emerald-600" }),
+      /* @__PURE__ */ React.createElement("span", { className: "num text-xs font-bold text-emerald-600 w-10 text-right shrink-0" }, margin, "%")));
 }
 function Funnel({ data }) {
   const max = Math.max(...data.map((d) => d.value), 1);
@@ -759,7 +774,7 @@ function Dashboard({ rows, onOpen }) {
         /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold text-ink-900 mt-1" }, baht(totalValue)),
         /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, "\u0E23\u0E27\u0E21\u0E17\u0E38\u0E01\u0E2A\u0E16\u0E32\u0E19\u0E30"))),
     /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-      /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14 (\u0E2A\u0E39\u0E07\u0E2A\u0E38\u0E14 8 \u0E2D\u0E32\u0E19\u0E14\u0E31\u0E1A)"),
+      /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14 (\u0E2A\u0E39\u0E07\u0E2A\u0E38\u0E14 8 \u0E2D\u0E31\u0E19\u0E14\u0E31\u0E1A)"),
       /* @__PURE__ */ React.createElement(ProvinceStats, { rows })),
     /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4" },
       /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
@@ -932,6 +947,20 @@ function Leads({ leads, loading, onAccept, onRefresh }) {
 }
 function ProfitCalc() {
   const [v, setV] = useState({ sell: 280000, panel: 70000, inverter: 35000, battery: 0, mount: 18000, wiring: 12000, labor: 35000, transport: 5000, other: 8000, tax: 0 });
+  const [monthlyJobs, setMonthlyJobs] = useState(Array(12).fill(0));
+  const monthLabels = useMemo(() => {
+    const out = [];
+    const now = /* @__PURE__ */ new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+      out.push(d.toLocaleDateString("th-TH", { month: "short" }));
+    }
+    return out;
+  }, []);
+  const setJob = (i) => (e) => {
+    const val = Math.max(0, Math.round(+e.target.value) || 0);
+    setMonthlyJobs((p) => p.map((x, idx) => idx === i ? val : x));
+  };
   const set = (k) => (e) => setV((p) => ({ ...p, [k]: e.target.value }));
   const n = (x) => parseFloat(x) || 0;
   const costKeys = ["panel", "inverter", "battery", "mount", "wiring", "labor", "transport", "other"];
@@ -945,6 +974,20 @@ function ProfitCalc() {
   const costFields = fields.map(([lab, k]) => React.createElement("div", { key: k }, React.createElement("label", { className: "text-xs text-ink-500" }, lab), numInput(k)));
   const statCard = (label, value, sub, cls) => React.createElement("div", { className: "rounded-2xl ring-1 ring-ink-100 p-4 " + cls }, React.createElement("div", { className: "text-xs opacity-80" }, label), React.createElement("div", { className: "num text-2xl font-extrabold mt-1" }, value), sub ? React.createElement("div", { className: "text-xs opacity-70 mt-0.5" }, sub) : null);
   const profitPct = sell > 0 ? Math.max(0, Math.min(100, net / sell * 100)) : 0;
+  const cashflowData = monthLabels.map((label, i) => ({ label, jobs: monthlyJobs[i], revenue: monthlyJobs[i] * sell, profit: monthlyJobs[i] * net }));
+  const cfMaxRevenue = Math.max(...cashflowData.map((d) => d.revenue), 1);
+  const cfTotalRevenue = cashflowData.reduce((s, d) => s + d.revenue, 0);
+  const cfTotalProfit = cashflowData.reduce((s, d) => s + d.profit, 0);
+  const exportCashflowExcel = () => {
+    if (!window.XLSX) { alert("\u0E44\u0E25\u0E1A\u0E23\u0E32\u0E23\u0E35\u0E48 Excel \u0E22\u0E31\u0E07\u0E42\u0E2B\u0E25\u0E14\u0E44\u0E21\u0E48\u0E40\u0E2A\u0E23\u0E47\u0E08 \u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07"); return; }
+    const rows = cashflowData.map((d) => ({ "\u0E40\u0E14\u0E37\u0E2D\u0E19": d.label, "\u0E08\u0E33\u0E19\u0E27\u0E19\u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14": d.jobs, "\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A (\u0E1A\u0E32\u0E17)": d.revenue, "\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 (\u0E1A\u0E32\u0E17)": d.profit }));
+    rows.push({ "\u0E40\u0E14\u0E37\u0E2D\u0E19": "\u0E23\u0E27\u0E21\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14", "\u0E08\u0E33\u0E19\u0E27\u0E19\u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14": cashflowData.reduce((s, d) => s + d.jobs, 0), "\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A (\u0E1A\u0E32\u0E17)": cfTotalRevenue, "\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 (\u0E1A\u0E32\u0E17)": cfTotalProfit });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [{ wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Cashflow\u0E23\u0E32\u0E22\u0E40\u0E14\u0E37\u0E2D\u0E19");
+    XLSX.writeFile(wb, "Cashflow_SolarCRM_" + todayISO() + ".xlsx");
+  };
   const exportProfitExcel = () => {
     if (!window.XLSX) { alert("\u0E44\u0E25\u0E1A\u0E23\u0E32\u0E23\u0E35\u0E48 Excel \u0E22\u0E31\u0E07\u0E42\u0E2B\u0E25\u0E14\u0E44\u0E21\u0E48\u0E40\u0E2A\u0E23\u0E47\u0E08 \u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07"); return; }
     const rows = costKeys.map((k) => ({ "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23": costLabels[k], "\u0E08\u0E33\u0E19\u0E27\u0E19 (\u0E1A\u0E32\u0E17)": n(v[k]) }));
@@ -986,7 +1029,29 @@ function ProfitCalc() {
           React.createElement("div", { className: "flex justify-between text-[11px] text-ink-400 mt-2" }, React.createElement("span", null, "\u25A0 \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 " + B(cost)), React.createElement("span", null, "\u25A0 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 " + B(net))),
           React.createElement("button", { onClick: exportProfitExcel, className: "mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 shadow" },
             React.createElement(Icon, { d: I.download, cls: "w-4 h-4" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19\u0E19\u0E35\u0E49 Excel")),
-        React.createElement("div", { className: "text-xs text-ink-400 leading-relaxed" }, "* \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 = \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22 - \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19\u0E23\u0E27\u0E21 \u00B7 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 = \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 - \u0E20\u0E32\u0E29\u0E35 \u00B7 \u0E21\u0E32\u0E23\u0E4C\u0E08\u0E34\u0E19 = \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 \u00F7 \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22"))));
+        React.createElement("div", { className: "text-xs text-ink-400 leading-relaxed" }, "* \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 = \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22 - \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19\u0E23\u0E27\u0E21 \u00B7 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 = \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 - \u0E20\u0E32\u0E29\u0E35 \u00B7 \u0E21\u0E32\u0E23\u0E4C\u0E08\u0E34\u0E19 = \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 \u00F7 \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22"))),
+    React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+      React.createElement("div", { className: "flex items-center justify-between mb-1" },
+        React.createElement("h4", { className: "text-sm font-semibold text-ink-700" }, "\u{1F4C5} Cashflow & \u0E01\u0E33\u0E44\u0E23\u0E15\u0E48\u0E2D\u0E40\u0E14\u0E37\u0E2D\u0E19"),
+        React.createElement("button", { onClick: exportCashflowExcel, className: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 shadow-sm" },
+          React.createElement(Icon, { d: I.download, cls: "w-3.5 h-3.5" }), "Export")),
+      React.createElement("p", { className: "text-xs text-ink-400 mb-4" }, "\u0E01\u0E23\u0E2D\u0E01\u0E08\u0E33\u0E19\u0E27\u0E19\u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E44\u0E14\u0E49\u0E40\u0E14\u0E37\u0E2D\u0E19\u0E25\u0E30 \u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A/\u0E01\u0E33\u0E44\u0E23\u0E08\u0E30\u0E04\u0E33\u0E19\u0E27\u0E13\u0E08\u0E32\u0E01\u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22\u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E14\u0E49\u0E32\u0E19\u0E1A\u0E19\u0E43\u0E2B\u0E49\u0E2D\u0E32\u0E15\u0E42\u0E1B\u0E21\u0E31\u0E15\u0E34"),
+      React.createElement("div", { className: "grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 mb-5" },
+        monthLabels.map((label, i) => React.createElement("div", { key: i },
+          React.createElement("label", { className: "text-[11px] text-ink-400 block mb-1" }, label),
+          React.createElement("input", { type: "number", min: "0", value: monthlyJobs[i], onChange: setJob(i), className: "w-full px-2 py-1.5 rounded-lg border border-ink-200 text-sm num text-center" })))),
+      React.createElement("div", { className: "grid grid-cols-2 gap-4 mb-5" },
+        statCard("\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A\u0E23\u0E27\u0E21 12 \u0E40\u0E14\u0E37\u0E2D\u0E19", B(cfTotalRevenue), cashflowData.reduce((s, d) => s + d.jobs, 0) + " \u0E07\u0E32\u0E19", "bg-white text-ink-800"),
+        statCard("\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E23\u0E27\u0E21 12 \u0E40\u0E14\u0E37\u0E2D\u0E19", B(cfTotalProfit), "\u0E40\u0E1F\u0E25\u0E35\u0E48\u0E22 " + B(cfTotalProfit / 12) + "/\u0E40\u0E14\u0E37\u0E2D\u0E19", "bg-white text-emerald-600")),
+      React.createElement("div", { className: "flex items-end gap-1.5 sm:gap-2", style: { height: 140 } },
+        cashflowData.map((d, i) => React.createElement("div", { key: i, className: "flex-1 flex flex-col items-center justify-end h-full group relative" },
+          d.jobs > 0 && React.createElement("div", { className: "absolute -top-6 text-[10px] font-semibold text-ink-600 num opacity-0 group-hover:opacity-100 transition whitespace-nowrap" }, B(d.profit)),
+          React.createElement("div", { className: "w-full rounded-t-md bg-gradient-to-t from-brand-600 to-brand-400 transition-all", style: { height: Math.max(d.revenue / cfMaxRevenue * 100, d.jobs > 0 ? 4 : 0) + "%" } }),
+          React.createElement("div", { className: "w-full rounded-t-sm bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all -mt-px", style: { height: Math.max(d.profit / cfMaxRevenue * 100, d.jobs > 0 ? 3 : 0) + "%" } }),
+          React.createElement("span", { className: "text-[10px] text-ink-400 mt-1.5" }, d.label)))),
+      React.createElement("div", { className: "flex items-center gap-4 mt-3 pt-3 border-t border-ink-100" },
+        React.createElement("span", { className: "inline-flex items-center gap-1.5 text-[11px] text-ink-500" }, React.createElement("span", { className: "w-2 h-2 rounded bg-brand-500 inline-block" }), "\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A"),
+        React.createElement("span", { className: "inline-flex items-center gap-1.5 text-[11px] text-ink-500" }, React.createElement("span", { className: "w-2 h-2 rounded bg-emerald-500 inline-block" }), "\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34"))));
 }
 function App() {
   const [rows, setRows] = useState([]);
