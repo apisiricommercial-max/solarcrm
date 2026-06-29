@@ -284,6 +284,8 @@ tailwind.config = {
   @keyframes numPop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
   .fade-in .num{animation:numPop .6s cubic-bezier(.2,.8,.3,1.2) both}
   @media print{.no-print,#themeFab,#fabStack,.ov{display:none!important}}
+  .print-only{display:none}
+  @media print{.print-only{display:inline!important}}
 /* ===================== PREMIUM LOGIN ===================== */
 .lgn{position:fixed;inset:0;overflow:hidden;background:#070b16;display:flex;align-items:center;justify-content:center;padding:24px;perspective:1200px}
 .lgn-aurora,.lgn-aurora i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;pointer-events:none}
@@ -430,6 +432,7 @@ main .ring-emerald-200,main .ring-red-200,main .ring-amber-200,main .ring-brand-
 
 <script type="text/app" id="appcode">
 const { useState, useEffect, useMemo, useRef } = React;
+const h = React.createElement; // ตัวช่วยย่อสำหรับเขียนโค้ดส่วน BOQ ให้กระชับ (ใช้แทน React.createElement)
 const STORAGE_KEY = "solar_crm_v1";
 let _mem = null;
 function safeGet() {
@@ -523,6 +526,80 @@ const db = {
     return rows;
   }
 };
+
+/* ===================== BOQ: คลังรายการ + ใบเสนอราคาแยกรายการ ===================== */
+const BOQ_CATEGORIES = ["แผงโซลาร์", "อินเวอร์เตอร์", "โครงสร้าง/ติดตั้ง", "ไฟฟ้า/สายไฟ", "ค่าแรง", "เอกสาร/ดำเนินการ", "อื่นๆ"];
+const BOQ_CATALOG_SEED = [
+  { id: "c1", name: "แผงโซลาร์เซลล์ Mono 550W", category: "แผงโซลาร์", unit: "แผง", price: 4500 },
+  { id: "c2", name: "อินเวอร์เตอร์ On-Grid 5kW", category: "อินเวอร์เตอร์", unit: "ชุด", price: 35000 },
+  { id: "c3", name: "อินเวอร์เตอร์ Hybrid 5kW", category: "อินเวอร์เตอร์", unit: "ชุด", price: 55000 },
+  { id: "c4", name: "โครงสร้างยึดแผง (ราง+ขาจับ)", category: "โครงสร้าง/ติดตั้ง", unit: "ชุด", price: 1200 },
+  { id: "c5", name: "ค่าแรงติดตั้งระบบ", category: "ค่าแรง", unit: "งาน", price: 15000 },
+  { id: "c6", name: "สายไฟ DC Solar Cable", category: "ไฟฟ้า/สายไฟ", unit: "เมตร", price: 35 },
+  { id: "c7", name: "เบรกเกอร์ + ตู้ไฟ AC/DC", category: "ไฟฟ้า/สายไฟ", unit: "ชุด", price: 3500 },
+  { id: "c8", name: "อุปกรณ์ป้องกันไฟกระชาก (SPD)", category: "ไฟฟ้า/สายไฟ", unit: "ชุด", price: 1800 },
+  { id: "c9", name: "สายดิน/Grounding Kit", category: "ไฟฟ้า/สายไฟ", unit: "ชุด", price: 1500 },
+  { id: "c10", name: "ค่าออกแบบระบบ", category: "เอกสาร/ดำเนินการ", unit: "งาน", price: 3500 },
+  { id: "c11", name: "ค่ายื่นขออนุญาต/ขึ้นทะเบียนการไฟฟ้า", category: "เอกสาร/ดำเนินการ", unit: "งาน", price: 5000 },
+  { id: "c12", name: "ค่าตรวจสอบและทดสอบระบบ", category: "เอกสาร/ดำเนินการ", unit: "งาน", price: 2000 }
+];
+const BOQ_CATALOG_KEY = "solar_boq_catalog_v1";
+const BOQ_QUOTES_KEY = "solar_boq_quotes_v1";
+const boqDb = {
+  async listCatalog() {
+    if (sb) {
+      const { data, error } = await sb.from("boq_catalog").select("*").order("createdAt", { ascending: true });
+      if (!error && data && data.length) return data;
+      if (!error && data && data.length === 0) return BOQ_CATALOG_SEED;
+      console.error(error);
+    }
+    try { const raw = localStorage.getItem(BOQ_CATALOG_KEY); return raw ? JSON.parse(raw) : BOQ_CATALOG_SEED; }
+    catch (e) { return BOQ_CATALOG_SEED; }
+  },
+  async saveCatalog(rows) {
+    if (sb) {
+      try {
+        const uid = currentUser ? currentUser.id : null;
+        const stamped = rows.map(r => uid ? { ...r, user_id: uid } : r);
+        await sb.from("boq_catalog").upsert(stamped);
+        const { data } = await sb.from("boq_catalog").select("id");
+        const ids = new Set(rows.map(r => r.id));
+        const toDel = (data || []).filter(r => !ids.has(r.id)).map(r => r.id);
+        if (toDel.length) await sb.from("boq_catalog").delete().in("id", toDel);
+      } catch (e) { console.error("BOQ catalog save failed:", e); }
+      return rows;
+    }
+    try { localStorage.setItem(BOQ_CATALOG_KEY, JSON.stringify(rows)); } catch (e) {}
+    return rows;
+  },
+  async listQuotes() {
+    if (sb) {
+      const { data, error } = await sb.from("boq_quotes").select("*").order("createdAt", { ascending: false });
+      if (!error) return data || [];
+      console.error(error);
+    }
+    try { const raw = localStorage.getItem(BOQ_QUOTES_KEY); return raw ? JSON.parse(raw) : []; }
+    catch (e) { return []; }
+  },
+  async saveQuotes(rows) {
+    if (sb) {
+      try {
+        const uid = currentUser ? currentUser.id : null;
+        const stamped = rows.map(r => uid ? { ...r, user_id: uid } : r);
+        await sb.from("boq_quotes").upsert(stamped);
+        const { data } = await sb.from("boq_quotes").select("id");
+        const ids = new Set(rows.map(r => r.id));
+        const toDel = (data || []).filter(r => !ids.has(r.id)).map(r => r.id);
+        if (toDel.length) await sb.from("boq_quotes").delete().in("id", toDel);
+      } catch (e) { console.error("BOQ quotes save failed:", e); }
+      return rows;
+    }
+    try { localStorage.setItem(BOQ_QUOTES_KEY, JSON.stringify(rows)); } catch (e) {}
+    return rows;
+  }
+};
+function boqLineTotal(it) { return (Number(it.qty) || 0) * (Number(it.price) || 0); }
+function boqSubtotal(items) { return items.reduce((s, it) => s + boqLineTotal(it), 0); }
 const STATUSES = [
   { key: "new", label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48", color: "bg-blue-500", soft: "bg-blue-50 text-blue-700 ring-blue-200" },
   { key: "talking", label: "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E04\u0E38\u0E22", color: "bg-indigo-500", soft: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
@@ -686,7 +763,7 @@ function CustomerForm({ open, initial, onClose, onSave }) {
   };
   return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800" }, initial ? "\u0E41\u0E01\u0E49\u0E44\u0E02\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" : "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48"), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x }))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-5 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: "\u0E0A\u0E37\u0E48\u0E2D-\u0E19\u0E32\u0E21\u0E2A\u0E01\u0E38\u0E25 *" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.name, onChange: (e) => set("name", e.target.value), placeholder: "\u0E40\u0E0A\u0E48\u0E19 \u0E04\u0E38\u0E13\u0E2A\u0E21\u0E0A\u0E32\u0E22 \u0E43\u0E08\u0E14\u0E35" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.phone, onChange: (e) => set("phone", e.target.value), placeholder: "08x-xxx-xxxx" })), /* @__PURE__ */ React.createElement(Field, { label: "Line ID" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.lineId, onChange: (e) => set("lineId", e.target.value), placeholder: "@lineid" })), /* @__PURE__ */ React.createElement(Field, { label: "Facebook" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.facebook, onChange: (e) => set("facebook", e.target.value), placeholder: "\u0E0A\u0E37\u0E48\u0E2D/\u0E25\u0E34\u0E07\u0E01\u0E4C Facebook" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, list: "provinces", value: f.province, onChange: (e) => set("province", e.target.value), placeholder: "\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E2B\u0E23\u0E37\u0E2D\u0E1E\u0E34\u0E21\u0E1E\u0E4C\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }), /* @__PURE__ */ React.createElement("datalist", { id: "provinces" }, PROVINCES.map((p) => /* @__PURE__ */ React.createElement("option", { key: p, value: p })))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.address, onChange: (e) => set("address", e.target.value), placeholder: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07" })), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 flex items-center gap-2 pt-3 mt-1 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("span", { className: "text-base" }, "📋"), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-ink-400 uppercase tracking-wider" }, "รายละเอียดงาน")), /* @__PURE__ */ React.createElement(Field, { label: "\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.type, onChange: (e) => set("type", e.target.value) }, TYPES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.source, onChange: (e) => set("source", e.target.value) }, SOURCES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F\u0E15\u0E48\u0E2D\u0E40\u0E14\u0E37\u0E2D\u0E19 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.monthlyBill, onChange: (e) => set("monthlyBill", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.systemSize, onChange: (e) => set("systemSize", e.target.value) }, SIZES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.budget, onChange: (e) => set("budget", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E14\u0E22\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.value, onChange: (e) => set("value", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 flex items-center gap-2 pt-3 mt-1 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("span", { className: "text-base" }, "🎯"), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-ink-400 uppercase tracking-wider" }, "สถานะและการติดตาม")), /* @__PURE__ */ React.createElement(Field, { label: "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E04\u0E27\u0E32\u0E21\u0E2A\u0E19\u0E43\u0E08" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.heat, onChange: (e) => set("heat", e.target.value) }, HEATS.map((h) => /* @__PURE__ */ React.createElement("option", { key: h.key, value: h.key }, h.emoji, " ", h.label)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E2A\u0E16\u0E32\u0E19\u0E30" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.status, onChange: (e) => set("status", e.target.value) }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.key, value: s.key }, s.label)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.lastContact, onChange: (e) => set("lastContact", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.nextFollowup, onChange: (e) => set("nextFollowup", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Tag / \u0E2B\u0E21\u0E27\u0E14\u0E2B\u0E21\u0E39\u0E48", full: true }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, TAGS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, type: "button", onClick: () => toggleTag(t), className: `px-3 py-1.5 rounded-full text-xs font-medium ring-1 ring-inset transition ${f.tags.includes(t) ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-ink-500 ring-ink-200 hover:ring-brand-300"}` }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38", full: true }, /* @__PURE__ */ React.createElement("textarea", { className: inputCls + " h-20 resize-none", value: f.note, onChange: (e) => set("note", e.target.value), placeholder: "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E22\u0E48\u0E2D\u0E40\u0E01\u0E35\u0E48\u0E22\u0E27\u0E01\u0E31\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" }))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-3 px-6 py-4 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01"), /* @__PURE__ */ React.createElement("button", { onClick: submit, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, initial ? "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E41\u0E01\u0E49\u0E44\u0E02" : "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")));
 }
-function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus }) {
+function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus, onOpenBOQ }) {
   const [log, setLog] = useState({ topic: "", interest: "", sent: "", next: "" });
   useEffect(() => {
     setLog({ topic: "", interest: "", sent: "", next: "" });
@@ -702,7 +779,7 @@ function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus }
     setLog({ topic: "", interest: "", sent: "", next: "" });
   };
   const Line = ({ label, val, href }) => /* @__PURE__ */ React.createElement("div", { className: "flex justify-between gap-3 py-1.5 border-b border-ink-50 last:border-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-400" }, label), href && val ? /* @__PURE__ */ React.createElement("a", { href, target: "_blank", className: "text-sm text-brand-600 font-medium text-right break-all" }, val) : /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-700 font-medium text-right break-all" }, val || "\u2014"));
-  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shrink-0" }, c.name.replace(/^คุณ|^ช่าง/, "").trim().charAt(0) || "?"), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-1" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.type)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => openQuote(c, true), className: "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:brightness-110 shadow-sm", title: "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E19\u0E35\u0E49" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32")), /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-2 rounded-lg text-ink-500 hover:bg-ink-100", title: "\u0E41\u0E01\u0E49\u0E44\u0E02" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit })), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 rounded-lg text-ink-400 hover:bg-ink-100" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x })))), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-0 max-h-[72vh] overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "p-6 md:border-r border-ink-100 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-600" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-emerald-700" }, baht(c.value))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600" }, "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-brand-700" }, baht(c.budget)))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" }, /* @__PURE__ */ React.createElement(Line, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23", val: c.phone, href: c.phone ? `tel:${c.phone}` : null }), /* @__PURE__ */ React.createElement(Line, { label: "Line ID", val: c.lineId }), /* @__PURE__ */ React.createElement(Line, { label: "Facebook", val: c.facebook }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14", val: c.province }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48", val: c.address }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32", val: c.source }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F/\u0E40\u0E14\u0E37\u0E2D\u0E19", val: c.monthlyBill ? baht(c.monthlyBill) : "\u2014" }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08", val: c.systemSize }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14", val: thDate(c.lastContact) }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B", val: thDate(c.nextFollowup) })), c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, c.tags.map((t) => /* @__PURE__ */ React.createElement(Badge, { key: t, cls: "bg-amber-50 text-amber-700 ring-amber-200" }, "\u{1F3F7}\uFE0F ", t))), c.note && /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-ink-50 p-3 text-sm text-ink-600" }, "\u{1F4DD} ", c.note), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-medium text-ink-500 mb-1.5" }, "\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5" }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, onClick: () => onStatus(c.id, s.key), className: `px-2.5 py-1 rounded-lg text-xs font-medium transition ${c.status === s.key ? s.color + " text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, s.label))))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-ink-50/40" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white ring-1 ring-ink-100 p-3 space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E04\u0E38\u0E22\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2D\u0E30\u0E44\u0E23 *", value: log.topic, onChange: (e) => setLog((p) => ({ ...p, topic: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E2A\u0E19\u0E43\u0E08\u0E2D\u0E30\u0E44\u0E23", value: log.interest, onChange: (e) => setLog((p) => ({ ...p, interest: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E30\u0E44\u0E23\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27", value: log.sent, onChange: (e) => setLog((p) => ({ ...p, sent: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E48\u0E2D\u0E44\u0E1B\u0E04\u0E37\u0E2D\u0E2D\u0E30\u0E44\u0E23", value: log.next, onChange: (e) => setLog((p) => ({ ...p, next: e.target.value })) }), /* @__PURE__ */ React.createElement("button", { onClick: addLog, className: "w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, (c.timeline || []).slice().reverse().map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "relative pl-5" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-4 ring-brand-100" }), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mb-0.5" }, thDate(t.date)), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg bg-white ring-1 ring-ink-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-ink-800" }, t.topic), t.interest && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500 mt-1" }, "\u0E2A\u0E19\u0E43\u0E08: ", t.interest), t.sent && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500" }, "\u0E2A\u0E48\u0E07\u0E41\u0E25\u0E49\u0E27: ", t.sent), t.next && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600 mt-1" }, "\u2192 \u0E16\u0E31\u0E14\u0E44\u0E1B: ", t.next)))), (!c.timeline || c.timeline.length === 0) && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 text-center py-6" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")))));
+  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shrink-0" }, c.name.replace(/^คุณ|^ช่าง/, "").trim().charAt(0) || "?"), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-1" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.type)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: onOpenBOQ, className: "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:brightness-110 shadow-sm", title: "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32 BOQ \u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E19\u0E35\u0E49" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32")), /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-2 rounded-lg text-ink-500 hover:bg-ink-100", title: "\u0E41\u0E01\u0E49\u0E44\u0E02" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit })), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 rounded-lg text-ink-400 hover:bg-ink-100" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x })))), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-0 max-h-[72vh] overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "p-6 md:border-r border-ink-100 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-600" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-emerald-700" }, baht(c.value))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600" }, "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-brand-700" }, baht(c.budget)))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" }, /* @__PURE__ */ React.createElement(Line, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23", val: c.phone, href: c.phone ? `tel:${c.phone}` : null }), /* @__PURE__ */ React.createElement(Line, { label: "Line ID", val: c.lineId }), /* @__PURE__ */ React.createElement(Line, { label: "Facebook", val: c.facebook }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14", val: c.province }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48", val: c.address }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32", val: c.source }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F/\u0E40\u0E14\u0E37\u0E2D\u0E19", val: c.monthlyBill ? baht(c.monthlyBill) : "\u2014" }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08", val: c.systemSize }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14", val: thDate(c.lastContact) }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B", val: thDate(c.nextFollowup) })), c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, c.tags.map((t) => /* @__PURE__ */ React.createElement(Badge, { key: t, cls: "bg-amber-50 text-amber-700 ring-amber-200" }, "\u{1F3F7}\uFE0F ", t))), c.note && /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-ink-50 p-3 text-sm text-ink-600" }, "\u{1F4DD} ", c.note), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-medium text-ink-500 mb-1.5" }, "\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5" }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, onClick: () => onStatus(c.id, s.key), className: `px-2.5 py-1 rounded-lg text-xs font-medium transition ${c.status === s.key ? s.color + " text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, s.label))))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-ink-50/40" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white ring-1 ring-ink-100 p-3 space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E04\u0E38\u0E22\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2D\u0E30\u0E44\u0E23 *", value: log.topic, onChange: (e) => setLog((p) => ({ ...p, topic: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E2A\u0E19\u0E43\u0E08\u0E2D\u0E30\u0E44\u0E23", value: log.interest, onChange: (e) => setLog((p) => ({ ...p, interest: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E30\u0E44\u0E23\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27", value: log.sent, onChange: (e) => setLog((p) => ({ ...p, sent: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E48\u0E2D\u0E44\u0E1B\u0E04\u0E37\u0E2D\u0E2D\u0E30\u0E44\u0E23", value: log.next, onChange: (e) => setLog((p) => ({ ...p, next: e.target.value })) }), /* @__PURE__ */ React.createElement("button", { onClick: addLog, className: "w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, (c.timeline || []).slice().reverse().map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "relative pl-5" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-4 ring-brand-100" }), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mb-0.5" }, thDate(t.date)), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg bg-white ring-1 ring-ink-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-ink-800" }, t.topic), t.interest && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500 mt-1" }, "\u0E2A\u0E19\u0E43\u0E08: ", t.interest), t.sent && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500" }, "\u0E2A\u0E48\u0E07\u0E41\u0E25\u0E49\u0E27: ", t.sent), t.next && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600 mt-1" }, "\u2192 \u0E16\u0E31\u0E14\u0E44\u0E1B: ", t.next)))), (!c.timeline || c.timeline.length === 0) && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 text-center py-6" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")))));
 }
 function Donut({ data }) {
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
@@ -718,6 +795,151 @@ function Donut({ data }) {
 function Stat({ label, value, sub, icon, tone }) {
   const tones = { blue: "bg-brand-50 text-brand-600", green: "bg-emerald-50 text-emerald-600", amber: "bg-amber-50 text-amber-600", violet: "bg-violet-50 text-violet-600", slate: "bg-ink-100 text-ink-600", red: "bg-red-50 text-red-600" };
   return /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-500" }, label), /* @__PURE__ */ React.createElement("span", { className: `w-9 h-9 rounded-xl flex items-center justify-center ${tones[tone]}` }, /* @__PURE__ */ React.createElement(Icon, { d: icon, cls: "w-5 h-5" }))), /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900 mt-2" }, value), sub && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, sub));
+}
+function BOQRow({ row, idx, onChange, onRemove, onSaveToCatalog }) {
+  const set = (k, v) => onChange({ ...row, [k]: v });
+  const lineTotal = boqLineTotal(row);
+  return h("tr", { className: "border-b border-ink-50 last:border-0 align-top" },
+    h("td", { className: "py-2 pr-2 text-xs text-ink-400 pt-3" }, idx + 1),
+    h("td", { className: "py-2 pr-2 min-w-[180px]" },
+      h("input", { className: inputCls + " text-sm", value: row.name, placeholder: "ชื่อรายการ", onChange: (e) => set("name", e.target.value) }),
+      h("select", { className: inputCls + " text-xs mt-1 !py-1", value: row.category, onChange: (e) => set("category", e.target.value) },
+        BOQ_CATEGORIES.map((c) => h("option", { key: c }, c)))
+    ),
+    h("td", { className: "py-2 pr-2 w-20" }, h("input", { className: inputCls + " text-sm text-center", value: row.unit, onChange: (e) => set("unit", e.target.value) })),
+    h("td", { className: "py-2 pr-2 w-20" }, h("input", { type: "number", className: inputCls + " text-sm text-center", value: row.qty, onChange: (e) => set("qty", e.target.value) })),
+    h("td", { className: "py-2 pr-2 w-28" }, h("input", { type: "number", className: inputCls + " text-sm text-right", value: row.price, onChange: (e) => set("price", e.target.value) })),
+    h("td", { className: "py-2 pr-2 w-28 text-right num font-semibold text-ink-800 pt-3" }, baht(lineTotal)),
+    h("td", { className: "py-2 pl-1 w-16 text-right no-print" },
+      !row.fromCatalog && h("button", { title: "บันทึกเข้าคลัง", onClick: () => onSaveToCatalog(row), className: "p-1.5 rounded-lg text-ink-400 hover:bg-emerald-50 hover:text-emerald-600 mr-1" }, "📥"),
+      h("button", { title: "ลบรายการ", onClick: onRemove, className: "p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" }, "✕")
+    )
+  );
+}
+function BOQCatalogPicker({ catalog, onPick, onDeleteCatalogItem }) {
+  const [q, setQ] = useState("");
+  const groups = useMemo(() => {
+    const f = q.trim() ? catalog.filter((c) => c.name.toLowerCase().includes(q.trim().toLowerCase())) : catalog;
+    const g = {};
+    f.forEach((c) => { (g[c.category] = g[c.category] || []).push(c); });
+    return g;
+  }, [catalog, q]);
+  return h("div", { className: "rounded-xl ring-1 ring-ink-100 bg-ink-50/40 p-3" },
+    h("input", { className: inputCls + " text-sm mb-2", placeholder: "🔍 ค้นหาในคลังอุปกรณ์...", value: q, onChange: (e) => setQ(e.target.value) }),
+    h("div", { className: "max-h-64 overflow-y-auto space-y-3 pr-1" },
+      Object.keys(groups).length === 0 && h("div", { className: "text-center text-xs text-ink-400 py-4" }, "ไม่พบรายการในคลัง"),
+      Object.entries(groups).map(([cat, list]) => h("div", { key: cat },
+        h("div", { className: "text-[11px] font-bold text-ink-400 uppercase tracking-wide mb-1" }, cat),
+        h("div", { className: "space-y-1" }, list.map((c) => h("div", { key: c.id, className: "flex items-center justify-between gap-2 bg-white rounded-lg ring-1 ring-ink-100 px-2.5 py-1.5 group" },
+          h("button", { onClick: () => onPick(c), className: "flex-1 text-left min-w-0" },
+            h("div", { className: "text-sm text-ink-700 truncate" }, c.name),
+            h("div", { className: "text-[11px] text-ink-400" }, c.unit, " · ", baht(c.price))
+          ),
+          h("button", { onClick: () => onPick(c), className: "text-brand-600 text-xs font-semibold px-2 py-1 rounded-md hover:bg-brand-50 shrink-0" }, "+ เพิ่ม"),
+          h("button", { onClick: () => onDeleteCatalogItem(c.id), title: "ลบจากคลัง", className: "text-ink-300 hover:text-red-500 text-xs px-1 shrink-0 opacity-0 group-hover:opacity-100" }, "✕")
+        )))
+      ))
+    )
+  );
+}
+function BOQBuilder({ open, customer, onClose }) {
+  const [items, setItems] = useState([]);
+  const [catalog, setCatalog] = useState([]);
+  const [discount, setDiscount] = useState(0);
+  const [vatEnabled, setVatEnabled] = useState(false);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (open) {
+      boqDb.listCatalog().then(setCatalog);
+      setItems([]); setDiscount(0); setVatEnabled(false); setNote("");
+    }
+  }, [open, customer]);
+  if (!open) return null;
+  const addFromCatalog = (c) => setItems((p) => [...p, { id: uid(), name: c.name, category: c.category, unit: c.unit, qty: 1, price: c.price, fromCatalog: true }]);
+  const addBlank = () => setItems((p) => [...p, { id: uid(), name: "", category: BOQ_CATEGORIES[BOQ_CATEGORIES.length - 1], unit: "ชุด", qty: 1, price: 0, fromCatalog: false }]);
+  const updateRow = (id, next) => setItems((p) => p.map((it) => it.id === id ? next : it));
+  const removeRow = (id) => setItems((p) => p.filter((it) => it.id !== id));
+  const saveRowToCatalog = async (row) => {
+    if (!row.name.trim()) { alert("กรอกชื่อรายการก่อนบันทึกเข้าคลัง"); return; }
+    const next = [...catalog, { id: uid(), name: row.name, category: row.category, unit: row.unit, price: Number(row.price) || 0 }];
+    setCatalog(next);
+    await boqDb.saveCatalog(next);
+  };
+  const deleteCatalogItem = async (id) => {
+    if (!confirm("ลบรายการนี้จากคลังอุปกรณ์?")) return;
+    const next = catalog.filter((c) => c.id !== id);
+    setCatalog(next);
+    await boqDb.saveCatalog(next);
+  };
+  const subtotal = boqSubtotal(items);
+  const discountAmt = Number(discount) || 0;
+  const afterDiscount = Math.max(0, subtotal - discountAmt);
+  const vat = vatEnabled ? afterDiscount * 0.07 : 0;
+  const grandTotal = afterDiscount + vat;
+  const saveQuote = async () => {
+    if (items.length === 0) { alert("กรุณาเพิ่มรายการก่อนบันทึก"); return; }
+    setSaving(true);
+    try {
+      const existing = await boqDb.listQuotes();
+      const quote = { id: uid(), customerId: customer ? customer.id : null, customerName: customer ? customer.name : "ไม่ระบุ", items, discount: discountAmt, vatEnabled, note, createdAt: new Date().toISOString() };
+      await boqDb.saveQuotes([...existing, quote]);
+      alert("บันทึกใบเสนอราคา BOQ แล้ว");
+    } finally { setSaving(false); }
+  };
+  return h(Modal, { open, onClose, wide: true },
+    h("div", { className: "flex items-center justify-between px-6 py-4 border-b border-ink-100 no-print" },
+      h("div", null,
+        h("h3", { className: "text-lg font-semibold text-ink-800" }, "ใบเสนอราคา BOQ"),
+        customer && h("p", { className: "text-xs text-ink-400 mt-0.5" }, "ลูกค้า: ", customer.name)
+      ),
+      h("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600" }, h(Icon, { d: I.x }))
+    ),
+    h("div", { className: "px-6 py-5 max-h-[75vh] overflow-y-auto grid md:grid-cols-[1fr_280px] gap-5" },
+      h("div", null,
+        h("div", { className: "flex items-center justify-between mb-2" },
+          h("h4", { className: "text-sm font-semibold text-ink-700" }, "รายการ (BOQ)"),
+          h("button", { onClick: addBlank, className: "no-print text-xs font-semibold text-brand-600 px-2.5 py-1.5 rounded-lg hover:bg-brand-50" }, "+ เพิ่มรายการเอง")
+        ),
+        h("div", { className: "rounded-xl ring-1 ring-ink-100 overflow-x-auto" },
+          h("table", { className: "w-full text-sm min-w-[560px]" },
+            h("thead", { className: "bg-ink-50 text-ink-500 text-xs" },
+              h("tr", null,
+                h("th", { className: "text-left py-2 pl-2 pr-2 w-8" }, "#"),
+                h("th", { className: "text-left py-2 pr-2" }, "รายการ / หมวด"),
+                h("th", { className: "text-center py-2 pr-2" }, "หน่วย"),
+                h("th", { className: "text-center py-2 pr-2" }, "จำนวน"),
+                h("th", { className: "text-right py-2 pr-2" }, "ราคา/หน่วย"),
+                h("th", { className: "text-right py-2 pr-2" }, "รวม"),
+                h("th", { className: "no-print w-16" })
+              )
+            ),
+            h("tbody", null,
+              items.map((row, i) => h(BOQRow, { key: row.id, row, idx: i, onChange: (n) => updateRow(row.id, n), onRemove: () => removeRow(row.id), onSaveToCatalog: saveRowToCatalog })),
+              items.length === 0 && h("tr", null, h("td", { colSpan: 7, className: "text-center text-ink-400 text-sm py-8" }, "ยังไม่มีรายการ — เลือกจากคลังด้านขวา หรือกด \u201c+ เพิ่มรายการเอง\u201d"))
+            )
+          )
+        ),
+        h("div", { className: "mt-4 flex flex-col items-end gap-1.5 text-sm" },
+          h("div", { className: "flex items-center gap-3 text-ink-600" }, h("span", null, "รวมก่อนหักส่วนลด"), h("span", { className: "num font-semibold w-28 text-right" }, baht(subtotal))),
+          h("div", { className: "flex items-center gap-3 text-ink-600" }, h("span", null, "ส่วนลด (บาท)"), h("input", { type: "number", className: inputCls + " w-28 text-right no-print", value: discount, onChange: (e) => setDiscount(e.target.value) }), h("span", { className: "num font-semibold w-28 text-right print-only" }, baht(discountAmt))),
+          h("label", { className: "flex items-center gap-2 text-ink-600 no-print" }, h("input", { type: "checkbox", checked: vatEnabled, onChange: (e) => setVatEnabled(e.target.checked) }), "คิด VAT 7%"),
+          vatEnabled && h("div", { className: "flex items-center gap-3 text-ink-600" }, h("span", null, "VAT 7%"), h("span", { className: "num font-semibold w-28 text-right" }, baht(vat))),
+          h("div", { className: "flex items-center gap-3 text-base font-bold text-ink-900 border-t border-ink-100 pt-2 mt-1" }, h("span", null, "รวมทั้งสิ้น"), h("span", { className: "num w-28 text-right text-brand-700" }, baht(grandTotal)))
+        ),
+        h(Field, { label: "หมายเหตุในใบเสนอราคา", full: true }, h("textarea", { className: inputCls + " h-16 resize-none mt-1", value: note, onChange: (e) => setNote(e.target.value), placeholder: "เช่น ราคานี้ไม่รวมค่าขนส่งนอกเขต / ยืนราคา 30 วัน" }))
+      ),
+      h("div", { className: "no-print" },
+        h("h4", { className: "text-sm font-semibold text-ink-700 mb-2" }, "คลังอุปกรณ์"),
+        h(BOQCatalogPicker, { catalog, onPick: addFromCatalog, onDeleteCatalogItem: deleteCatalogItem })
+      )
+    ),
+    h("div", { className: "flex justify-end gap-3 px-6 py-4 border-t border-ink-100 no-print" },
+      h("button", { onClick: () => window.print(), className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "🖨️ พิมพ์ / PDF"),
+      h("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "ปิด"),
+      h("button", { onClick: saveQuote, disabled: saving, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm disabled:opacity-60" }, saving ? "กำลังบันทึก..." : "บันทึกใบเสนอราคา")
+    )
+  );
 }
 function SkeletonGrid() {
   return /* @__PURE__ */ React.createElement("div", { className: "space-y-5" },
@@ -938,6 +1160,7 @@ function App() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [boqOpen, setBoqOpen] = useState(false);
   const [leads, setLeads] = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
   const loadLeads = async () => {
@@ -1060,7 +1283,7 @@ function App() {
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
     setProfile(null);
     openForm(c);
-  }, onAddLog: addLog, onStatus: setStatus }), /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-brand-600 text-white shadow-lg flex items-center justify-center" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus })));
+  }, onAddLog: addLog, onStatus: setStatus, onOpenBOQ: () => setBoqOpen(true) }), /* @__PURE__ */ React.createElement(BOQBuilder, { open: boqOpen, customer: liveProfile, onClose: () => setBoqOpen(false) }), /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-brand-600 text-white shadow-lg flex items-center justify-center" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus })));
 }
 function LoginScreen() {
   const [busy, setBusy] = React.useState(false);
