@@ -46,31 +46,6 @@ tailwind.config = {
   .col-over{background:var(--b100,#dbeafe)!important;outline:2px dashed var(--b400,#60a5fa);outline-offset:-4px}
   [data-modal]{animation:pop .26s cubic-bezier(.2,.9,.3,1.15)}
   @keyframes pop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
-  @keyframes pingDot{75%,100%{transform:scale(2);opacity:0}}
-  #onbOverlay{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(8,10,16,.72);backdrop-filter:blur(6px)}
-  #onbOverlay.open{display:flex;animation:fade .25s ease}
-  #onbCard{position:relative;background:linear-gradient(165deg,#1c1f2b 0%,#11131c 100%);border-radius:20px;border:1px solid rgba(212,175,109,.18);box-shadow:0 40px 80px -16px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.03) inset;width:100%;max-width:408px;overflow:hidden;animation:pop .35s cubic-bezier(.2,.8,.3,1.1)}
-  #onbHead{position:relative;height:124px;overflow:hidden;display:flex;align-items:center;justify-content:center;border-bottom:1px solid rgba(212,175,109,.14)}
-  #onbHead::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 20%, rgba(212,175,109,.22), transparent 68%)}
-  #onbHead::after{content:"";position:absolute;top:-50%;left:50%;width:220px;height:220px;border-radius:50%;background:rgba(212,175,109,.10);filter:blur(36px);transform:translateX(-50%)}
-  #onbClose{position:absolute;top:14px;right:14px;z-index:2;width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(255,255,255,.65);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
-  #onbClose:hover{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.25)}
-  #onbIconWrap{position:relative;z-index:1;width:60px;height:60px;border-radius:16px;background:linear-gradient(150deg,#2a2e3d,#1a1c26);border:1px solid rgba(212,175,109,.35);box-shadow:0 12px 28px -6px rgba(0,0,0,.5),0 0 0 1px rgba(212,175,109,.06) inset;display:flex;align-items:center;justify-content:center;font-size:24px;animation:pop .4s cubic-bezier(.2,.8,.3,1.2)}
-  #onbBarTrack{height:2px;background:rgba(255,255,255,.06);display:flex;margin:0 24px}
-  #onbBarTrack .seg{flex:1;height:100%;position:relative;overflow:hidden}
-  #onbBarTrack .seg i{position:absolute;inset:0;background:linear-gradient(90deg,#d4af6d,#e8caa0);transform:scaleX(0);transform-origin:left;transition:transform .45s cubic-bezier(.4,0,.2,1)}
-  #onbBody{padding:26px 26px 8px}
-  #onbEyebrow{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:linear-gradient(90deg,#d4af6d,#f0dcb4);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:8px}
-  #onbTitle{font-size:19px;font-weight:700;color:#f8f6f1;margin:0 0 10px;letter-spacing:.01em}
-  #onbText{font-size:13.5px;color:rgba(226,228,235,.62);line-height:1.7;margin:0}
-  #onbFoot{display:flex;align-items:center;justify-content:space-between;padding:20px 26px 24px}
-  #onbSkip{background:none;border:none;font-size:11.5px;color:rgba(226,228,235,.4);cursor:pointer;font-weight:500;letter-spacing:.02em;transition:color .15s}
-  #onbSkip:hover{color:rgba(226,228,235,.7)}
-  #onbNavWrap{display:flex;align-items:center;gap:10px}
-  #onbPrev{width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:rgba(226,228,235,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
-  #onbPrev:hover{background:rgba(255,255,255,.08);color:#f8f6f1;border-color:rgba(255,255,255,.18)}
-  #onbNext{padding:11px 22px;border-radius:11px;border:none;background:linear-gradient(120deg,#d4af6d,#c79a52);color:#1a1410;font-size:13.5px;font-weight:700;letter-spacing:.01em;cursor:pointer;box-shadow:0 8px 20px -4px rgba(212,175,109,.45);transition:all .18s}
-  #onbNext:hover{transform:translateY(-1px);box-shadow:0 10px 24px -4px rgba(212,175,109,.6)}
 
   /* ===== ENTRANCE ANIMATIONS ===== */
   .fade-in{animation:fadeUp .42s cubic-bezier(.2,.7,.3,1)}
@@ -94,6 +69,136 @@ tailwind.config = {
   .sheen{position:relative;overflow:hidden}
   .sheen::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(110deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);animation:sheen 4.5s ease-in-out infinite}
   @keyframes sheen{0%,60%{left:-60%}100%{left:130%}}
+
+  /* ============================================================
+     ===================== UI OVERHAUL v2 =========================
+     ระบบใหม่ทั้งหมด: พื้นหลัง, การ์ด, ไซด์บาร์, ปุ่ม, ไอคอนสถิติ, skeleton
+     (ใช้ CSS ทับของเดิมทั้งหมด ไม่แตะ React logic เลย ปลอดภัย 100%)
+     ============================================================ */
+
+  /* ---- พื้นหลังแอปทั้งระบบ: ไล่สีนวลมีมิติ แทนสีเทาแบนทึบเดิม ---- */
+  html{background:
+    radial-gradient(ellipse 60% 50% at 8% 0%, rgb(var(--b100) / .55), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, rgb(var(--b50) / .7), transparent 55%),
+    #f3f5f8 !important}
+
+  /* ---- การ์ดทั่วทั้งระบบ: เงานวลขึ้น มีเส้นไล่สีบนขอบบนบางๆ ---- */
+  .bg-white.rounded-2xl{position:relative;box-shadow:0 1px 2px rgba(15,23,42,.04),0 10px 28px -14px rgba(15,23,42,.12)!important;border:1px solid rgba(15,23,42,.045)!important}
+  .bg-white.rounded-2xl::before{content:"";position:absolute;top:0;left:18px;right:18px;height:2px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,transparent,rgb(var(--b400) / .55),transparent);opacity:0;transition:opacity .25s}
+  .bg-white.rounded-2xl:hover::before{opacity:1}
+  [class~="rounded-2xl"][class~="shadow-sm"]:hover{box-shadow:0 1px 2px rgba(15,23,42,.04),0 22px 46px -16px rgba(15,23,42,.22)!important}
+
+  /* ---- ไอคอน badge ในการ์ดสถิติ: ไล่สีนวล + เรืองแสงตอน hover ---- */
+  div[class*="rounded-xl"][class*="flex"][class*="items-center"][class*="justify-center"][class*="bg-brand-50"],
+  div[class*="rounded-xl"][class*="flex"][class*="items-center"][class*="justify-center"][class*="bg-emerald-50"],
+  div[class*="rounded-xl"][class*="flex"][class*="items-center"][class*="justify-center"][class*="bg-amber-50"],
+  div[class*="rounded-xl"][class*="flex"][class*="items-center"][class*="justify-center"][class*="bg-violet-50"],
+  div[class*="rounded-xl"][class*="flex"][class*="items-center"][class*="justify-center"][class*="bg-ink-100"],
+  div[class*="rounded-xl"][class*="flex"][class*="items-center"][class*="justify-center"][class*="bg-red-50"]{
+    background-image:linear-gradient(135deg,rgba(255,255,255,.55),transparent);transition:transform .25s cubic-bezier(.2,.8,.3,1.2),box-shadow .25s}
+  .bg-white.rounded-2xl:hover div[class*="rounded-xl"][class*="bg-brand-50"]{transform:scale(1.1) rotate(-4deg);box-shadow:0 6px 16px -4px rgb(var(--b500) / .4)}
+  .bg-white.rounded-2xl:hover div[class*="rounded-xl"][class*="bg-emerald-50"]{transform:scale(1.1) rotate(-4deg);box-shadow:0 6px 16px -4px rgba(16,185,129,.4)}
+  .bg-white.rounded-2xl:hover div[class*="rounded-xl"][class*="bg-amber-50"]{transform:scale(1.1) rotate(-4deg);box-shadow:0 6px 16px -4px rgba(245,158,11,.4)}
+  .bg-white.rounded-2xl:hover div[class*="rounded-xl"][class*="bg-violet-50"]{transform:scale(1.1) rotate(-4deg);box-shadow:0 6px 16px -4px rgba(139,92,246,.4)}
+
+  /* ---- Sidebar (aside): มิติเข้มขึ้น เส้นแสงขอบขวาบางๆ ---- */
+  aside.bg-ink-900{background:linear-gradient(190deg,#0f172a,#0b1322 65%,#0a0f1c)!important;box-shadow:1px 0 0 rgba(255,255,255,.05) inset, 4px 0 24px -8px rgba(0,0,0,.35)}
+  aside nav button{position:relative;overflow:hidden}
+  aside nav button.bg-brand-600{box-shadow:0 6px 18px -6px rgb(var(--b500) / .55)}
+  aside nav button:not(.bg-brand-600):hover{background:rgba(255,255,255,.06)!important;transform:translateX(2px)}
+  aside nav button svg{transition:transform .25s cubic-bezier(.2,.8,.3,1.3)}
+
+  /* ---- Header: เงาตอน scroll ให้ดูลอยเหนือเนื้อหา ---- */
+  header.sticky{backdrop-filter:blur(10px);background:rgba(255,255,255,.92)!important;box-shadow:0 1px 0 rgba(15,23,42,.06),0 8px 24px -16px rgba(15,23,42,.1)}
+
+  /* ---- ปุ่มหลัก: ไล่สีนวล + เงาสีตามธีม ---- */
+  button[class*="bg-brand-600"]{background-image:linear-gradient(135deg,rgb(var(--b500)),rgb(var(--b700)))!important;box-shadow:0 6px 16px -6px rgb(var(--b600) / .5)}
+  button[class*="bg-brand-600"]:hover{box-shadow:0 8px 20px -6px rgb(var(--b600) / .65)}
+
+  /* ---- Skeleton loading (โครงเทาเรืองแสงวิ่ง แทนตัวอักษร "กำลังโหลด...") ---- */
+  .skel{position:relative;overflow:hidden;background:#e7eaf0;border-radius:12px}
+  .skel::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.7) 50%,transparent 70%);transform:translateX(-100%);animation:skelShine 1.6s ease-in-out infinite}
+  @keyframes skelShine{to{transform:translateX(100%)}}
+
+  /* ---- โลโก้บริษัทมุมซ้ายบน: เพิ่มแสงวงแหวนเบาๆ ---- */
+  .avatar-btn{position:relative}
+  .avatar-btn::after{content:"";position:absolute;inset:-3px;border-radius:inherit;background:linear-gradient(135deg,rgb(var(--b400)),transparent 60%);opacity:0;z-index:-1;transition:opacity .3s}
+  .avatar-btn:hover::after{opacity:.6}
+
+  /* ---- จุดสีแดงแจ้งเตือนนับใหม่: เด้งเบาๆให้สังเกตง่ายขึ้น ---- */
+  nav span.bg-red-500{animation:notifyPing 2s ease-in-out infinite}
+  @keyframes notifyPing{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.5)}50%{box-shadow:0 0 0 4px rgba(239,68,68,0)}}
+
+  /* ============================================================
+     ============== หน้ารายชื่อลูกค้า + Pipeline (รอบ 2) ============
+     ============================================================ */
+
+  /* ---- การ์ดเล็ก (rounded-xl) ในระบบ: Kanban card / มือถือ ก็ได้เงา+เส้นไล่สีเหมือนการ์ดใหญ่ ---- */
+  .bg-white.rounded-xl{box-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 20px -10px rgba(15,23,42,.12)!important;border:1px solid rgba(15,23,42,.04)!important}
+
+  /* ---- ช่องค้นหาลูกค้า: เรืองแสงตอน focus ชัดเจนขึ้น ---- */
+  input[placeholder*="ค้นหาชื่อ"]{transition:box-shadow .2s,border-color .2s}
+  input[placeholder*="ค้นหาชื่อ"]:focus{box-shadow:0 0 0 4px rgb(var(--b500) / .12)}
+
+  /* ---- แผงตัวกรอง: select กลายเป็น pill โค้งมน มี focus เรืองสี ---- */
+  div[class*="grid-cols-2"][class*="sm:grid-cols-4"] select,
+  div[class*="grid-cols-2"][class*="sm:grid-cols-4"] input{
+    border-radius:9999px!important;border-color:#e2e8f0!important;font-weight:500;transition:border-color .2s,box-shadow .2s,background .2s}
+  div[class*="grid-cols-2"][class*="sm:grid-cols-4"] select:hover,
+  div[class*="grid-cols-2"][class*="sm:grid-cols-4"] input:hover{border-color:rgb(var(--b300))!important}
+  div[class*="grid-cols-2"][class*="sm:grid-cols-4"] select:focus,
+  div[class*="grid-cols-2"][class*="sm:grid-cols-4"] input:focus{box-shadow:0 0 0 3px rgb(var(--b500) / .15)!important}
+
+  /* ---- ตารางลูกค้า: ลายม้าลายอ่อนๆ + แถบสีซ้ายตอน hover ให้ตามองง่ายขึ้น ---- */
+  tbody.divide-y tr{position:relative;transition:background .15s}
+  tbody.divide-y tr:nth-child(even){background:rgba(15,23,42,.012)}
+  tbody.divide-y tr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:rgb(var(--b500));transform:scaleY(0);transition:transform .15s}
+  tbody.divide-y tr:hover::before{transform:scaleY(1)}
+  thead.bg-ink-50{background:linear-gradient(180deg,#f8fafc,#f1f5f9)!important;border-bottom:1px solid #e8edf3}
+
+  /* ---- คอลัมน์ Kanban: ไล่สีนวลตามสถานะ + เส้นบนสีคอลัมน์ ---- */
+  div[class*="w-72"][class*="rounded-2xl"][class*="bg-ink-100"]{background:linear-gradient(180deg,rgba(15,23,42,.045),rgba(15,23,42,.02))!important;border:1px solid rgba(15,23,42,.04);position:relative}
+  div[class*="w-72"][class*="rounded-2xl"][class*="bg-ink-100"]::before{content:"";position:absolute;top:0;left:14px;right:14px;height:3px;border-radius:0 0 4px 4px;background:rgb(var(--b400))}
+  .col-over{transform:scale(1.015)}
+  [draggable="true"]{transition:transform .15s,box-shadow .15s}
+  [draggable="true"]:active{cursor:grabbing}
+
+  /* ---- ปุ่มแก้ไข/ลบ ในตาราง: วงกลมเด่นขึ้นตอน hover ---- */
+  table button[class*="hover:bg-brand-600/10"],
+  table button{transition:transform .15s}
+  table button:hover{transform:scale(1.12)}
+
+  /* ============================================================
+     ============ Modal / ฟอร์มลูกค้า / โปรไฟล์ / ติดตาม (รอบ 3) ========
+     ============================================================ */
+
+  /* ---- Modal: เงาลึกขึ้น ขอบบนมีเส้นไล่สีบางๆ (specificity สูงกว่าการ์ดทั่วไป กันชนกัน) ---- */
+  [data-modal].bg-white.rounded-2xl{box-shadow:0 30px 70px -20px rgba(15,23,42,.45)!important;position:relative;overflow:hidden}
+  [data-modal].bg-white.rounded-2xl::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;border-radius:0;background:linear-gradient(90deg,rgb(var(--b400)),rgb(var(--b600)),rgb(var(--b400)));background-size:200% auto;animation:gradFlowModal 4s linear infinite;z-index:10;opacity:1!important}
+  @keyframes gradFlowModal{to{background-position:200% center}}
+
+  /* ---- input/select/textarea ทั้งระบบ: focus เด่นขึ้น มี hover นวลๆ ---- */
+  input[class*="rounded-lg"][class*="border-ink-200"],
+  select[class*="rounded-lg"][class*="border-ink-200"],
+  textarea[class*="rounded-lg"][class*="border-ink-200"]{transition:border-color .2s,box-shadow .2s,background .2s}
+  input[class*="rounded-lg"][class*="border-ink-200"]:hover,
+  select[class*="rounded-lg"][class*="border-ink-200"]:hover{border-color:rgb(var(--b300))}
+
+  /* ---- มินิการ์ดมูลค่า/งบประมาณ ในโปรไฟล์ลูกค้า: ไล่สีเข้มขึ้น ---- */
+  div[class*="rounded-xl"][class*="bg-emerald-50"][class*="ring-emerald-100"]{background:linear-gradient(135deg,#ecfdf5,#d1fae5)!important}
+  div[class*="rounded-xl"][class*="bg-brand-50"][class*="ring-brand-100"]{background:linear-gradient(135deg,rgb(var(--b50)),rgb(var(--b100)))!important}
+
+  /* ---- จุดไทม์ไลน์ในโปรไฟล์ลูกค้า: เรืองแสงเบาๆ ---- */
+  span[class*="ring-4"][class*="ring-brand-100"]{box-shadow:0 0 0 4px rgb(var(--b100)),0 0 10px 2px rgb(var(--b400) / .5)}
+
+  /* ---- ปุ่มเปลี่ยนสถานะในโปรไฟล์: ยกตัวตอน hover ---- */
+  button[class*="px-2.5"][class*="rounded-lg"][class*="text-xs"][class*="font-medium"][class*="transition"]{transition:transform .15s,filter .15s}
+  button[class*="px-2.5"][class*="rounded-lg"][class*="text-xs"][class*="font-medium"][class*="transition"]:hover{transform:translateY(-1px);filter:brightness(1.05)}
+
+  /* ---- การ์ดติดตามงาน (FollowUp): เส้นสีบนตามหมวด + การ์ดในลิสต์ยกตัว ---- */
+  div[class*="bg-white"][class*="rounded-2xl"][class*="ring-ink-100"][class*="p-5"][class*="shadow-sm"]{position:relative}
+  button[class*="ring-ink-100"][class*="hover:ring-brand-300"][class*="hover:bg-brand-50"]{transition:transform .15s,box-shadow .15s}
+  button[class*="ring-ink-100"][class*="hover:ring-brand-300"][class*="hover:bg-brand-50"]:hover{transform:translateX(3px);box-shadow:0 6px 16px -8px rgba(15,23,42,.18)}
 
   /* theme switcher widget */
   #themeFab{position:fixed;z-index:60;bottom:1.25rem;right:1.25rem;left:auto}
@@ -135,9 +240,8 @@ tailwind.config = {
   #fabStack{position:fixed;right:1.1rem;left:auto;bottom:4.9rem;z-index:55;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
   .fab2{width:52px;height:52px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:none;box-shadow:0 10px 26px -6px rgba(15,23,42,.4);transition:transform .15s}
   .fab2:hover{transform:scale(1.1) translateY(-2px)}
-  .fab-heart{background:linear-gradient(135deg,#fb7185,#e11d48);color:#fff;animation:heartbeat 1.6s ease-in-out infinite}
-  @keyframes heartbeat{0%,100%{transform:scale(1)}10%{transform:scale(1.15)}20%{transform:scale(1)}}
-  .fab-dev{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff}
+  .fab-heart{background:linear-gradient(135deg,#fb7185,#e11d48);color:#fff;animation:heartbeat 3.2s ease-in-out infinite}
+  @keyframes heartbeat{0%,100%{transform:scale(1)}10%{transform:scale(1.08)}20%{transform:scale(1)}}
   .sup-qr{width:188px;height:188px;border-radius:14px;object-fit:contain;margin:0 auto;display:block;background:#fff;border:1px solid #e2e8f0}
   .sup-amt{display:inline-block;background:rgb(var(--b50));color:rgb(var(--b700));font-weight:700;border-radius:9999px;padding:4px 14px;font-size:14px;margin:8px auto 0}
 
@@ -154,8 +258,11 @@ tailwind.config = {
   @media (max-width:640px){
     #fabStack{left:.8rem;right:auto;bottom:.9rem;align-items:flex-start;flex-direction:row}
     .fab2{width:42px;height:42px;font-size:17px}
-    #themeFab{bottom:.9rem;left:auto;right:.8rem}
-    #themePop{right:auto;left:0}
+    /* ปุ่มธีม (🎨) ขยับขึ้นไปอยู่เหนือปุ่ม "+ เพิ่มลูกค้า" (fixed bottom-5 right-5 = 1.25rem, สูง 3.5rem)
+       ไม่ให้ซ้อนทับกันที่มุมขวาล่างเหมือนเดิม */
+    #themeFab{bottom:5.6rem;left:auto;right:.95rem}
+    #themeFab .fab-btn{width:40px;height:40px;font-size:18px}
+    #themePop{right:0;left:auto;bottom:50px}
     .avatar-btn{width:38px!important;height:38px!important}
     .sheet{max-width:none}
   }
@@ -436,7 +543,7 @@ const heatOf = (k) => HEATS.find((h) => h.key === k) || HEATS[1];
 const TYPES = ["\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "\u0E0A\u0E48\u0E32\u0E07", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E2A\u0E27\u0E19", "\u0E42\u0E23\u0E07\u0E07\u0E32\u0E19", "\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07"];
 const SOURCES = ["Facebook", "TikTok", "\u0E01\u0E25\u0E38\u0E48\u0E21\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C", "Inbox", "\u0E41\u0E19\u0E30\u0E19\u0E33\u0E15\u0E48\u0E2D"];
 const SIZES = ["3kW", "5kW", "10kW", "Hybrid", "Battery"];
-const TAGS = ["\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07", "\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F", "\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27", "\u0E42\u0E14\u0E19\u0E0A\u0E48\u0E32\u0E07\u0E40\u0E2A\u0E19\u0E2D\u0E41\u0E1E\u0E07", "\u0E2A\u0E19\u0E43\u0E08\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48", "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E48\u0E27\u0E19"];
+const TAGS = ["\u0E2A\u0E19\u0E43\u0E08\u0E2B\u0E19\u0E31\u0E07\u0E2A\u0E37\u0E2D 990", "\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07", "\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F", "\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27", "\u0E42\u0E14\u0E19\u0E0A\u0E48\u0E32\u0E07\u0E40\u0E2A\u0E19\u0E2D\u0E41\u0E1E\u0E07", "\u0E2A\u0E19\u0E43\u0E08\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48", "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E48\u0E27\u0E19"];
 const PROVINCES = ["\u0E01\u0E23\u0E38\u0E07\u0E40\u0E17\u0E1E\u0E21\u0E2B\u0E32\u0E19\u0E04\u0E23", "\u0E19\u0E19\u0E17\u0E1A\u0E38\u0E23\u0E35", "\u0E1B\u0E17\u0E38\u0E21\u0E18\u0E32\u0E19\u0E35", "\u0E2A\u0E21\u0E38\u0E17\u0E23\u0E1B\u0E23\u0E32\u0E01\u0E32\u0E23", "\u0E1E\u0E23\u0E30\u0E19\u0E04\u0E23\u0E28\u0E23\u0E35\u0E2D\u0E22\u0E38\u0E18\u0E22\u0E32", "\u0E0A\u0E25\u0E1A\u0E38\u0E23\u0E35", "\u0E23\u0E30\u0E22\u0E2D\u0E07", "\u0E19\u0E04\u0E23\u0E23\u0E32\u0E0A\u0E2A\u0E35\u0E21\u0E32", "\u0E02\u0E2D\u0E19\u0E41\u0E01\u0E48\u0E19", "\u0E2D\u0E38\u0E14\u0E23\u0E18\u0E32\u0E19\u0E35", "\u0E40\u0E0A\u0E35\u0E22\u0E07\u0E43\u0E2B\u0E21\u0E48", "\u0E40\u0E0A\u0E35\u0E22\u0E07\u0E23\u0E32\u0E22", "\u0E1E\u0E34\u0E29\u0E13\u0E38\u0E42\u0E25\u0E01", "\u0E19\u0E04\u0E23\u0E2A\u0E27\u0E23\u0E23\u0E04\u0E4C", "\u0E2A\u0E38\u0E1E\u0E23\u0E23\u0E13\u0E1A\u0E38\u0E23\u0E35", "\u0E23\u0E32\u0E0A\u0E1A\u0E38\u0E23\u0E35", "\u0E40\u0E1E\u0E0A\u0E23\u0E1A\u0E38\u0E23\u0E35", "\u0E1B\u0E23\u0E30\u0E08\u0E27\u0E1A\u0E04\u0E35\u0E23\u0E35\u0E02\u0E31\u0E19\u0E18\u0E4C", "\u0E2A\u0E07\u0E02\u0E25\u0E32", "\u0E2A\u0E38\u0E23\u0E32\u0E29\u0E0E\u0E23\u0E4C\u0E18\u0E32\u0E19\u0E35", "\u0E20\u0E39\u0E40\u0E01\u0E47\u0E15", "\u0E19\u0E04\u0E23\u0E28\u0E23\u0E35\u0E18\u0E23\u0E23\u0E21\u0E23\u0E32\u0E0A", "\u0E2D\u0E38\u0E1A\u0E25\u0E23\u0E32\u0E0A\u0E18\u0E32\u0E19\u0E35", "\u0E2A\u0E23\u0E30\u0E1A\u0E38\u0E23\u0E35", "\u0E25\u0E1E\u0E1A\u0E38\u0E23\u0E35"];
 const fmt = (n) => (Number(n) || 0).toLocaleString("th-TH");
 const baht = (n) => "\u0E3F" + fmt(n);
@@ -565,20 +672,11 @@ function Field({ label, children, full }) {
 const inputCls = "w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition";
 function CustomerForm({ open, initial, onClose, onSave }) {
   const [f, setF] = useState(EMPTY);
-  const [newTag, setNewTag] = useState("");
   useEffect(() => {
     setF(initial ? { ...EMPTY, ...initial } : EMPTY);
-    setNewTag("");
   }, [initial, open]);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleTag = (t) => setF((p) => ({ ...p, tags: p.tags.includes(t) ? p.tags.filter((x) => x !== t) : [...p.tags, t] }));
-  const removeTag = (t) => setF((p) => ({ ...p, tags: p.tags.filter((x) => x !== t) }));
-  const addCustomTag = () => {
-    const v = newTag.trim();
-    if (!v) return;
-    if (!f.tags.includes(v)) setF((p) => ({ ...p, tags: [...p.tags, v] }));
-    setNewTag("");
-  };
   const submit = () => {
     if (!f.name.trim()) {
       alert("\u0E01\u0E23\u0E38\u0E13\u0E32\u0E01\u0E23\u0E2D\u0E01\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32");
@@ -586,18 +684,7 @@ function CustomerForm({ open, initial, onClose, onSave }) {
     }
     onSave({ ...f, monthlyBill: +f.monthlyBill || 0, budget: +f.budget || 0, value: +f.value || 0 });
   };
-  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800" }, initial ? "\u0E41\u0E01\u0E49\u0E44\u0E02\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" : "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48"), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x }))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-5 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: "\u0E0A\u0E37\u0E48\u0E2D-\u0E19\u0E32\u0E21\u0E2A\u0E01\u0E38\u0E25 *" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.name, onChange: (e) => set("name", e.target.value), placeholder: "\u0E40\u0E0A\u0E48\u0E19 \u0E04\u0E38\u0E13\u0E2A\u0E21\u0E0A\u0E32\u0E22 \u0E43\u0E08\u0E14\u0E35" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.phone, onChange: (e) => set("phone", e.target.value), placeholder: "08x-xxx-xxxx" })), /* @__PURE__ */ React.createElement(Field, { label: "Line ID" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.lineId, onChange: (e) => set("lineId", e.target.value), placeholder: "@lineid" })), /* @__PURE__ */ React.createElement(Field, { label: "Facebook" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.facebook, onChange: (e) => set("facebook", e.target.value), placeholder: "\u0E0A\u0E37\u0E48\u0E2D/\u0E25\u0E34\u0E07\u0E01\u0E4C Facebook" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, list: "provinces", value: f.province, onChange: (e) => set("province", e.target.value), placeholder: "\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E2B\u0E23\u0E37\u0E2D\u0E1E\u0E34\u0E21\u0E1E\u0E4C\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }), /* @__PURE__ */ React.createElement("datalist", { id: "provinces" }, PROVINCES.map((p) => /* @__PURE__ */ React.createElement("option", { key: p, value: p })))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.address, onChange: (e) => set("address", e.target.value), placeholder: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.type, onChange: (e) => set("type", e.target.value) }, TYPES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.source, onChange: (e) => set("source", e.target.value) }, SOURCES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F\u0E15\u0E48\u0E2D\u0E40\u0E14\u0E37\u0E2D\u0E19 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.monthlyBill, onChange: (e) => set("monthlyBill", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, list: "systemSizes", value: f.systemSize, onChange: (e) => set("systemSize", e.target.value), placeholder: "\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E2B\u0E23\u0E37\u0E2D\u0E1E\u0E34\u0E21\u0E1E\u0E4C\u0E40\u0E2D\u0E07 \u0E40\u0E0A\u0E48\u0E19 6.2kW" }), /* @__PURE__ */ React.createElement("datalist", { id: "systemSizes" }, SIZES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t, value: t })))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.budget, onChange: (e) => set("budget", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E14\u0E22\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.value, onChange: (e) => set("value", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E04\u0E27\u0E32\u0E21\u0E2A\u0E19\u0E43\u0E08" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.heat, onChange: (e) => set("heat", e.target.value) }, HEATS.map((h) => /* @__PURE__ */ React.createElement("option", { key: h.key, value: h.key }, h.emoji, " ", h.label)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E2A\u0E16\u0E32\u0E19\u0E30" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.status, onChange: (e) => set("status", e.target.value) }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.key, value: s.key }, s.label)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.lastContact, onChange: (e) => set("lastContact", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.nextFollowup, onChange: (e) => set("nextFollowup", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Tag / \u0E2B\u0E21\u0E27\u0E14\u0E2B\u0E21\u0E39\u0E48", full: true },
-  /* @__PURE__ */ React.createElement("div", { className: "space-y-2.5" },
-    f.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" },
-      f.tags.map((t) => /* @__PURE__ */ React.createElement("span", { key: t, className: "inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-full text-xs font-medium bg-brand-600 text-white" },
-        t,
-        /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => removeTag(t), "aria-label": "\u0E25\u0E1A " + t, className: "w-4 h-4 rounded-full flex items-center justify-center hover:bg-white/25 transition" },
-          /* @__PURE__ */ React.createElement(Icon, { d: I.x, cls: "w-3 h-3" }))))),
-    /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" },
-      TAGS.filter((t) => !f.tags.includes(t)).map((t) => /* @__PURE__ */ React.createElement("button", { key: t, type: "button", onClick: () => toggleTag(t), className: "px-3 py-1.5 rounded-full text-xs font-medium ring-1 ring-inset ring-ink-200 text-ink-500 hover:ring-brand-300 hover:text-brand-600 transition" }, "+ ", t))),
-    /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" },
-      /* @__PURE__ */ React.createElement("input", { className: inputCls + " flex-1", value: newTag, onChange: (e) => setNewTag(e.target.value), onKeyDown: (e) => { if (e.key === "Enter") { e.preventDefault(); addCustomTag(); } }, placeholder: "\u0E1E\u0E34\u0E21\u0E1E\u0E4C Tag \u0E43\u0E2B\u0E21\u0E48\u0E41\u0E25\u0E49\u0E27\u0E01\u0E14 Enter \u0E2B\u0E23\u0E37\u0E2D\u0E1B\u0E38\u0E48\u0E21\u0E40\u0E1E\u0E34\u0E48\u0E21" }),
-      /* @__PURE__ */ React.createElement("button", { type: "button", onClick: addCustomTag, className: "px-4 rounded-lg text-sm font-semibold bg-ink-100 text-ink-600 hover:bg-ink-200 transition shrink-0" }, "\u0E40\u0E1E\u0E34\u0E48\u0E21")))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38", full: true }, /* @__PURE__ */ React.createElement("textarea", { className: inputCls + " h-20 resize-none", value: f.note, onChange: (e) => set("note", e.target.value), placeholder: "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E22\u0E48\u0E2D\u0E40\u0E01\u0E35\u0E48\u0E22\u0E27\u0E01\u0E31\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" }))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-3 px-6 py-4 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01"), /* @__PURE__ */ React.createElement("button", { onClick: submit, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, initial ? "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E41\u0E01\u0E49\u0E44\u0E02" : "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")));
+  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800" }, initial ? "\u0E41\u0E01\u0E49\u0E44\u0E02\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" : "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48"), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x }))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-5 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: "\u0E0A\u0E37\u0E48\u0E2D-\u0E19\u0E32\u0E21\u0E2A\u0E01\u0E38\u0E25 *" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.name, onChange: (e) => set("name", e.target.value), placeholder: "\u0E40\u0E0A\u0E48\u0E19 \u0E04\u0E38\u0E13\u0E2A\u0E21\u0E0A\u0E32\u0E22 \u0E43\u0E08\u0E14\u0E35" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.phone, onChange: (e) => set("phone", e.target.value), placeholder: "08x-xxx-xxxx" })), /* @__PURE__ */ React.createElement(Field, { label: "Line ID" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.lineId, onChange: (e) => set("lineId", e.target.value), placeholder: "@lineid" })), /* @__PURE__ */ React.createElement(Field, { label: "Facebook" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.facebook, onChange: (e) => set("facebook", e.target.value), placeholder: "\u0E0A\u0E37\u0E48\u0E2D/\u0E25\u0E34\u0E07\u0E01\u0E4C Facebook" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, list: "provinces", value: f.province, onChange: (e) => set("province", e.target.value), placeholder: "\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E2B\u0E23\u0E37\u0E2D\u0E1E\u0E34\u0E21\u0E1E\u0E4C\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }), /* @__PURE__ */ React.createElement("datalist", { id: "provinces" }, PROVINCES.map((p) => /* @__PURE__ */ React.createElement("option", { key: p, value: p })))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.address, onChange: (e) => set("address", e.target.value), placeholder: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07" })), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 flex items-center gap-2 pt-3 mt-1 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("span", { className: "text-base" }, "📋"), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-ink-400 uppercase tracking-wider" }, "รายละเอียดงาน")), /* @__PURE__ */ React.createElement(Field, { label: "\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.type, onChange: (e) => set("type", e.target.value) }, TYPES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.source, onChange: (e) => set("source", e.target.value) }, SOURCES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F\u0E15\u0E48\u0E2D\u0E40\u0E14\u0E37\u0E2D\u0E19 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.monthlyBill, onChange: (e) => set("monthlyBill", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.systemSize, onChange: (e) => set("systemSize", e.target.value) }, SIZES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.budget, onChange: (e) => set("budget", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E14\u0E22\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.value, onChange: (e) => set("value", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 flex items-center gap-2 pt-3 mt-1 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("span", { className: "text-base" }, "🎯"), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-ink-400 uppercase tracking-wider" }, "สถานะและการติดตาม")), /* @__PURE__ */ React.createElement(Field, { label: "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E04\u0E27\u0E32\u0E21\u0E2A\u0E19\u0E43\u0E08" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.heat, onChange: (e) => set("heat", e.target.value) }, HEATS.map((h) => /* @__PURE__ */ React.createElement("option", { key: h.key, value: h.key }, h.emoji, " ", h.label)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E2A\u0E16\u0E32\u0E19\u0E30" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.status, onChange: (e) => set("status", e.target.value) }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.key, value: s.key }, s.label)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.lastContact, onChange: (e) => set("lastContact", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.nextFollowup, onChange: (e) => set("nextFollowup", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Tag / \u0E2B\u0E21\u0E27\u0E14\u0E2B\u0E21\u0E39\u0E48", full: true }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, TAGS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, type: "button", onClick: () => toggleTag(t), className: `px-3 py-1.5 rounded-full text-xs font-medium ring-1 ring-inset transition ${f.tags.includes(t) ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-ink-500 ring-ink-200 hover:ring-brand-300"}` }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38", full: true }, /* @__PURE__ */ React.createElement("textarea", { className: inputCls + " h-20 resize-none", value: f.note, onChange: (e) => set("note", e.target.value), placeholder: "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E22\u0E48\u0E2D\u0E40\u0E01\u0E35\u0E48\u0E22\u0E27\u0E01\u0E31\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" }))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-3 px-6 py-4 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01"), /* @__PURE__ */ React.createElement("button", { onClick: submit, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, initial ? "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E41\u0E01\u0E49\u0E44\u0E02" : "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")));
 }
 function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus }) {
   const [log, setLog] = useState({ topic: "", interest: "", sent: "", next: "" });
@@ -628,111 +715,29 @@ function Donut({ data }) {
     return el;
   }))), /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex flex-col items-center justify-center" }, /* @__PURE__ */ React.createElement("span", { className: "num text-2xl font-bold text-ink-900 leading-none" }, fmt(total)), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-ink-400 mt-0.5" }, "\u0E23\u0E32\u0E22"))), /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5 flex-1 min-w-0" }, data.map((d, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2 text-sm" }, /* @__PURE__ */ React.createElement("span", { className: "w-2.5 h-2.5 rounded-sm shrink-0", style: { background: d.color } }), /* @__PURE__ */ React.createElement("span", { className: "text-ink-600 truncate flex-1" }, d.label), /* @__PURE__ */ React.createElement("span", { className: "num font-semibold text-ink-800" }, d.value)))));
 }
-function TrendChart({ rows }) {
-  const [hover, setHover] = useState(null);
-  const [margin, setMargin] = useState(30);
-  const months = useMemo(() => {
-    const out = [];
-    const now = /* @__PURE__ */ new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      out.push({ y: d.getFullYear(), m: d.getMonth(), label: d.toLocaleDateString("th-TH", { month: "short" }) });
-    }
-    return out;
-  }, []);
-  const series = useMemo(() => months.map((mo) => {
-    const won = rows.filter((r) => {
-      if (r.status !== "won" || !r.createdAt) return false;
-      const d = new Date(r.createdAt + "T00:00:00");
-      return d.getFullYear() === mo.y && d.getMonth() === mo.m;
-    });
-    return { ...mo, value: won.reduce((s, r) => s + (r.value || 0), 0), count: won.length };
-  }), [rows, months]);
-  const seriesWithProfit = useMemo(() => series.map((s) => ({ ...s, profit: s.value * margin / 100 })), [series, margin]);
-  const max = Math.max(...seriesWithProfit.map((s) => s.value), 1);
-  const W = 560, H = 180, PAD = 28;
-  const stepX = (W - PAD * 2) / (seriesWithProfit.length - 1 || 1);
-  const yFor = (val) => H - PAD - val / max * (H - PAD * 2 - 16);
-  const pts = seriesWithProfit.map((s, i) => ({ ...s, x: PAD + i * stepX, y: yFor(s.value), yProfit: yFor(s.profit) }));
-  const path = pts.map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" ");
-  const profitPath = pts.map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + "," + p.yProfit.toFixed(1)).join(" ");
-  const areaPath = path + ` L${pts[pts.length - 1].x.toFixed(1)},${H - PAD} L${pts[0].x.toFixed(1)},${H - PAD} Z`;
-  const totalWon = seriesWithProfit.reduce((s, m) => s + m.value, 0);
-  const totalProfit = seriesWithProfit.reduce((s, m) => s + m.profit, 0);
-  const lastMonth = seriesWithProfit[seriesWithProfit.length - 1], prevMonth = seriesWithProfit[seriesWithProfit.length - 2];
-  const growth = prevMonth && prevMonth.value > 0 ? Math.round((lastMonth.value - prevMonth.value) / prevMonth.value * 100) : null;
-  return /* @__PURE__ */ React.createElement("div", null,
-    /* @__PURE__ */ React.createElement("div", { className: "flex items-end justify-between mb-1 flex-wrap gap-2" },
-      /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-4" },
-        /* @__PURE__ */ React.createElement("div", null,
-          /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "w-2 h-2 rounded-full bg-brand-600 inline-block" }), "\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A 6 \u0E40\u0E14\u0E37\u0E2D\u0E19\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14"),
-          /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900" }, baht(totalWon))),
-        /* @__PURE__ */ React.createElement("div", null,
-          /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "w-2 h-2 rounded-full bg-emerald-500 inline-block" }), "\u0E01\u0E33\u0E44\u0E23\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13\u0E01\u0E32\u0E23"),
-          /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-emerald-600" }, baht(totalProfit)))),
-      growth !== null && /* @__PURE__ */ React.createElement("div", { className: `text-xs font-semibold px-2 py-1 rounded-lg ${growth >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}` }, growth >= 0 ? "\u2191 " : "\u2193 ", Math.abs(growth), "% \u0E08\u0E32\u0E01\u0E40\u0E14\u0E37\u0E2D\u0E19\u0E01\u0E48\u0E2D\u0E19")),
-    /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, className: "w-full h-auto mt-2", style: { maxHeight: 190 } },
-      /* @__PURE__ */ React.createElement("defs", null,
-        /* @__PURE__ */ React.createElement("linearGradient", { id: "trendFill", x1: "0", y1: "0", x2: "0", y2: "1" },
-          /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: "rgb(var(--b500))", stopOpacity: "0.22" }),
-          /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: "rgb(var(--b500))", stopOpacity: "0" }))),
-      [0.25, 0.5, 0.75].map((f) => /* @__PURE__ */ React.createElement("line", { key: f, x1: PAD, x2: W - PAD, y1: PAD + f * (H - PAD * 2 - 16), y2: PAD + f * (H - PAD * 2 - 16), stroke: "#f1f5f9", strokeWidth: "1" })),
-      /* @__PURE__ */ React.createElement("path", { d: areaPath, fill: "url(#trendFill)" }),
-      /* @__PURE__ */ React.createElement("path", { d: path, fill: "none", stroke: "rgb(var(--b600))", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }),
-      /* @__PURE__ */ React.createElement("path", { d: profitPath, fill: "none", stroke: "#10b981", strokeWidth: "2.5", strokeDasharray: "5 4", strokeLinecap: "round", strokeLinejoin: "round" }),
-      pts.map((p, i) => /* @__PURE__ */ React.createElement("g", { key: i },
-        /* @__PURE__ */ React.createElement("circle", { cx: p.x, cy: p.y, r: hover === i ? 6 : 4, fill: "#fff", stroke: "rgb(var(--b600))", strokeWidth: "2.5", className: "transition-all cursor-pointer", onMouseEnter: () => setHover(i), onMouseLeave: () => setHover(null) }),
-        /* @__PURE__ */ React.createElement("circle", { cx: p.x, cy: p.yProfit, r: hover === i ? 5 : 3, fill: "#10b981", className: "transition-all cursor-pointer", onMouseEnter: () => setHover(i), onMouseLeave: () => setHover(null) }),
-        /* @__PURE__ */ React.createElement("text", { x: p.x, y: H - 6, textAnchor: "middle", className: "fill-ink-400", style: { fontSize: 11 } }, p.label),
-        hover === i && /* @__PURE__ */ React.createElement("g", null,
-          /* @__PURE__ */ React.createElement("rect", { x: p.x - 42, y: Math.min(p.y, p.yProfit) - 46, width: 84, height: 38, rx: 8, className: "fill-ink-900" }),
-          /* @__PURE__ */ React.createElement("text", { x: p.x, y: Math.min(p.y, p.yProfit) - 31, textAnchor: "middle", className: "fill-white font-semibold num", style: { fontSize: 10.5 } }, baht(p.value)),
-          /* @__PURE__ */ React.createElement("text", { x: p.x, y: Math.min(p.y, p.yProfit) - 17, textAnchor: "middle", className: "fill-emerald-300 font-semibold num", style: { fontSize: 10.5 } }, baht(p.profit), " \u0E01\u0E33\u0E44\u0E23"))))),
-    /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 mt-3 pt-3 border-t border-ink-100" },
-      /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-400 shrink-0" }, "\u0E21\u0E32\u0E23\u0E4C\u0E08\u0E34\u0E19\u0E40\u0E1F\u0E25\u0E35\u0E48\u0E22\u0E2A\u0E33\u0E2B\u0E23\u0E31\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13\u0E01\u0E32\u0E23"),
-      /* @__PURE__ */ React.createElement("input", { type: "range", min: "5", max: "60", value: margin, onChange: (e) => setMargin(+e.target.value), className: "flex-1 accent-emerald-600" }),
-      /* @__PURE__ */ React.createElement("span", { className: "num text-xs font-bold text-emerald-600 w-10 text-right shrink-0" }, margin, "%")));
-}
-function Funnel({ data }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
-  return /* @__PURE__ */ React.createElement("div", { className: "space-y-2.5" },
-    data.map((d, i) => {
-      const pct = d.value / max * 100;
-      return /* @__PURE__ */ React.createElement("div", { key: i },
-        /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-1" },
-          /* @__PURE__ */ React.createElement("span", { className: "text-xs font-medium text-ink-600" }, d.label),
-          /* @__PURE__ */ React.createElement("span", { className: "num text-xs font-bold text-ink-800" }, d.value, " \u0E23\u0E32\u0E22")),
-        /* @__PURE__ */ React.createElement("div", { className: "h-7 rounded-lg bg-ink-50 overflow-hidden" },
-          /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-lg flex items-center transition-all duration-500", style: { width: Math.max(pct, 6) + "%", background: d.color } })));
-    }));
-}
-function ProvinceStats({ rows }) {
-  const data = useMemo(() => {
-    const map = {};
-    rows.forEach((r) => {
-      const p = (r.province || "").trim();
-      if (!p) return;
-      if (!map[p]) map[p] = { province: p, count: 0, value: 0 };
-      map[p].count++;
-      map[p].value += r.value || 0;
-    });
-    return Object.values(map).sort((a, b) => b.count - a.count).slice(0, 8);
-  }, [rows]);
-  if (data.length === 0) return /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 py-6 text-center" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32");
-  const max = Math.max(...data.map((d) => d.count), 1);
-  return /* @__PURE__ */ React.createElement("div", { className: "space-y-2.5" },
-    data.map((d) => /* @__PURE__ */ React.createElement("div", { key: d.province },
-      /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-1" },
-        /* @__PURE__ */ React.createElement("span", { className: "text-xs font-medium text-ink-600 truncate" }, d.province),
-        /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" },
-          /* @__PURE__ */ React.createElement("span", { className: "num text-xs text-ink-400" }, baht(d.value)),
-          /* @__PURE__ */ React.createElement("span", { className: "num text-xs font-bold text-ink-800 w-8 text-right" }, d.count, " \u0E23\u0E32\u0E22"))),
-      /* @__PURE__ */ React.createElement("div", { className: "h-2 rounded-full bg-ink-100 overflow-hidden" },
-        /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-600 transition-all duration-500", style: { width: Math.max(d.count / max * 100, 6) + "%" } })))));
-}
 function Stat({ label, value, sub, icon, tone }) {
   const tones = { blue: "bg-brand-50 text-brand-600", green: "bg-emerald-50 text-emerald-600", amber: "bg-amber-50 text-amber-600", violet: "bg-violet-50 text-violet-600", slate: "bg-ink-100 text-ink-600", red: "bg-red-50 text-red-600" };
   return /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-500" }, label), /* @__PURE__ */ React.createElement("span", { className: `w-9 h-9 rounded-xl flex items-center justify-center ${tones[tone]}` }, /* @__PURE__ */ React.createElement(Icon, { d: icon, cls: "w-5 h-5" }))), /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900 mt-2" }, value), sub && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, sub));
+}
+function SkeletonGrid() {
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-5" },
+    /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4" },
+      [1, 2, 3, 4].map((i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" },
+          /* @__PURE__ */ React.createElement("div", { className: "skel h-3 w-20" }),
+          /* @__PURE__ */ React.createElement("div", { className: "skel w-9 h-9 rounded-xl" })
+        ),
+        /* @__PURE__ */ React.createElement("div", { className: "skel h-7 w-16 mt-3" }),
+        /* @__PURE__ */ React.createElement("div", { className: "skel h-3 w-24 mt-2" })
+      ))
+    ),
+    /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4" },
+      [1, 2].map((i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm space-y-3" },
+        /* @__PURE__ */ React.createElement("div", { className: "skel h-4 w-32" }),
+        /* @__PURE__ */ React.createElement("div", { className: "skel h-24 w-full" })
+      ))
+    )
+  );
 }
 function Dashboard({ rows, onOpen }) {
   const total = rows.length;
@@ -741,73 +746,14 @@ function Dashboard({ rows, onOpen }) {
   const won = rows.filter((r) => r.status === "won");
   const totalValue = rows.reduce((s, r) => s + (r.value || 0), 0);
   const wonValue = won.reduce((s, r) => s + (r.value || 0), 0);
-  const funnelOrder = ["new", "talking", "sent", "waiting", "won"];
-  const funnelColors = { new: "#3b82f6", talking: "#6366f1", sent: "#06b6d4", waiting: "#f59e0b", won: "#10b981" };
-  const funnelData = funnelOrder.map((key) => {
-    const st = STATUSES.find((s) => s.key === key);
-    return { label: st ? st.label : key, value: rows.filter((r) => r.status === key).length, color: funnelColors[key] };
-  }).sort((a, b) => b.value - a.value);
+  const statusData = STATUSES.filter((s) => s.key !== "lost").map((s) => ({ label: s.label, value: rows.filter((r) => r.status === s.key).length, color: { new: "#3b82f6", talking: "#6366f1", sent: "#06b6d4", waiting: "#f59e0b", won: "#10b981", later: "#8b5cf6" }[s.key] }));
   const srcData = SOURCES.map((s) => ({ label: s, value: rows.filter((r) => r.source === s).length })).sort((a, b) => b.value - a.value);
   const maxSrc = Math.max(...srcData.map((s) => s.value), 1);
   const dueToday = rows.filter((r) => r.nextFollowup && daysUntil(r.nextFollowup) <= 0 && r.status !== "won" && r.status !== "lost");
-  const overdueCount = dueToday.filter((r) => daysUntil(r.nextFollowup) < 0).length;
-  const todayCount = dueToday.filter((r) => daysUntil(r.nextFollowup) === 0).length;
-  return /* @__PURE__ */ React.createElement("div", { className: "space-y-5 fade-in" },
-    /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4" },
-      /* @__PURE__ */ React.createElement(Stat, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14", value: fmt(total), sub: "\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A", icon: I.users, tone: "blue" }),
-      /* @__PURE__ */ React.createElement(Stat, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48", value: fmt(isNew), sub: "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D", icon: I.plus, tone: "violet" }),
-      /* @__PURE__ */ React.createElement(Stat, { label: "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", value: fmt(following), sub: "\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E44\u0E1B\u0E1B\u0E4C\u0E44\u0E25\u0E19\u0E4C", icon: I.bell, tone: "amber" }),
-      /* @__PURE__ */ React.createElement(Stat, { label: "\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22\u0E41\u0E25\u0E49\u0E27", value: fmt(won.length), sub: `\u0E2D\u0E31\u0E15\u0E23\u0E32\u0E1B\u0E34\u0E14 ${total ? Math.round(won.length / total * 100) : 0}%`, icon: I.check, tone: "green" })),
-    /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4" },
-      /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-        /* @__PURE__ */ React.createElement(TrendChart, { rows })),
-      /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-        /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "\u0E0A\u0E48\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22 (Funnel)"),
-        /* @__PURE__ */ React.createElement(Funnel, { data: funnelData }))),
-    /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4" },
-      /* @__PURE__ */ React.createElement("div", { className: "sheen bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-sm" },
-        /* @__PURE__ */ React.createElement("div", { className: "text-sm text-emerald-50" }, "\u0E22\u0E2D\u0E14\u0E02\u0E32\u0E22\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E44\u0E14\u0E49"),
-        /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold mt-1" }, baht(wonValue)),
-        /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-100 mt-1" }, "\u0E08\u0E32\u0E01 ", won.length, " \u0E14\u0E35\u0E25\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08")),
-      /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-        /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-500" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E23\u0E27\u0E21\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 (Pipeline)"),
-        /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold text-ink-900 mt-1" }, baht(totalValue)),
-        /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, "\u0E23\u0E27\u0E21\u0E17\u0E38\u0E01\u0E2A\u0E16\u0E32\u0E19\u0E30"))),
-    /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-      /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14 (\u0E2A\u0E39\u0E07\u0E2A\u0E38\u0E14 8 \u0E2D\u0E31\u0E19\u0E14\u0E31\u0E1A)"),
-      /* @__PURE__ */ React.createElement(ProvinceStats, { rows })),
-    /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4" },
-      /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-        /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32"),
-        /* @__PURE__ */ React.createElement("div", { className: "space-y-2.5" },
-          srcData.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "flex items-center gap-3" },
-            /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-500 w-20 shrink-0" }, s.label),
-            /* @__PURE__ */ React.createElement("div", { className: "flex-1 h-2.5 rounded-full bg-ink-100 overflow-hidden" },
-              /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full bg-brand-500", style: { width: `${s.value / maxSrc * 100}%` } })),
-            /* @__PURE__ */ React.createElement("span", { className: "num text-xs font-semibold text-ink-700 w-6 text-right" }, s.value))))),
-      /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-        /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-3" },
-          /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700" }, "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49/\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14"),
-          dueToday.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "relative flex h-2.5 w-2.5" },
-            /* @__PURE__ */ React.createElement("span", { className: "absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75", style: { animation: "pingDot 1.6s cubic-bezier(0,0,0.2,1) infinite" } }),
-            /* @__PURE__ */ React.createElement("span", { className: "relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" }))),
-        dueToday.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 mb-4" },
-          /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-gradient-to-br from-red-500 to-red-600 p-3.5 text-white shadow-sm" },
-            /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold leading-none" }, overdueCount),
-            /* @__PURE__ */ React.createElement("div", { className: "text-[11px] opacity-90 mt-1 font-medium" }, "\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E41\u0E25\u0E49\u0E27")),
-          /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 p-3.5 text-white shadow-sm" },
-            /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold leading-none" }, todayCount),
-            /* @__PURE__ */ React.createElement("div", { className: "text-[11px] opacity-90 mt-1 font-medium" }, "\u0E04\u0E23\u0E1A\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49"))),
-        dueToday.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 py-4 text-center" }, "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49 \u{1F389}") :
-        /* @__PURE__ */ React.createElement("div", { className: "grid sm:grid-cols-2 lg:grid-cols-3 gap-3" },
-          dueToday.slice(0, 6).map((c) => {
-            const du = daysUntil(c.nextFollowup);
-            return /* @__PURE__ */ React.createElement("button", { key: c.id, onClick: () => onOpen(c), className: `text-left rounded-xl ring-1 hover:shadow p-3 transition ${du < 0 ? "ring-red-200 bg-red-50/40 hover:ring-red-300" : "ring-amber-200 bg-amber-50/40 hover:ring-amber-300"}` },
-              /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" },
-                /* @__PURE__ */ React.createElement("span", { className: "font-medium text-ink-800 text-sm truncate" }, c.name),
-                du < 0 ? /* @__PURE__ */ React.createElement(Badge, { cls: "bg-red-100 text-red-700 ring-red-300" }, "\u0E40\u0E25\u0E22 ", Math.abs(du), " \u0E27\u0E31\u0E19") : /* @__PURE__ */ React.createElement(Badge, { cls: "bg-amber-100 text-amber-700 ring-amber-300" }, "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49")),
-              /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, c.province, " \xB7 ", c.systemSize, " \xB7 ", baht(c.value)));
-          })))));
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-5 fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4" }, /* @__PURE__ */ React.createElement(Stat, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14", value: fmt(total), sub: "\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A", icon: I.users, tone: "blue" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48", value: fmt(isNew), sub: "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D", icon: I.plus, tone: "violet" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", value: fmt(following), sub: "\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E44\u0E1B\u0E1B\u0E4C\u0E44\u0E25\u0E19\u0E4C", icon: I.bell, tone: "amber" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22\u0E41\u0E25\u0E49\u0E27", value: fmt(won.length), sub: `\u0E2D\u0E31\u0E15\u0E23\u0E32\u0E1B\u0E34\u0E14 ${total ? Math.round(won.length / total * 100) : 0}%`, icon: I.check, tone: "green" })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "sheen bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-emerald-50" }, "\u0E22\u0E2D\u0E14\u0E02\u0E32\u0E22\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E44\u0E14\u0E49"), /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold mt-1" }, baht(wonValue)), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-100 mt-1" }, "\u0E08\u0E32\u0E01 ", won.length, " \u0E14\u0E35\u0E25\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08")), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-500" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E23\u0E27\u0E21\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 (Pipeline)"), /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold text-ink-900 mt-1" }, baht(totalValue)), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, "\u0E23\u0E27\u0E21\u0E17\u0E38\u0E01\u0E2A\u0E16\u0E32\u0E19\u0E30")), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2.5" }, srcData.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-500 w-20 shrink-0" }, s.label), /* @__PURE__ */ React.createElement("div", { className: "flex-1 h-2.5 rounded-full bg-ink-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full bg-brand-500", style: { width: `${s.value / maxSrc * 100}%` } })), /* @__PURE__ */ React.createElement("span", { className: "num text-xs font-semibold text-ink-700 w-6 text-right" }, s.value)))))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "\u0E2A\u0E23\u0E38\u0E1B\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement(Donut, { data: statusData }))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-3" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700" }, "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49/\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14"), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-red-50 text-red-600 ring-red-200" }, "\u{1F514} ", dueToday.length, " \u0E23\u0E32\u0E22")), dueToday.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 py-4 text-center" }, "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49 \u{1F389}") : /* @__PURE__ */ React.createElement("div", { className: "grid sm:grid-cols-2 lg:grid-cols-3 gap-3" }, dueToday.slice(0, 6).map((c) => {
+    const du = daysUntil(c.nextFollowup);
+    return /* @__PURE__ */ React.createElement("button", { key: c.id, onClick: () => onOpen(c), className: "text-left rounded-xl ring-1 ring-ink-100 hover:ring-brand-300 hover:shadow p-3 transition" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "font-medium text-ink-800 text-sm truncate" }, c.name), du < 0 ? /* @__PURE__ */ React.createElement(Badge, { cls: "bg-red-50 text-red-600 ring-red-200" }, "\u0E40\u0E25\u0E22 ", Math.abs(du), " \u0E27\u0E31\u0E19") : /* @__PURE__ */ React.createElement(Badge, { cls: "bg-amber-50 text-amber-600 ring-amber-200" }, "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49")), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, c.province, " \xB7 ", c.systemSize, " \xB7 ", baht(c.value)));
+  }))));
 }
 function Customers({ rows, onOpen, onEdit, onDelete, onAdd }) {
   const [q, setQ] = useState("");
@@ -842,10 +788,10 @@ function Customers({ rows, onOpen, onEdit, onDelete, onAdd }) {
   return /* @__PURE__ */ React.createElement("div", { className: "space-y-4 fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-col sm:flex-row gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "relative flex-1" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" }, /* @__PURE__ */ React.createElement(Icon, { d: I.search, cls: "w-5 h-5" })), /* @__PURE__ */ React.createElement("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: "\u0E04\u0E49\u0E19\u0E2B\u0E32\u0E0A\u0E37\u0E48\u0E2D \u0E40\u0E1A\u0E2D\u0E23\u0E4C Line \u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14 \u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38\u2026", className: "w-full pl-10 pr-3 py-2.5 rounded-xl border border-ink-200 bg-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" })), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowFilter((v) => !v), className: `px-4 py-2.5 rounded-xl text-sm font-medium ring-1 inline-flex items-center gap-2 ${activeFilters ? "bg-brand-50 text-brand-700 ring-brand-200" : "bg-white text-ink-600 ring-ink-200"}` }, /* @__PURE__ */ React.createElement(Icon, { d: I.filter, cls: "w-4 h-4" }), "\u0E15\u0E31\u0E27\u0E01\u0E23\u0E2D\u0E07", activeFilters > 0 && /* @__PURE__ */ React.createElement("span", { className: "num bg-brand-600 text-white rounded-full px-1.5 text-xs" }, activeFilters)), /* @__PURE__ */ React.createElement("button", { onClick: onAdd, className: "px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm inline-flex items-center gap-2 justify-center" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")), showFilter && /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 fade-in" }, /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.province, onChange: (e) => setF("province", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14"), provincesPresent.map((p) => /* @__PURE__ */ React.createElement("option", { key: p }, p))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.status, onChange: (e) => setF("status", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E2A\u0E16\u0E32\u0E19\u0E30"), STATUSES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.key, value: s.key }, s.label))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.heat, onChange: (e) => setF("heat", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E23\u0E30\u0E14\u0E31\u0E1A"), HEATS.map((h) => /* @__PURE__ */ React.createElement("option", { key: h.key, value: h.key }, h.label))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.type, onChange: (e) => setF("type", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17"), TYPES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.source, onChange: (e) => setF("source", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32"), SOURCES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s }, s))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.tag, onChange: (e) => setF("tag", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01 Tag"), TAGS.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.due, onChange: (e) => setF("due", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E01\u0E32\u0E23\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21: \u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14"), /* @__PURE__ */ React.createElement("option", { value: "overdue" }, "\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14"), /* @__PURE__ */ React.createElement("option", { value: "today" }, "\u0E04\u0E23\u0E1A\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49"), /* @__PURE__ */ React.createElement("option", { value: "week" }, "\u0E20\u0E32\u0E22\u0E43\u0E19 7 \u0E27\u0E31\u0E19")), /* @__PURE__ */ React.createElement("input", { type: "number", className: selCls, value: flt.minValue, onChange: (e) => setF("minValue", e.target.value), placeholder: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E02\u0E31\u0E49\u0E19\u0E15\u0E48\u0E33 (\u0E3F)" }), activeFilters > 0 && /* @__PURE__ */ React.createElement("button", { onClick: () => setFlt({ province: "", status: "", heat: "", type: "", source: "", tag: "", minValue: "", due: "" }), className: "col-span-2 sm:col-span-4 text-sm text-brand-600 font-medium hover:underline text-left" }, "\u0E25\u0E49\u0E32\u0E07\u0E15\u0E31\u0E27\u0E01\u0E23\u0E2D\u0E07\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14")), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-500" }, "\u0E1E\u0E1A ", /* @__PURE__ */ React.createElement("b", { className: "text-ink-800 num" }, filtered.length), " \u0E23\u0E32\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "hidden md:block bg-white rounded-2xl ring-1 ring-ink-100 overflow-hidden shadow-sm" }, /* @__PURE__ */ React.createElement("table", { className: "w-full text-sm" }, /* @__PURE__ */ React.createElement("thead", { className: "bg-ink-50 text-ink-500 text-xs uppercase tracking-wide" }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E23\u0E30\u0E1A\u0E1A"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E23\u0E30\u0E14\u0E31\u0E1A"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21"), /* @__PURE__ */ React.createElement("th", { className: "px-4 py-3" }))), /* @__PURE__ */ React.createElement("tbody", { className: "divide-y divide-ink-50" }, filtered.map((c) => {
     const du = daysUntil(c.nextFollowup);
     return /* @__PURE__ */ React.createElement("tr", { key: c.id, className: "hover:bg-brand-50/40 transition cursor-pointer", onClick: () => onOpen(c) }, /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-medium text-ink-800" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400" }, c.phone || "\u2014", " \xB7 ", c.type)), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3 text-ink-600" }, c.province || "\u2014"), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3 text-ink-600" }, c.systemSize), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3 num font-semibold text-ink-800" }, baht(c.value)), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat })), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status })), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, c.nextFollowup ? /* @__PURE__ */ React.createElement("span", { className: `text-xs font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup)) : /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-300" }, "\u2014")), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-1" }, /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-brand-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit, cls: "w-4 h-4" })), /* @__PURE__ */ React.createElement("button", { onClick: () => onDelete(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.trash, cls: "w-4 h-4" })))));
-  }))), filtered.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "py-12 text-center text-ink-400 text-sm" }, "\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E40\u0E07\u0E37\u0E48\u0E2D\u0E19\u0E44\u0E02 \u2014 \u0E25\u0E2D\u0E07\u0E25\u0E49\u0E32\u0E07\u0E15\u0E31\u0E27\u0E01\u0E23\u0E2D\u0E07\u0E2B\u0E23\u0E37\u0E2D\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48")), /* @__PURE__ */ React.createElement("div", { className: "md:hidden space-y-3" }, filtered.map((c) => {
+  }))), filtered.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "py-14 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-4xl mb-2" }, "\u{1F50D}"), /* @__PURE__ */ React.createElement("div", { className: "text-ink-400 text-sm" }, "\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E40\u0E07\u0E37\u0E48\u0E2D\u0E19\u0E44\u0E02 \u2014 \u0E25\u0E2D\u0E07\u0E25\u0E49\u0E32\u0E07\u0E15\u0E31\u0E27\u0E01\u0E23\u0E2D\u0E07\u0E2B\u0E23\u0E37\u0E2D\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48")), /* @__PURE__ */ React.createElement("div", { className: "md:hidden space-y-3" }, filtered.map((c) => {
     const du = daysUntil(c.nextFollowup);
     return /* @__PURE__ */ React.createElement("div", { key: c.id, className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm", onClick: () => onOpen(c) }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province || "\u2014", " \xB7 ", c.phone || "\u2014")), /* @__PURE__ */ React.createElement("span", { className: "num font-bold text-emerald-600 shrink-0 ml-2" }, baht(c.value))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-2" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.systemSize)), c.nextFollowup && /* @__PURE__ */ React.createElement("div", { className: `text-xs mt-2 font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21: ", du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup)), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-3 pt-3 border-t border-ink-50", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "flex-1 py-1.5 rounded-lg bg-ink-100 text-ink-600 text-xs font-medium" }, "\u0E41\u0E01\u0E49\u0E44\u0E02"), /* @__PURE__ */ React.createElement("button", { onClick: () => onDelete(c), className: "flex-1 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium" }, "\u0E25\u0E1A")));
-  }), filtered.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "py-12 text-center text-ink-400 text-sm" }, "\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E40\u0E07\u0E37\u0E48\u0E2D\u0E19\u0E44\u0E02")));
+  }), filtered.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "py-14 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-4xl mb-2" }, "\u{1F50D}"), /* @__PURE__ */ React.createElement("div", { className: "text-ink-400 text-sm" }, "\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E40\u0E07\u0E37\u0E48\u0E2D\u0E19\u0E44\u0E02")))));
 }
 function Pipeline({ rows, onOpen, onStatus }) {
   const cols = STATUSES.filter((s) => s.key !== "lost");
@@ -947,24 +893,9 @@ function Leads({ leads, loading, onAccept, onRefresh }) {
 }
 function ProfitCalc() {
   const [v, setV] = useState({ sell: 280000, panel: 70000, inverter: 35000, battery: 0, mount: 18000, wiring: 12000, labor: 35000, transport: 5000, other: 8000, tax: 0 });
-  const [monthlyJobs, setMonthlyJobs] = useState(Array(12).fill(0));
-  const monthLabels = useMemo(() => {
-    const out = [];
-    const now = /* @__PURE__ */ new Date();
-    for (let i = 0; i < 12; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
-      out.push(d.toLocaleDateString("th-TH", { month: "short" }));
-    }
-    return out;
-  }, []);
-  const setJob = (i) => (e) => {
-    const val = Math.max(0, Math.round(+e.target.value) || 0);
-    setMonthlyJobs((p) => p.map((x, idx) => idx === i ? val : x));
-  };
   const set = (k) => (e) => setV((p) => ({ ...p, [k]: e.target.value }));
   const n = (x) => parseFloat(x) || 0;
   const costKeys = ["panel", "inverter", "battery", "mount", "wiring", "labor", "transport", "other"];
-  const costLabels = { panel: "\u0E41\u0E1C\u0E07\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C", inverter: "\u0E2D\u0E34\u0E19\u0E40\u0E27\u0E2D\u0E23\u0E4C\u0E40\u0E15\u0E2D\u0E23\u0E4C", battery: "\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48", mount: "\u0E42\u0E04\u0E23\u0E07\u0E2A\u0E23\u0E49\u0E32\u0E07/\u0E23\u0E32\u0E07", wiring: "\u0E2A\u0E32\u0E22\u0E44\u0E1F/\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C", labor: "\u0E04\u0E48\u0E32\u0E41\u0E23\u0E07\u0E0A\u0E48\u0E32\u0E07", transport: "\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07", other: "\u0E2D\u0E37\u0E48\u0E19\u0E46/\u0E01\u0E32\u0E23\u0E15\u0E25\u0E32\u0E14" };
   const cost = costKeys.reduce((s, k) => s + n(v[k]), 0);
   const sell = n(v.sell), gross = sell - cost, tax = gross > 0 ? gross * n(v.tax) / 100 : 0, net = gross - tax;
   const margin = sell > 0 ? net / sell * 100 : 0, markup = cost > 0 ? gross / cost * 100 : 0;
@@ -974,36 +905,6 @@ function ProfitCalc() {
   const costFields = fields.map(([lab, k]) => React.createElement("div", { key: k }, React.createElement("label", { className: "text-xs text-ink-500" }, lab), numInput(k)));
   const statCard = (label, value, sub, cls) => React.createElement("div", { className: "rounded-2xl ring-1 ring-ink-100 p-4 " + cls }, React.createElement("div", { className: "text-xs opacity-80" }, label), React.createElement("div", { className: "num text-2xl font-extrabold mt-1" }, value), sub ? React.createElement("div", { className: "text-xs opacity-70 mt-0.5" }, sub) : null);
   const profitPct = sell > 0 ? Math.max(0, Math.min(100, net / sell * 100)) : 0;
-  const cashflowData = monthLabels.map((label, i) => ({ label, jobs: monthlyJobs[i], revenue: monthlyJobs[i] * sell, profit: monthlyJobs[i] * net }));
-  const cfMaxRevenue = Math.max(...cashflowData.map((d) => d.revenue), 1);
-  const cfTotalRevenue = cashflowData.reduce((s, d) => s + d.revenue, 0);
-  const cfTotalProfit = cashflowData.reduce((s, d) => s + d.profit, 0);
-  const exportCashflowExcel = () => {
-    if (!window.XLSX) { alert("\u0E44\u0E25\u0E1A\u0E23\u0E32\u0E23\u0E35\u0E48 Excel \u0E22\u0E31\u0E07\u0E42\u0E2B\u0E25\u0E14\u0E44\u0E21\u0E48\u0E40\u0E2A\u0E23\u0E47\u0E08 \u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07"); return; }
-    const rows = cashflowData.map((d) => ({ "\u0E40\u0E14\u0E37\u0E2D\u0E19": d.label, "\u0E08\u0E33\u0E19\u0E27\u0E19\u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14": d.jobs, "\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A (\u0E1A\u0E32\u0E17)": d.revenue, "\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 (\u0E1A\u0E32\u0E17)": d.profit }));
-    rows.push({ "\u0E40\u0E14\u0E37\u0E2D\u0E19": "\u0E23\u0E27\u0E21\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14", "\u0E08\u0E33\u0E19\u0E27\u0E19\u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14": cashflowData.reduce((s, d) => s + d.jobs, 0), "\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A (\u0E1A\u0E32\u0E17)": cfTotalRevenue, "\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 (\u0E1A\u0E32\u0E17)": cfTotalProfit });
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
-    XLSX.utils.book_append_sheet(wb, ws, "Cashflow\u0E23\u0E32\u0E22\u0E40\u0E14\u0E37\u0E2D\u0E19");
-    XLSX.writeFile(wb, "Cashflow_SolarCRM_" + todayISO() + ".xlsx");
-  };
-  const exportProfitExcel = () => {
-    if (!window.XLSX) { alert("\u0E44\u0E25\u0E1A\u0E23\u0E32\u0E23\u0E35\u0E48 Excel \u0E22\u0E31\u0E07\u0E42\u0E2B\u0E25\u0E14\u0E44\u0E21\u0E48\u0E40\u0E2A\u0E23\u0E47\u0E08 \u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07"); return; }
-    const rows = costKeys.map((k) => ({ "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23": costLabels[k], "\u0E08\u0E33\u0E19\u0E27\u0E19 (\u0E1A\u0E32\u0E17)": n(v[k]) }));
-    rows.push({ "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23": "\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19\u0E23\u0E27\u0E21", "\u0E08\u0E33\u0E19\u0E27\u0E19 (\u0E1A\u0E32\u0E17)": cost });
-    rows.push({ "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23": "\u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22\u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", "\u0E08\u0E33\u0E19\u0E27\u0E19 (\u0E1A\u0E32\u0E17)": sell });
-    rows.push({ "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23": "\u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35", "\u0E08\u0E33\u0E19\u0E27\u0E19 (\u0E1A\u0E32\u0E17)": gross });
-    rows.push({ "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23": `\u0E20\u0E32\u0E29\u0E35 (${n(v.tax)}%)`, "\u0E08\u0E33\u0E19\u0E27\u0E19 (\u0E1A\u0E32\u0E17)": tax });
-    rows.push({ "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23": "\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34", "\u0E08\u0E33\u0E19\u0E27\u0E19 (\u0E1A\u0E32\u0E17)": net });
-    rows.push({ "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23": "\u0E21\u0E32\u0E23\u0E4C\u0E08\u0E34\u0E19 (%)", "\u0E08\u0E33\u0E19\u0E27\u0E19 (\u0E1A\u0E32\u0E17)": Math.round(margin * 10) / 10 });
-    rows.push({ "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23": "Markup (%)", "\u0E08\u0E33\u0E19\u0E27\u0E19 (\u0E1A\u0E32\u0E17)": Math.round(markup * 10) / 10 });
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 24 }, { wch: 16 }];
-    XLSX.utils.book_append_sheet(wb, ws, "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E01\u0E33\u0E44\u0E23");
-    XLSX.writeFile(wb, "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E01\u0E33\u0E44\u0E23_SolarCRM_" + todayISO() + ".xlsx");
-  };
   return React.createElement("div", { className: "space-y-5 fade-in max-w-5xl" },
     React.createElement("div", { className: "grid lg:grid-cols-2 gap-5" },
       React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
@@ -1026,32 +927,8 @@ function ProfitCalc() {
           React.createElement("div", { className: "h-5 rounded-full overflow-hidden flex bg-ink-100" },
             React.createElement("div", { className: "h-full bg-gradient-to-r from-slate-400 to-slate-500", style: { width: (sell > 0 ? Math.min(100, cost / sell * 100) : 100) + "%" } }),
             React.createElement("div", { className: "h-full bg-gradient-to-r from-emerald-400 to-emerald-500", style: { width: profitPct + "%" } })),
-          React.createElement("div", { className: "flex justify-between text-[11px] text-ink-400 mt-2" }, React.createElement("span", null, "\u25A0 \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 " + B(cost)), React.createElement("span", null, "\u25A0 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 " + B(net))),
-          React.createElement("button", { onClick: exportProfitExcel, className: "mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 shadow" },
-            React.createElement(Icon, { d: I.download, cls: "w-4 h-4" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19\u0E19\u0E35\u0E49 Excel")),
-        React.createElement("div", { className: "text-xs text-ink-400 leading-relaxed" }, "* \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 = \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22 - \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19\u0E23\u0E27\u0E21 \u00B7 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 = \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 - \u0E20\u0E32\u0E29\u0E35 \u00B7 \u0E21\u0E32\u0E23\u0E4C\u0E08\u0E34\u0E19 = \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 \u00F7 \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22"))),
-    React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-      React.createElement("div", { className: "flex items-center justify-between mb-1" },
-        React.createElement("h4", { className: "text-sm font-semibold text-ink-700" }, "\u{1F4C5} Cashflow & \u0E01\u0E33\u0E44\u0E23\u0E15\u0E48\u0E2D\u0E40\u0E14\u0E37\u0E2D\u0E19"),
-        React.createElement("button", { onClick: exportCashflowExcel, className: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 shadow-sm" },
-          React.createElement(Icon, { d: I.download, cls: "w-3.5 h-3.5" }), "Export")),
-      React.createElement("p", { className: "text-xs text-ink-400 mb-4" }, "\u0E01\u0E23\u0E2D\u0E01\u0E08\u0E33\u0E19\u0E27\u0E19\u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E44\u0E14\u0E49\u0E40\u0E14\u0E37\u0E2D\u0E19\u0E25\u0E30 \u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A/\u0E01\u0E33\u0E44\u0E23\u0E08\u0E30\u0E04\u0E33\u0E19\u0E27\u0E13\u0E08\u0E32\u0E01\u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22\u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E14\u0E49\u0E32\u0E19\u0E1A\u0E19\u0E43\u0E2B\u0E49\u0E2D\u0E32\u0E15\u0E42\u0E1B\u0E21\u0E31\u0E15\u0E34"),
-      React.createElement("div", { className: "grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 mb-5" },
-        monthLabels.map((label, i) => React.createElement("div", { key: i },
-          React.createElement("label", { className: "text-[11px] text-ink-400 block mb-1" }, label),
-          React.createElement("input", { type: "number", min: "0", value: monthlyJobs[i], onChange: setJob(i), className: "w-full px-2 py-1.5 rounded-lg border border-ink-200 text-sm num text-center" })))),
-      React.createElement("div", { className: "grid grid-cols-2 gap-4 mb-5" },
-        statCard("\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A\u0E23\u0E27\u0E21 12 \u0E40\u0E14\u0E37\u0E2D\u0E19", B(cfTotalRevenue), cashflowData.reduce((s, d) => s + d.jobs, 0) + " \u0E07\u0E32\u0E19", "bg-white text-ink-800"),
-        statCard("\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E23\u0E27\u0E21 12 \u0E40\u0E14\u0E37\u0E2D\u0E19", B(cfTotalProfit), "\u0E40\u0E1F\u0E25\u0E35\u0E48\u0E22 " + B(cfTotalProfit / 12) + "/\u0E40\u0E14\u0E37\u0E2D\u0E19", "bg-white text-emerald-600")),
-      React.createElement("div", { className: "flex items-end gap-1.5 sm:gap-2", style: { height: 140 } },
-        cashflowData.map((d, i) => React.createElement("div", { key: i, className: "flex-1 flex flex-col items-center justify-end h-full group relative" },
-          d.jobs > 0 && React.createElement("div", { className: "absolute -top-6 text-[10px] font-semibold text-ink-600 num opacity-0 group-hover:opacity-100 transition whitespace-nowrap" }, B(d.profit)),
-          React.createElement("div", { className: "w-full rounded-t-md bg-gradient-to-t from-brand-600 to-brand-400 transition-all", style: { height: Math.max(d.revenue / cfMaxRevenue * 100, d.jobs > 0 ? 4 : 0) + "%" } }),
-          React.createElement("div", { className: "w-full rounded-t-sm bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all -mt-px", style: { height: Math.max(d.profit / cfMaxRevenue * 100, d.jobs > 0 ? 3 : 0) + "%" } }),
-          React.createElement("span", { className: "text-[10px] text-ink-400 mt-1.5" }, d.label)))),
-      React.createElement("div", { className: "flex items-center gap-4 mt-3 pt-3 border-t border-ink-100" },
-        React.createElement("span", { className: "inline-flex items-center gap-1.5 text-[11px] text-ink-500" }, React.createElement("span", { className: "w-2 h-2 rounded bg-brand-500 inline-block" }), "\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A"),
-        React.createElement("span", { className: "inline-flex items-center gap-1.5 text-[11px] text-ink-500" }, React.createElement("span", { className: "w-2 h-2 rounded bg-emerald-500 inline-block" }), "\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34"))));
+          React.createElement("div", { className: "flex justify-between text-[11px] text-ink-400 mt-2" }, React.createElement("span", null, "\u25A0 \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 " + B(cost)), React.createElement("span", null, "\u25A0 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 " + B(net)))),
+        React.createElement("div", { className: "text-xs text-ink-400 leading-relaxed" }, "* \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 = \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22 - \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19\u0E23\u0E27\u0E21 \u00B7 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 = \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 - \u0E20\u0E32\u0E29\u0E35 \u00B7 \u0E21\u0E32\u0E23\u0E4C\u0E08\u0E34\u0E19 = \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 \u00F7 \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22"))));
 }
 function App() {
   const [rows, setRows] = useState([]);
@@ -1177,7 +1054,7 @@ function App() {
   return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
-  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition ${view === n.key ? "bg-brand-600 text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: "w-5 h-5" }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold" }, leads.filter((l) => l.status !== "accepted").length) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement("button", { onClick: () => openQuote(null, false), className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:brightness-110 shadow mb-1" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-5 h-5" }), "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), /* @__PURE__ */ React.createElement("button", { onClick: () => copyQuoteLink(null), className: "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-ink-400 hover:bg-ink-800" }, /* @__PURE__ */ React.createElement(Icon, { d: I.copy, cls: "w-4 h-4" }), "\u0E04\u0E31\u0E14\u0E25\u0E2D\u0E01\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E2A\u0E48\u0E07\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("button", { onClick: setQuoteUrl, className: "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-ink-500 hover:bg-ink-800" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit, cls: "w-4 h-4" }), "\u0E15\u0E31\u0E49\u0E07\u0E04\u0E48\u0E32\u0E25\u0E34\u0E07\u0E01\u0E4C")))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48\u0E08\u0E32\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19" }[view])), view !== "cust" && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement("div", { className: "text-center text-ink-400 py-20" }, "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E42\u0E2B\u0E25\u0E14\u2026") : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "pipe" && /* @__PURE__ */ React.createElement(Pipeline, { rows, onOpen: openProfile, onStatus: setStatus }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
+  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition ${view === n.key ? "bg-brand-600 text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: "w-5 h-5" }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold" }, leads.filter((l) => l.status !== "accepted").length) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement("button", { onClick: () => openQuote(null, false), className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:brightness-110 shadow mb-1" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-5 h-5" }), "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), /* @__PURE__ */ React.createElement("button", { onClick: () => copyQuoteLink(null), className: "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-ink-400 hover:bg-ink-800" }, /* @__PURE__ */ React.createElement(Icon, { d: I.copy, cls: "w-4 h-4" }), "\u0E04\u0E31\u0E14\u0E25\u0E2D\u0E01\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E2A\u0E48\u0E07\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("button", { onClick: setQuoteUrl, className: "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-ink-500 hover:bg-ink-800" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit, cls: "w-4 h-4" }), "\u0E15\u0E31\u0E49\u0E07\u0E04\u0E48\u0E32\u0E25\u0E34\u0E07\u0E01\u0E4C")))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48\u0E08\u0E32\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19" }[view])), view !== "cust" && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "pipe" && /* @__PURE__ */ React.createElement(Pipeline, { rows, onOpen: openProfile, onStatus: setStatus }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
     upsert(c);
     setFormOpen(false);
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
@@ -1437,8 +1314,7 @@ try {
 </div>
 
 <div id="fabStack" class="no-print">
-  <button class="fab2 fab-dev" id="devFab" title="ติดต่อผู้พัฒนา">💬</button>
-  <button class="fab2 fab-heart" id="supportFab" title="สนับสนุนผู้พัฒนา">❤️</button>
+  <button class="fab2 fab-heart" id="supportFab" title="สนับสนุน / ติดต่อผู้พัฒนา">❤️</button>
 </div>
 
 <script>
@@ -1535,8 +1411,6 @@ try {
   sOv.onclick=function(e){ if(e.target===sOv)closeSup(); };
   document.getElementById('devInbox').onclick=function(){ window.open(DEV_INBOX,'_blank'); };
   document.getElementById('devPage').onclick=function(){ window.open(DEV_PAGE,'_blank'); };
-  // ปุ่มติดต่อผู้พัฒนา (ลอย) → เปิด inbox ตรง
-  document.getElementById('devFab').onclick=function(){ window.open(DEV_INBOX,'_blank'); };
 
   document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ pOv.classList.remove('open'); closeSup(); } });
 
@@ -1562,165 +1436,6 @@ try {
     try{ localStorage.setItem(KEY,now); }catch(e){}
     apply(now);
   };
-})();
-</script>
-<div id="onbOverlay">
-  <div id="onbCard">
-    <div id="onbHead">
-      <button id="onbClose" aria-label="ปิด">✕</button>
-      <div id="onbIconWrap">🏠</div>
-    </div>
-    <div id="onbBarTrack"></div>
-    <div id="onbBody">
-      <div id="onbEyebrow"></div>
-      <h3 id="onbTitle"></h3>
-      <p id="onbText"></p>
-    </div>
-    <div id="onbFoot">
-      <button id="onbSkip">ข้ามทั้งหมด</button>
-      <div id="onbNavWrap">
-        <button id="onbPrev" aria-label="ก่อนหน้า">←</button>
-        <button id="onbNext">ถัดไป →</button>
-      </div>
-    </div>
-  </div>
-</div>
-<script>
-(function(){
-  var ONB_KEY = 'solar_onboarding_done_v3';
-  var STEPS = [
-    { icon:'🏠', eyebrow:'ภาพรวม', title:'แดชบอร์ด', text:'หน้าแรกหลังเข้าระบบ สรุปจำนวนลูกค้า มูลค่ารวมในไปป์ไลน์ และอัตราการปิดงาน ให้เห็นสถานะธุรกิจได้ในแว่บเดียว' },
-    { icon:'📥', eyebrow:'ลูกค้าเข้าใหม่', title:'Leads ใหม่', text:'ทุกครั้งที่มีคนกรอกขอใบเสนอราคาจากหน้าเว็บ จะเด้งเข้ามารอที่นี่ก่อน กดปุ่มรับเป็นลูกค้าเพื่อย้ายเข้าระบบหลัก' },
-    { icon:'👥', eyebrow:'ฐานข้อมูล', title:'ลูกค้า', text:'รายชื่อลูกค้าทั้งหมดของคุณ ค้นหาด้วยชื่อหรือเบอร์ กรองตามจังหวัดและสถานะ พร้อมแก้ไขข้อมูลได้ทันที' },
-    { icon:'📊', eyebrow:'ติดตามการขาย', title:'ไปป์ไลน์', text:'ลากการ์ดลูกค้าข้ามคอลัมน์เพื่อเลื่อนสถานะ ตั้งแต่ติดต่อแรกไปจนถึงปิดการขาย เห็นภาพรวมว่างานอยู่ตรงไหนบ้าง' },
-    { icon:'🔔', eyebrow:'ไม่พลาดทุกนัด', title:'ติดตาม', text:'ระบบรวบรวมลูกค้าที่ครบกำหนดติดตามไว้ให้ในที่เดียว เปิดดูทุกเช้าเพื่อไม่ให้ลูกค้าหลุดมือ' },
-    { icon:'🧮', eyebrow:'วางแผนกำไร', title:'คำนวณกำไร', text:'กรอกต้นทุนอุปกรณ์และค่าแรง เทียบกับราคาขาย ระบบคิดกำไรสุทธิและมาร์จิ้นให้อัตโนมัติ ก่อนเสนอราคาจริง' },
-    { icon:'📄', eyebrow:'ปิดดีล', title:'ออกใบเสนอราคา', text:'ปุ่มสีส้มด้านล่างเมนู สร้างลิงก์ใบเสนอราคาส่งให้ลูกค้ากรอกเองได้ทันที หรือคัดลอกลิงก์ไปแชร์ทางไลน์/เฟซบุ๊กก็ได้' }
-  ];
-  var step = 0;
-  var overlay = document.getElementById('onbOverlay');
-  var barTrack = document.getElementById('onbBarTrack');
-  var iconWrap = document.getElementById('onbIconWrap');
-  var eyebrow = document.getElementById('onbEyebrow');
-  var titleEl = document.getElementById('onbTitle');
-  var textEl = document.getElementById('onbText');
-  var prevBtn = document.getElementById('onbPrev');
-  var nextBtn = document.getElementById('onbNext');
-  var skipBtn = document.getElementById('onbSkip');
-  var closeBtn = document.getElementById('onbClose');
-
-  STEPS.forEach(function(){
-    var seg = document.createElement('div');
-    seg.className = 'seg';
-    var fill = document.createElement('i');
-    seg.appendChild(fill);
-    barTrack.appendChild(seg);
-  });
-  var segs = barTrack.querySelectorAll('.seg i');
-
-  function render(){
-    var s = STEPS[step];
-    iconWrap.textContent = s.icon;
-    eyebrow.textContent = 'ขั้นที่ ' + (step + 1) + ' จาก ' + STEPS.length + ' · ' + s.eyebrow;
-    titleEl.textContent = s.title;
-    textEl.textContent = s.text;
-    segs.forEach(function(f, i){ f.style.transform = 'scaleX(' + (i <= step ? 1 : 0) + ')'; });
-    prevBtn.style.visibility = step === 0 ? 'hidden' : 'visible';
-    nextBtn.textContent = step === STEPS.length - 1 ? 'เริ่มใช้งานเลย' : 'ถัดไป →';
-  }
-  function open(){ step = 0; render(); overlay.classList.add('open'); }
-  function finish(){
-    try{ localStorage.setItem(ONB_KEY, '1'); }catch(e){}
-    overlay.classList.remove('open');
-    markDoneInSupabase();
-  }
-  nextBtn.onclick = function(){
-    if (step === STEPS.length - 1) { finish(); return; }
-    step++; render();
-  };
-  prevBtn.onclick = function(){ if (step > 0) { step--; render(); } };
-  skipBtn.onclick = finish;
-  closeBtn.onclick = finish;
-  overlay.addEventListener('mousedown', function(e){ if (e.target === overlay) finish(); });
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && overlay.classList.contains('open')) finish(); });
-
-  // ===== ผูกสถานะ "เคยเห็นแล้ว" กับอีเมลผู้ใช้จริงผ่าน Supabase =====
-  // ตาราง user_settings: owner (text, = อีเมล), onboarding_done (bool)
-  // สร้าง client แยกของตัวเอง เพราะตัวแปร sb ของแอปหลักเป็น local scope เข้าถึงจากนอกไม่ได้
-  var onbSb = null;
-  function getOnbClient(){
-    if (onbSb) return onbSb;
-    try {
-      if (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
-        onbSb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-      }
-    } catch(e){}
-    return onbSb;
-  }
-  function markDoneInSupabase(){
-    var client = getOnbClient();
-    if (!client) return;
-    try {
-      client.auth.getUser().then(function(res){
-        var email = res && res.data && res.data.user && res.data.user.email;
-        if (!email) return;
-        client.from('user_settings')
-          .upsert({ owner: email, onboarding_done: true, updated_at: new Date().toISOString() }, { onConflict: 'owner' })
-          .then(function(){});
-      });
-    } catch(e){}
-  }
-
-  // เปิดอัตโนมัติครั้งแรกหลัง login: เฝ้าดู DOM จนกว่าเมนูแอป (sidebar) จะ render เสร็จ
-  // เช็คสถานะจาก Supabase ก่อน (ผูกกับอีเมล ใช้ได้ทุกเครื่อง) ถ้าเช็คไม่ได้ ใช้ localStorage เป็น fallback
-  var tries = 0;
-  var waitForApp = setInterval(function(){
-    tries++;
-    var navButtons = document.querySelectorAll('aside nav button');
-    if (navButtons.length > 0) {
-      clearInterval(waitForApp);
-      attachMenuButton();
-      decideAndMaybeOpen();
-    } else if (tries > 100) {
-      clearInterval(waitForApp);
-    }
-  }, 150);
-
-  function decideAndMaybeOpen(){
-    var client = getOnbClient();
-    if (!client) { openIfNotSeenLocally(); return; }
-    client.auth.getUser().then(function(res){
-      var email = res && res.data && res.data.user && res.data.user.email;
-      if (!email) { openIfNotSeenLocally(); return; }
-      client.from('user_settings').select('onboarding_done').eq('owner', email).maybeSingle()
-        .then(function(r){
-          var done = r && r.data && r.data.onboarding_done;
-          if (!done) { try{ localStorage.removeItem(ONB_KEY); }catch(e){} setTimeout(open, 400); }
-          else { try{ localStorage.setItem(ONB_KEY, '1'); }catch(e){} }
-        })
-        .catch(function(){ openIfNotSeenLocally(); });
-    }).catch(function(){ openIfNotSeenLocally(); });
-  }
-  function openIfNotSeenLocally(){
-    var seen = false;
-    try { seen = !!localStorage.getItem(ONB_KEY); } catch(e){}
-    if (!seen) setTimeout(open, 400);
-  }
-
-  // แทรกปุ่ม "วิธีใช้งาน" ต่อจากปุ่ม "ตั้งค่าลิงก์" ที่แอป React render ไว้ (DOM ภายนอก ไม่แก้ React)
-  function attachMenuButton(){
-    var allButtons = document.querySelectorAll('aside button');
-    var target = null;
-    allButtons.forEach(function(b){ if (b.textContent.indexOf('ตั้งค่าลิงก์') > -1) target = b; });
-    if (!target || document.getElementById('onbMenuBtn')) return;
-    var btn = target.cloneNode(true);
-    btn.id = 'onbMenuBtn';
-    btn.innerHTML = target.innerHTML.replace(/ตั้งค่าลิงก์/, 'วิธีใช้งาน');
-    var svg = btn.querySelector('svg path');
-    if (svg) svg.setAttribute('d', 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z');
-    btn.onclick = open;
-    target.parentNode.insertBefore(btn, target.nextSibling);
-  }
 })();
 </script>
 </body>
