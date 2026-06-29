@@ -889,13 +889,23 @@ function BOQRow({ row, idx, onChange, onRemove, onSaveToCatalog }) {
   return h("tr", { className: "border-b border-ink-50 last:border-0 align-top" },
     h("td", { className: "py-2 pr-2 text-xs text-ink-400 pt-3" }, idx + 1),
     h("td", { className: "py-2 pr-2 min-w-[180px]" },
-      h("input", { className: inputCls + " text-sm", value: row.name, placeholder: "ชื่อรายการ", onChange: (e) => set("name", e.target.value) }),
-      h("select", { className: inputCls + " text-xs mt-1 !py-1", value: row.category, onChange: (e) => set("category", e.target.value) },
-        BOQ_CATEGORIES.map((c) => h("option", { key: c }, c)))
+      h("input", { className: inputCls + " text-sm no-print", value: row.name, placeholder: "ชื่อรายการ", onChange: (e) => set("name", e.target.value) }),
+      h("select", { className: inputCls + " text-xs mt-1 !py-1 no-print", value: row.category, onChange: (e) => set("category", e.target.value) },
+        BOQ_CATEGORIES.map((c) => h("option", { key: c }, c))),
+      h("div", { className: "print-only text-sm text-ink-800" }, row.name || "—")
     ),
-    h("td", { className: "py-2 pr-2 w-20" }, h("input", { className: inputCls + " text-sm text-center", value: row.unit, onChange: (e) => set("unit", e.target.value) })),
-    h("td", { className: "py-2 pr-2 w-20" }, h("input", { type: "number", className: inputCls + " text-sm text-center", value: row.qty, onChange: (e) => set("qty", e.target.value) })),
-    h("td", { className: "py-2 pr-2 w-28" }, h("input", { type: "number", className: inputCls + " text-sm text-right", value: row.price, onChange: (e) => set("price", e.target.value) })),
+    h("td", { className: "py-2 pr-2 w-20" },
+      h("input", { className: inputCls + " text-sm text-center no-print", value: row.unit, onChange: (e) => set("unit", e.target.value) }),
+      h("div", { className: "print-only text-sm text-ink-700 text-center" }, row.unit || "—")
+    ),
+    h("td", { className: "py-2 pr-2 w-20" },
+      h("input", { type: "number", className: inputCls + " text-sm text-center no-print", value: row.qty, onChange: (e) => set("qty", e.target.value) }),
+      h("div", { className: "print-only text-sm text-ink-700 text-center" }, row.qty)
+    ),
+    h("td", { className: "py-2 pr-2 w-28" },
+      h("input", { type: "number", className: inputCls + " text-sm text-right no-print", value: row.price, onChange: (e) => set("price", e.target.value) }),
+      h("div", { className: "print-only text-sm text-ink-700 text-right" }, baht(Number(row.price) || 0))
+    ),
     h("td", { className: "py-2 pr-2 w-28 text-right num font-semibold text-ink-800 pt-3" }, baht(lineTotal)),
     h("td", { className: "py-2 pl-1 w-16 text-right no-print" },
       !row.fromCatalog && h("button", { title: "บันทึกเข้าคลัง", onClick: () => onSaveToCatalog(row), className: "p-1.5 rounded-lg text-ink-400 hover:bg-emerald-50 hover:text-emerald-600 mr-1" }, "📥"),
