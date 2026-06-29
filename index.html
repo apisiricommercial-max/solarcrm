@@ -291,6 +291,11 @@ tailwind.config = {
     body *{visibility:hidden!important}
     #boqPrintArea,#boqPrintArea *{visibility:visible!important}
     #boqPrintArea{position:absolute!important;top:0;left:0;width:100%;padding:24px;max-height:none!important;overflow:visible!important}
+    /* Modal เดิมมี class no-print ติดอยู่ที่กล่อง popup ทั้งกล่อง ซึ่งจะซ่อน BOQ ไปด้วย
+       ต้องบังคับให้ popup ที่ "บรรจุ" #boqPrintArea อยู่ข้างใน แสดงผลตอนพิมพ์โดยเฉพาะ */
+    .no-print:has(#boqPrintArea){display:block!important;visibility:visible!important;position:static!important;background:none!important;backdrop-filter:none!important;padding:0!important;overflow:visible!important;inset:auto!important}
+    .no-print:has(#boqPrintArea) [data-modal]{box-shadow:none!important;max-width:none!important;width:100%!important;margin:0!important;border-radius:0!important}
+    .no-print:has(#boqPrintArea) .max-h-\[75vh\]{max-height:none!important;overflow:visible!important;display:block!important}
   }
 /* ===================== PREMIUM LOGIN ===================== */
 .lgn{position:fixed;inset:0;overflow:hidden;background:#070b16;display:flex;align-items:center;justify-content:center;padding:24px;perspective:1200px}
