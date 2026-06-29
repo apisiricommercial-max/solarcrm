@@ -651,8 +651,13 @@ function thaiBahtText(amount) {
 /* ===================== ข้อมูลบริษัท (สำหรับหัวกระดาษใบเสนอราคา) ===================== */
 const COMPANY_INFO_KEY = "solar_company_info_v1";
 function getCompanyInfo() {
-  try { const raw = localStorage.getItem(COMPANY_INFO_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
-  return { name: "", address: "", phone: "", email: "" };
+  let info = { name: "", address: "", phone: "", email: "" };
+  try { const raw = localStorage.getItem(COMPANY_INFO_KEY); if (raw) info = JSON.parse(raw); } catch (e) {}
+  // ถ้ายังไม่ได้ตั้งชื่อบริษัทใน BOQ ให้ดึงจากช่อง "ชื่อบริษัท/ร้าน" ในโปรไฟล์มาใช้อัตโนมัติ
+  if (!info.name) {
+    try { const co = localStorage.getItem("solar_crm_company"); if (co) info.name = co; } catch (e) {}
+  }
+  return info;
 }
 function saveCompanyInfo(info) {
   try { localStorage.setItem(COMPANY_INFO_KEY, JSON.stringify(info)); } catch (e) {}
@@ -864,7 +869,13 @@ function CompanySettingsModal({ open, onClose }) {
   useEffect(() => { if (open) setInfo(getCompanyInfo()); }, [open]);
   if (!open) return null;
   const set = (k, v) => setInfo((p) => ({ ...p, [k]: v }));
-  const save = () => { saveCompanyInfo(info); alert("บันทึกข้อมูลบริษัทแล้ว"); onClose(); };
+  const save = () => {
+    saveCompanyInfo(info);
+    // sync ชื่อบริษัทกลับไปที่โปรไฟล์ (key เดียวกับช่อง "ชื่อบริษัท/ร้าน") ให้เป็นชื่อเดียวกันทั้งระบบ
+    if (info.name) { try { localStorage.setItem("solar_crm_company", info.name); } catch (e) {} }
+    alert("บันทึกข้อมูลบริษัทแล้ว");
+    onClose();
+  };
   return h(Modal, { open, onClose },
     h("div", { className: "flex items-center justify-between px-6 py-4 border-b border-ink-100" },
       h("h3", { className: "text-lg font-semibold text-ink-800" }, "ตั้งค่าข้อมูลบริษัท"),
@@ -872,7 +883,7 @@ function CompanySettingsModal({ open, onClose }) {
     ),
     h("div", { className: "px-6 py-5 space-y-3" },
       h("p", { className: "text-xs text-ink-400 mb-2" }, "ข้อมูลนี้จะแสดงเป็นหัวกระดาษบนใบเสนอราคา BOQ ทุกใบ"),
-      h(Field, { label: "ชื่อบริษัท", full: true }, h("input", { className: inputCls, value: info.name, onChange: (e) => set("name", e.target.value), placeholder: "เช่น บริษัท เอบีซี โซลาร์ จำกัด" })),
+      h(Field, { label: "ชื่อบริษัท (ดึงจากโปรไฟล์อัตโนมัติ แก้ที่นี่ได้)", full: true }, h("input", { className: inputCls, value: info.name, onChange: (e) => set("name", e.target.value), placeholder: "เช่น บริษัท เอบีซี โซลาร์ จำกัด" })),
       h(Field, { label: "ที่อยู่บริษัท", full: true }, h("textarea", { className: inputCls + " h-16 resize-none", value: info.address, onChange: (e) => set("address", e.target.value), placeholder: "เลขที่ / หมู่ / ตำบล / อำเภอ / จังหวัด / รหัสไปรษณีย์" })),
       h(Field, { label: "เบอร์โทร" }, h("input", { className: inputCls, value: info.phone, onChange: (e) => set("phone", e.target.value) })),
       h(Field, { label: "อีเมล" }, h("input", { className: inputCls, value: info.email, onChange: (e) => set("email", e.target.value) }))
