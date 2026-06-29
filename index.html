@@ -44,10 +44,11 @@ tailwind.config = {
 
   /* ---- พื้นหลังแอป: mesh gradient หรูหรามีมิติ + จุดประกายเบาๆ ---- */
   html{background:
-    radial-gradient(ellipse 70% 55% at 12% -5%, rgb(var(--b200) / .6), transparent 55%),
-    radial-gradient(ellipse 60% 50% at 105% 8%, rgba(168,85,247,.18), transparent 50%),
-    radial-gradient(ellipse 55% 60% at 50% 110%, rgb(var(--b100) / .7), transparent 55%),
-    #eef1f8 !important}
+    radial-gradient(ellipse 70% 55% at 12% -5%, rgb(var(--b300) / .55), transparent 50%),
+    radial-gradient(ellipse 65% 55% at 105% 8%, rgba(168,85,247,.3), transparent 48%),
+    radial-gradient(ellipse 60% 65% at 50% 115%, rgb(var(--b200) / .65), transparent 52%),
+    radial-gradient(ellipse 50% 45% at 88% 95%, rgba(99,102,241,.22), transparent 50%),
+    #e7eaf5 !important}
   body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
     background-image:radial-gradient(rgba(99,102,241,.08) 1px, transparent 1px);background-size:32px 32px;
     mask-image:radial-gradient(ellipse 100% 80% at 50% 0%, black, transparent 75%)}
@@ -1776,9 +1777,16 @@ try {
       s.classList.toggle('on', s.getAttribute('data-theme')===t);
     });
   }
-  // โหลดธีมที่บันทึกไว้ หรือสุ่มสีตอนเปิดครั้งแรก
+  // โหลดธีมที่บันทึกไว้ หรือใช้โทนน้ำเงิน-ม่วง (indigo) เป็นค่าเริ่มต้น
   var saved=null; try{ saved=localStorage.getItem(KEY); }catch(e){}
-  apply(saved || themes[Math.floor(Math.random()*themes.length)]);
+  // อัปเกรดครั้งเดียว: ผู้ใช้เดิมที่ได้สีสุ่มมา (รวมถึงเขียว) ให้รีเซ็ตเป็นโทนใหม่ครั้งแรกที่เปิดเวอร์ชันนี้
+  try{
+    if(!localStorage.getItem('solar_crm_theme_v3')){
+      saved='indigo';
+      localStorage.setItem('solar_crm_theme_v3','1');
+    }
+  }catch(e){}
+  apply(saved || 'indigo');
   var btn=document.getElementById('themeFabBtn');
   var pop=document.getElementById('themePop');
   btn.addEventListener('click', function(e){ e.stopPropagation(); pop.classList.toggle('open'); });
