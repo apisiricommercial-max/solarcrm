@@ -1465,7 +1465,8 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
       setPaymentMethod("cash"); setPaymentBank(""); setPaymentRef(""); setPaymentTime("");
       refreshSavedQuotes();
     }
-  }, [open, customer]);
+    // eslint-disable-next-line
+  }, [open, customer && customer.id]);
   // คำนวณเลขที่เอกสารใหม่ทุกครั้งที่สลับประเภทเอกสาร (ใบเสร็จ/ใบกำกับภาษี มีเลขรันแยกจากใบเสนอราคา)
   useEffect(() => {
     if (!open) return;
@@ -1483,7 +1484,6 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     setItems(q.items || []); setDiscount(q.discount || 0); setVatEnabled(!!q.vatEnabled); setNote(q.note || ""); setProjectTitle(q.projectTitle || ""); setValidDays(q.validDays || 15); setEditingQuoteId(q.id);
     setQuoteNo(q.quoteNo || genQuoteNo(savedQuotes.length)); setQuoteDate((q.createdAt || todayISO()).slice(0, 10));
     setCustomerTaxId(q.customerTaxId || ""); setPaymentMethod(q.paymentMethod || "cash"); setPaymentBank(q.paymentBank || ""); setPaymentRef(q.paymentRef || ""); setPaymentTime(q.paymentTime || "");
-    setDocType("quote");
   };
   const newBlankQuote = () => {
     setItems([]); setDiscount(0); setVatEnabled(false); setNote(""); setProjectTitle(""); setValidDays(15); setEditingQuoteId(null);
