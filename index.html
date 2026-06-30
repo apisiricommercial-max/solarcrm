@@ -684,7 +684,14 @@ const db = {
   async upsertOne(row) {
     if (sb) {
       const uid = currentUser ? currentUser.id : null;
-      const stamped = uid ? { ...row, user_id: uid } : row;
+      // คอลัมน์ installDate ในตารางเป็น type "date" ของ Postgres ซึ่งไม่ยอมรับสตริงว่าง ("")
+      // และคอลัมน์ value เป็น "numeric" ก็เช่นกัน ต้องแปลงเป็น null/0 ก่อนส่งเข้า Supabase เสมอ
+      const cleaned = {
+        ...row,
+        installDate: row.installDate ? row.installDate : null,
+        value: row.value === "" || row.value === undefined ? 0 : Number(row.value) || 0
+      };
+      const stamped = uid ? { ...cleaned, user_id: uid } : cleaned;
       const { data, error } = await sb.from("customers").upsert(stamped).select();
       if (error) { console.error("Supabase upsertOne failed:", error); throw error; }
       return data;
