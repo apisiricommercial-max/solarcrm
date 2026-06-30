@@ -481,14 +481,7 @@ tailwind.config = {
 .lgn-title{font-size:30px;font-weight:800;margin:18px 0 0;letter-spacing:.3px;background:linear-gradient(90deg,#fff,#86efac,#93c5fd,#fff);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;transform:translateZ(40px);animation:lgnText 4s linear infinite}
 @keyframes lgnText{to{background-position:200% center}}
 .lgn-sub{color:rgba(255,255,255,.65);font-size:13.5px;margin-top:6px;transform:translateZ(30px)}
-.lgn-desc{color:rgba(255,255,255,.85);font-size:14.5px;font-weight:600;margin:20px 0 0;line-height:1.6;transform:translateZ(20px)}
-
-.lgn-highlight{position:relative;margin:14px 0 20px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(96,165,250,.1));border:1px solid rgba(52,211,153,.25);transform:translateZ(22px);overflow:hidden}
-.lgn-highlight::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(255,255,255,.08),transparent);animation:lgnHighlightSheen 3.5s ease-in-out infinite}
-@keyframes lgnHighlightSheen{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-.lgn-highlight p{position:relative;color:rgba(255,255,255,.92);font-size:12.5px;line-height:1.6;margin:0}
-.lgn-highlight p b{color:#6ee7b7;font-weight:700}
-.lgn-highlight-sub{margin-top:6px!important;color:rgba(255,255,255,.55)!important;font-size:11.5px!important;font-style:italic}
+.lgn-desc{color:rgba(255,255,255,.5);font-size:13px;margin:22px 0 20px;line-height:1.7;transform:translateZ(20px)}
 
 .lgn-chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:22px;transform:translateZ(25px)}
 .lgn-chip{font-size:11px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);padding:5px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
@@ -674,10 +667,7 @@ function copyQuoteLink(c) {
 const db = {
   async list() {
     if (sb) {
-      const uidNow = currentUser ? currentUser.id : null;
-      let q = sb.from("customers").select("*").order("createdAt", { ascending: true });
-      q = uidNow ? q.eq("user_id", uidNow) : q.is("user_id", null);
-      const { data, error } = await q;
+      const { data, error } = await sb.from("customers").select("*").order("createdAt", { ascending: true });
       if (error) { console.error(error); return null; }
       return data;
     }
@@ -691,9 +681,7 @@ const db = {
         const stamped = rows.map(r => uid ? { ...r, user_id: uid } : r);
         const { error: upErr } = await sb.from("customers").upsert(stamped);
         if (upErr) throw upErr;
-        let delQ = sb.from("customers").select("id");
-        delQ = uid ? delQ.eq("user_id", uid) : delQ.is("user_id", null);
-        const { data } = await delQ;
+        const { data } = await sb.from("customers").select("id");
         const ids = new Set(rows.map(r => r.id));
         const toDel = (data || []).filter(r => !ids.has(r.id)).map(r => r.id);
         if (toDel.length) await sb.from("customers").delete().in("id", toDel);
@@ -736,10 +724,7 @@ const BOQ_QUOTES_KEY = "solar_boq_quotes_v1";
 const boqDb = {
   async listCatalog() {
     if (sb) {
-      const uidNow = currentUser ? currentUser.id : null;
-      let q = sb.from("boq_catalog").select("*").order("createdAt", { ascending: true });
-      q = uidNow ? q.eq("user_id", uidNow) : q.is("user_id", null);
-      const { data, error } = await q;
+      const { data, error } = await sb.from("boq_catalog").select("*").order("createdAt", { ascending: true });
       if (!error && data && data.length) return data;
       if (!error && data && data.length === 0) return BOQ_CATALOG_SEED;
       console.error(error);
@@ -754,9 +739,7 @@ const boqDb = {
         const stamped = rows.map(r => uid ? { ...r, user_id: uid } : r);
         const { error: upErr } = await sb.from("boq_catalog").upsert(stamped);
         if (upErr) throw upErr;
-        let delQ = sb.from("boq_catalog").select("id");
-        delQ = uid ? delQ.eq("user_id", uid) : delQ.is("user_id", null);
-        const { data } = await delQ;
+        const { data } = await sb.from("boq_catalog").select("id");
         const ids = new Set(rows.map(r => r.id));
         const toDel = (data || []).filter(r => !ids.has(r.id)).map(r => r.id);
         if (toDel.length) await sb.from("boq_catalog").delete().in("id", toDel);
@@ -772,10 +755,7 @@ const boqDb = {
   },
   async listQuotes() {
     if (sb) {
-      const uidNow = currentUser ? currentUser.id : null;
-      let q = sb.from("boq_quotes").select("*").order("createdAt", { ascending: false });
-      q = uidNow ? q.eq("user_id", uidNow) : q.is("user_id", null);
-      const { data, error } = await q;
+      const { data, error } = await sb.from("boq_quotes").select("*").order("createdAt", { ascending: false });
       if (!error) return data || [];
       console.error(error);
     }
@@ -789,9 +769,7 @@ const boqDb = {
         const stamped = rows.map(r => uid ? { ...r, user_id: uid } : r);
         const { error: upErr } = await sb.from("boq_quotes").upsert(stamped);
         if (upErr) throw upErr;
-        let delQ = sb.from("boq_quotes").select("id");
-        delQ = uid ? delQ.eq("user_id", uid) : delQ.is("user_id", null);
-        const { data } = await delQ;
+        const { data } = await sb.from("boq_quotes").select("id");
         const ids = new Set(rows.map(r => r.id));
         const toDel = (data || []).filter(r => !ids.has(r.id)).map(r => r.id);
         if (toDel.length) await sb.from("boq_quotes").delete().in("id", toDel);
@@ -839,10 +817,7 @@ function categoryBreakdown(rows, type) {
 const cashflowDb = {
   async list() {
     if (sb) {
-      const uidNow = currentUser ? currentUser.id : null;
-      let q = sb.from("cashflow").select("*").order("date", { ascending: false });
-      q = uidNow ? q.eq("user_id", uidNow) : q.is("user_id", null);
-      const { data, error } = await q;
+      const { data, error } = await sb.from("cashflow").select("*").order("date", { ascending: false });
       if (!error) return data || [];
       console.error(error);
     }
@@ -856,9 +831,7 @@ const cashflowDb = {
         const stamped = rows.map(r => uid ? { ...r, user_id: uid } : r);
         const { error: upErr } = await sb.from("cashflow").upsert(stamped);
         if (upErr) throw upErr;
-        let delQ = sb.from("cashflow").select("id");
-        delQ = uid ? delQ.eq("user_id", uid) : delQ.is("user_id", null);
-        const { data } = await delQ;
+        const { data } = await sb.from("cashflow").select("id");
         const ids = new Set(rows.map(r => r.id));
         const toDel = (data || []).filter(r => !ids.has(r.id)).map(r => r.id);
         if (toDel.length) await sb.from("cashflow").delete().in("id", toDel);
@@ -2152,10 +2125,7 @@ const PROFIT_TEMPLATES_KEY = "solar_profit_templates_v1";
 const profitTemplateDb = {
   async list() {
     if (sb) {
-      const uidNow = currentUser ? currentUser.id : null;
-      let q = sb.from("profit_templates").select("*").order("createdAt", { ascending: false });
-      q = uidNow ? q.eq("user_id", uidNow) : q.is("user_id", null);
-      const { data, error } = await q;
+      const { data, error } = await sb.from("profit_templates").select("*").order("createdAt", { ascending: false });
       if (!error) return data || [];
       console.error(error);
     }
@@ -2169,9 +2139,7 @@ const profitTemplateDb = {
         const stamped = rows.map(r => uid ? { ...r, user_id: uid } : r);
         const { error: upErr } = await sb.from("profit_templates").upsert(stamped);
         if (upErr) throw upErr;
-        let delQ = sb.from("profit_templates").select("id");
-        delQ = uid ? delQ.eq("user_id", uid) : delQ.is("user_id", null);
-        const { data } = await delQ;
+        const { data } = await sb.from("profit_templates").select("id");
         const ids = new Set(rows.map(r => r.id));
         const toDel = (data || []).filter(r => !ids.has(r.id)).map(r => r.id);
         if (toDel.length) await sb.from("profit_templates").delete().in("id", toDel);
@@ -2821,15 +2789,11 @@ function LoginScreen() {
       React.createElement("div", { className: "lgn-logo" }, React.createElement("img", { src: "https://img2.pic.in.th/fe62e09e-51fe-49ec-abcf-e53fb6c0edb1656c7fc15474af67.png", alt: "SolarCRM", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" } })),
       React.createElement("h1", { className: "lgn-title" }, "SolarCRM"),
       React.createElement("p", { className: "lgn-sub" }, "\u0E23\u0E30\u0E1A\u0E1A\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"),
-      React.createElement("p", { className: "lgn-desc" }, "SolarCRM ไม่ได้แค่เก็บลูกค้า แต่ช่วยกันลูกค้าหลุดจากมือคุณ"),
-      React.createElement("div", { className: "lgn-highlight" },
-        React.createElement("p", null, "ระบบจะแจ้งเตือนว่า", React.createElement("b", null, "ใครต้องตาม"), " ", React.createElement("b", null, "ใครยังไม่โทร"), " และ", React.createElement("b", null, "ดีลไหนกำลังเสี่ยงหลุด")),
-        React.createElement("p", { className: "lgn-highlight-sub" }, "เพราะในงานโซลาร์ ลูกค้า 1 ราย อาจมีมูลค่าหลักแสน")
-      ),
       React.createElement("div", { className: "lgn-chips" },
         React.createElement("span", { className: "lgn-chip" }, "\u26A1 \u0E40\u0E23\u0E35\u0E22\u0E25\u0E44\u0E17\u0E21\u0E4C"),
         React.createElement("span", { className: "lgn-chip" }, "\u{1F510} \u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22"),
         React.createElement("span", { className: "lgn-chip" }, "\u{1F4C8} \u0E04\u0E23\u0E1A\u0E27\u0E07\u0E08\u0E23")),
+      React.createElement("p", { className: "lgn-desc" }, "\u0E40\u0E02\u0E49\u0E32\u0E2A\u0E39\u0E48\u0E23\u0E30\u0E1A\u0E1A\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32 \u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E35\u0E25 \u0E41\u0E25\u0E30\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E44\u0E14\u0E49\u0E43\u0E19\u0E17\u0E35\u0E48\u0E40\u0E14\u0E35\u0E22\u0E27"),
       React.createElement("button", { onClick: go, disabled: busy, className: "lgn-btn" },
         React.createElement("svg", { width: "20", height: "20", viewBox: "0 0 48 48" },
           React.createElement("path", { fill: "#FFC107", d: "M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.3 5.1 29.4 3 24 3 12.9 3 4 11.9 4 23s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" }),
