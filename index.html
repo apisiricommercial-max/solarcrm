@@ -879,7 +879,7 @@ function thaiBahtText(amount) {
 /* ===================== ข้อมูลบริษัท (สำหรับหัวกระดาษใบเสนอราคา) ===================== */
 const COMPANY_INFO_KEY = "solar_company_info_v1";
 function getCompanyInfo() {
-  let info = { name: "", address: "", phone: "", email: "" };
+  let info = { name: "", address: "", phone: "", email: "", taxId: "" };
   try { const raw = localStorage.getItem(COMPANY_INFO_KEY); if (raw) info = JSON.parse(raw); } catch (e) {}
   // ถ้ายังไม่ได้ตั้งชื่อบริษัทใน BOQ ให้ดึงจากช่อง "ชื่อบริษัท/ร้าน" ในโปรไฟล์มาใช้อัตโนมัติ
   if (!info.name) {
@@ -892,6 +892,19 @@ function saveCompanyInfo(info) {
 }
 function thaiYearNow() { return new Date().getFullYear() + 543; }
 function genQuoteNo(existingCount) { return `QT-${(/* @__PURE__ */ new Date()).getFullYear()}-${String((existingCount || 0) + 1).padStart(5, "0")}`; }
+const DOC_COUNTER_RECEIPT_KEY = "solar_doc_counter_receipt_v1";
+const DOC_COUNTER_TAX_INVOICE_KEY = "solar_doc_counter_tax_invoice_v1";
+function genReceiptNo(existingCount) { return `RC-${(/* @__PURE__ */ new Date()).getFullYear()}-${String((existingCount || 0) + 1).padStart(5, "0")}`; }
+function genTaxInvoiceNo(existingCount) { return `INV-${(/* @__PURE__ */ new Date()).getFullYear()}-${String((existingCount || 0) + 1).padStart(5, "0")}`; }
+// บันทึกว่าออกเลขที่เอกสาร (ใบเสร็จ/ใบกำกับภาษี) ไปแล้วจริง — เรียกตอนกดพิมพ์เท่านั้น กันเลขกระโดดเปล่าๆ ตอนแค่สลับดูประเภทเอกสาร
+function commitDocNoIfNeeded(docType) {
+  if (docType !== "receipt" && docType !== "tax_invoice") return;
+  const counterKey = docType === "tax_invoice" ? DOC_COUNTER_TAX_INVOICE_KEY : DOC_COUNTER_RECEIPT_KEY;
+  try {
+    const n = Number(localStorage.getItem(counterKey) || "0") + 1;
+    localStorage.setItem(counterKey, String(n));
+  } catch (e) {}
+}
 const STATUSES = [
   { key: "new", label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48", color: "bg-blue-500", soft: "bg-blue-50 text-blue-700 ring-blue-200" },
   { key: "talking", label: "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E04\u0E38\u0E22", color: "bg-indigo-500", soft: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
@@ -1276,7 +1289,7 @@ function Stat({ label, value, sub, icon, tone }) {
   return /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-500" }, label), /* @__PURE__ */ React.createElement("span", { className: `w-9 h-9 rounded-xl flex items-center justify-center ${tones[tone]}` }, /* @__PURE__ */ React.createElement(Icon, { d: icon, cls: "w-5 h-5" }))), /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900 mt-2" }, value), sub && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, sub));
 }
 function CompanySettingsModal({ open, onClose }) {
-  const [info, setInfo] = useState({ name: "", address: "", phone: "", email: "" });
+  const [info, setInfo] = useState({ name: "", address: "", phone: "", email: "", taxId: "" });
   useEffect(() => { if (open) setInfo(getCompanyInfo()); }, [open]);
   if (!open) return null;
   const set = (k, v) => setInfo((p) => ({ ...p, [k]: v }));
@@ -1296,6 +1309,7 @@ function CompanySettingsModal({ open, onClose }) {
       h("p", { className: "text-xs text-ink-400 mb-2" }, "ข้อมูลนี้จะแสดงเป็นหัวกระดาษบนใบเสนอราคา BOQ ทุกใบ"),
       h(Field, { label: "ชื่อบริษัท (ดึงจากโปรไฟล์อัตโนมัติ แก้ที่นี่ได้)", full: true }, h("input", { className: inputCls, value: info.name, onChange: (e) => set("name", e.target.value), placeholder: "เช่น บริษัท เอบีซี โซลาร์ จำกัด" })),
       h(Field, { label: "ที่อยู่บริษัท", full: true }, h("textarea", { className: inputCls + " h-16 resize-none", value: info.address, onChange: (e) => set("address", e.target.value), placeholder: "เลขที่ / หมู่ / ตำบล / อำเภอ / จังหวัด / รหัสไปรษณีย์" })),
+      h(Field, { label: "เลขประจำตัวผู้เสียภาษี 13 หลัก (จำเป็นสำหรับออกใบกำกับภาษี)", full: true }, h("input", { className: inputCls, value: info.taxId, maxLength: 13, onChange: (e) => set("taxId", e.target.value.replace(/[^0-9]/g, "")), placeholder: "เช่น 0105561000000" })),
       h(Field, { label: "เบอร์โทร" }, h("input", { className: inputCls, value: info.phone, onChange: (e) => set("phone", e.target.value) })),
       h(Field, { label: "อีเมล" }, h("input", { className: inputCls, value: info.email, onChange: (e) => set("email", e.target.value) }))
     ),
@@ -1374,6 +1388,10 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
   const [editingQuoteId, setEditingQuoteId] = useState(null);
   const [quoteNo, setQuoteNo] = useState("");
   const [quoteDate, setQuoteDate] = useState(todayISO());
+  const [docType, setDocType] = useState("quote"); // quote | receipt | tax_invoice
+  const [docNo, setDocNo] = useState("");
+  const [customerTaxId, setCustomerTaxId] = useState("");
+  const [customerTaxAddress, setCustomerTaxAddress] = useState("");
   const [companyInfo, setCompanyInfoState] = useState(getCompanyInfo());
   const [companySettingsOpen, setCompanySettingsOpen] = useState(false);
   const refreshSavedQuotes = () => {
@@ -1385,13 +1403,27 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
       setCompanyInfoState(getCompanyInfo());
       boqDb.listQuotes().then((all) => setQuoteNo(genQuoteNo(all.length)));
       setItems([]); setDiscount(0); setVatEnabled(false); setNote(""); setProjectTitle(""); setValidDays(15); setEditingQuoteId(null); setQuoteDate(todayISO());
+      setDocType("quote"); setCustomerTaxId(""); setCustomerTaxAddress("");
       refreshSavedQuotes();
     }
   }, [open, customer]);
+  // คำนวณเลขที่เอกสารใหม่ทุกครั้งที่สลับประเภทเอกสาร (ใบเสร็จ/ใบกำกับภาษี มีเลขรันแยกจากใบเสนอราคา)
+  useEffect(() => {
+    if (!open) return;
+    if (docType === "quote") { setDocNo(quoteNo); return; }
+    const counterKey = docType === "tax_invoice" ? DOC_COUNTER_TAX_INVOICE_KEY : DOC_COUNTER_RECEIPT_KEY;
+    const gen = docType === "tax_invoice" ? genTaxInvoiceNo : genReceiptNo;
+    let n = 0;
+    try { n = Number(localStorage.getItem(counterKey) || "0"); } catch (e) {}
+    setDocNo(gen(n));
+  }, [docType, open, quoteNo]);
+  // ใบกำกับภาษีตามกฎหมายต้องแสดง VAT แยกเสมอ — บังคับเปิดอัตโนมัติเมื่อสลับมาโหมดนี้
+  useEffect(() => { if (docType === "tax_invoice") setVatEnabled(true); }, [docType]);
   if (!open) return null;
   const loadQuote = (q) => {
     setItems(q.items || []); setDiscount(q.discount || 0); setVatEnabled(!!q.vatEnabled); setNote(q.note || ""); setProjectTitle(q.projectTitle || ""); setValidDays(q.validDays || 15); setEditingQuoteId(q.id);
     setQuoteNo(q.quoteNo || genQuoteNo(savedQuotes.length)); setQuoteDate((q.createdAt || todayISO()).slice(0, 10));
+    setDocType("quote");
   };
   const newBlankQuote = () => {
     setItems([]); setDiscount(0); setVatEnabled(false); setNote(""); setProjectTitle(""); setValidDays(15); setEditingQuoteId(null);
@@ -1460,13 +1492,31 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     await syncCashFlowFromQuote(q, customer);
     alert(`ตั้ง "${q.quoteNo || "ใบนี้"}" เป็น BOQ หลักแล้ว — อัปเดตมูลค่าลูกค้าเป็น ${baht(boqQuoteGrandTotal(q))} และบันทึกเป็นรายรับในบัญชีบริษัทให้อัตโนมัติ`);
   };
+  const handlePrint = () => {
+    if (docType === "tax_invoice" && !companyInfo.taxId) {
+      alert("กรุณาตั้งเลขประจำตัวผู้เสียภาษี 13 หลักของบริษัทก่อน จึงจะออกใบกำกับภาษีได้ (กดปุ่ม \u201c⚙️ ตั้งค่าข้อมูลบริษัท\u201d ด้านล่าง)");
+      return;
+    }
+    commitDocNoIfNeeded(docType);
+    window.print();
+  };
+  const DOC_TYPE_LABELS = { quote: "ใบเสนอราคา BOQ", receipt: "ใบเสร็จรับเงิน", tax_invoice: "ใบกำกับภาษี/ใบเสร็จรับเงิน" };
   return h(Modal, { open, onClose, wide: true },
-    h("div", { className: "flex items-center justify-between px-6 py-4 border-b border-ink-100 no-print" },
+    h("div", { className: "flex items-center justify-between px-6 py-4 border-b border-ink-100 no-print flex-wrap gap-3" },
       h("div", null,
-        h("h3", { className: "text-lg font-semibold text-ink-800" }, "ใบเสนอราคา BOQ"),
+        h("h3", { className: "text-lg font-semibold text-ink-800" }, DOC_TYPE_LABELS[docType]),
         customer && h("p", { className: "text-xs text-ink-400 mt-0.5" }, "ลูกค้า: ", customer.name)
       ),
+      h("div", { className: "flex items-center gap-1.5 bg-ink-50 ring-1 ring-ink-100 rounded-xl p-1" },
+        h("button", { onClick: () => setDocType("quote"), className: `px-3 py-1.5 rounded-lg text-xs font-semibold transition ${docType === "quote" ? "bg-white text-brand-700 shadow-sm ring-1 ring-ink-100" : "text-ink-400 hover:text-ink-600"}` }, "ใบเสนอราคา"),
+        h("button", { onClick: () => setDocType("receipt"), className: `px-3 py-1.5 rounded-lg text-xs font-semibold transition ${docType === "receipt" ? "bg-white text-brand-700 shadow-sm ring-1 ring-ink-100" : "text-ink-400 hover:text-ink-600"}` }, "ใบเสร็จรับเงิน"),
+        h("button", { onClick: () => setDocType("tax_invoice"), className: `px-3 py-1.5 rounded-lg text-xs font-semibold transition ${docType === "tax_invoice" ? "bg-white text-brand-700 shadow-sm ring-1 ring-ink-100" : "text-ink-400 hover:text-ink-600"}` }, "🧾 ใบกำกับภาษี")
+      ),
       h("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600" }, h(Icon, { d: I.x }))
+    ),
+    docType === "tax_invoice" && !companyInfo.taxId && h("div", { className: "no-print mx-6 mt-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-xs text-amber-700 flex items-center justify-between gap-3 flex-wrap" },
+      h("span", null, "⚠️ ยังไม่ได้ตั้งเลขประจำตัวผู้เสียภาษีของบริษัท — จำเป็นต้องกรอกก่อนจึงจะออกใบกำกับภาษีได้ตามกฎหมาย"),
+      h("button", { onClick: () => setCompanySettingsOpen(true), className: "shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700" }, "ตั้งค่าทันที")
     ),
     h("div", { className: "px-6 py-5 max-h-[75vh] overflow-y-auto grid md:grid-cols-[1fr_280px] gap-5" },
       h("div", { id: "boqPrintArea" },
@@ -1475,18 +1525,30 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
             h("div", null,
               h("div", { className: "text-lg font-bold text-ink-900" }, companyInfo.name || "(ยังไม่ได้ตั้งชื่อบริษัท)"),
               companyInfo.address && h("div", { className: "text-xs text-ink-600 mt-0.5 max-w-xs" }, companyInfo.address),
+              companyInfo.taxId && h("div", { className: "text-xs text-ink-600 mt-0.5" }, "เลขประจำตัวผู้เสียภาษี ", companyInfo.taxId),
               (companyInfo.phone || companyInfo.email) && h("div", { className: "text-xs text-ink-600 mt-0.5" }, companyInfo.phone ? `โทร. ${companyInfo.phone}` : "", companyInfo.phone && companyInfo.email ? "  ·  " : "", companyInfo.email || "")
             ),
             h("div", { className: "text-right" },
-              h("div", { className: "text-base font-bold text-ink-900" }, "QUOTATION / ใบเสนอราคา"),
-              h("div", { className: "text-xs text-ink-500 mt-1" }, "เลขที่ / NO. ", h("b", { className: "text-ink-800" }, quoteNo)),
+              h("div", { className: "text-base font-bold text-ink-900" },
+                docType === "quote" ? "QUOTATION / ใบเสนอราคา" :
+                docType === "receipt" ? "RECEIPT / ใบเสร็จรับเงิน" :
+                "TAX INVOICE / ใบกำกับภาษี / ใบเสร็จรับเงิน"
+              ),
+              docType === "tax_invoice" && h("div", { className: "text-[10px] text-ink-500 font-semibold" }, "ต้นฉบับ / ORIGINAL"),
+              h("div", { className: "text-xs text-ink-500 mt-1" }, "เลขที่ / NO. ", h("b", { className: "text-ink-800" }, docNo)),
               h("div", { className: "text-xs text-ink-500" }, "วันที่ / DATE ", h("b", { className: "text-ink-800" }, thDate(quoteDate)))
             )
           ),
           customer && h("div", { className: "text-sm text-ink-700" },
             h("span", { className: "font-semibold" }, "ลูกค้า: "), customer.name,
             customer.phone ? `  ·  โทร ${customer.phone}` : "",
-            customer.address ? h("div", { className: "text-xs text-ink-500 mt-0.5" }, "ที่อยู่: ", customer.address) : null
+            customer.address ? h("div", { className: "text-xs text-ink-500 mt-0.5" }, "ที่อยู่: ", customer.address) : null,
+            (docType === "tax_invoice" || docType === "receipt") && customerTaxId ? h("div", { className: "text-xs text-ink-500 mt-0.5" }, "เลขประจำตัวผู้เสียภาษี: ", customerTaxId) : null
+          ),
+          docType !== "quote" && h("div", { className: "no-print mt-3 grid sm:grid-cols-2 gap-2" },
+            h(Field, { label: docType === "tax_invoice" ? "เลขผู้เสียภาษีลูกค้า 13 หลัก (ถ้ามี)" : "เลขผู้เสียภาษีลูกค้า (ถ้ามี)" },
+              h("input", { className: inputCls, value: customerTaxId, maxLength: 13, onChange: (e) => setCustomerTaxId(e.target.value.replace(/[^0-9]/g, "")), placeholder: "เช่น 1234567890123" })
+            )
           )
         ),
         h("div", { className: "no-print mb-3" },
@@ -1519,7 +1581,10 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
         h("div", { className: "mt-4 flex flex-col items-end gap-1.5 text-sm" },
           h("div", { className: "flex items-center gap-3 text-ink-600" }, h("span", null, "รวมก่อนหักส่วนลด"), h("span", { className: "num font-semibold w-28 text-right" }, baht(subtotal))),
           h("div", { className: `flex items-center gap-3 text-ink-600 ${discountAmt === 0 ? "print-hide-zero" : ""}` }, h("span", null, "ส่วนลด (บาท)"), h("input", { type: "number", className: inputCls + " w-28 text-right no-print", value: discount, onChange: (e) => setDiscount(e.target.value) }), h("span", { className: "num font-semibold w-28 text-right print-only" }, baht(discountAmt))),
-          h("label", { className: "flex items-center gap-2 text-ink-600 no-print" }, h("input", { type: "checkbox", checked: vatEnabled, onChange: (e) => setVatEnabled(e.target.checked) }), "คิด VAT 7%"),
+          h("label", { className: "flex items-center gap-2 text-ink-600 no-print" },
+            h("input", { type: "checkbox", checked: vatEnabled, disabled: docType === "tax_invoice", onChange: (e) => setVatEnabled(e.target.checked) }),
+            "คิด VAT 7%", docType === "tax_invoice" && h("span", { className: "text-[11px] text-amber-600" }, "(บังคับเปิดสำหรับใบกำกับภาษี)")
+          ),
           vatEnabled && h("div", { className: "flex items-center gap-3 text-ink-600" }, h("span", null, "VAT 7%"), h("span", { className: "num font-semibold w-28 text-right" }, baht(vat))),
           h("div", { className: "flex items-center gap-3 text-base font-bold text-ink-900 border-t border-ink-100 pt-2 mt-1" }, h("span", null, "รวมทั้งสิ้น"), h("span", { className: "num w-28 text-right text-brand-700" }, baht(grandTotal)))
         ),
@@ -1532,14 +1597,16 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
         note && h("p", { className: "print-only text-xs text-ink-500 mt-1" }, "หมายเหตุ: ", note),
         h("div", { className: "print-only grid grid-cols-2 gap-10 mt-12 pt-6 border-t border-ink-200" },
           h("div", null,
-            h("div", { className: "text-sm font-bold text-ink-800 mb-8" }, "FOR PURCHASE CONFIRMATION"),
-            h("div", { className: "border-t border-ink-400 pt-2 text-xs text-ink-600 max-w-[200px]" }, "ผู้อนุมัติสั่งซื้อ (ลูกค้า)"),
+            h("div", { className: "text-sm font-bold text-ink-800 mb-8" }, docType === "quote" ? "FOR PURCHASE CONFIRMATION" : "FOR PAYMENT CONFIRMATION"),
+            h("div", { className: "border-t border-ink-400 pt-2 text-xs text-ink-600 max-w-[200px]" }, docType === "quote" ? "ผู้อนุมัติสั่งซื้อ (ลูกค้า)" : "ผู้จ่ายเงิน (ลูกค้า)"),
             h("div", { className: "text-[11px] text-ink-400 mt-1" }, "วันที่ ..... / ..... / .....")
           ),
           h("div", { className: "text-right" },
             h("div", { className: "text-sm font-bold text-ink-800" }, companyInfo.name || ""),
             companyInfo.email && h("div", { className: "text-xs text-brand-600 mt-1" }, companyInfo.email),
-            h("div", { className: "text-xs text-ink-500 mt-3" }, "( กำหนดยืนราคา ", validDays, " วัน )")
+            docType === "quote"
+              ? h("div", { className: "text-xs text-ink-500 mt-3" }, "( กำหนดยืนราคา ", validDays, " วัน )")
+              : h("div", { className: "border-t border-ink-400 pt-2 mt-8 text-xs text-ink-600 max-w-[200px] ml-auto text-center" }, "ผู้รับเงิน")
           )
         )
       ),
@@ -1578,7 +1645,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
         editingQuoteId && customer && (() => { const cur = savedQuotes.find((q) => q.id === editingQuoteId); return cur && !cur.primary ? h("button", { onClick: () => setPrimaryQuote(cur), className: "text-xs font-semibold text-emerald-600 hover:underline" }, "⭐ ตั้งใบนี้เป็น BOQ หลัก") : cur && cur.primary ? h("span", { className: "text-xs font-semibold text-emerald-600" }, "⭐ เป็น BOQ หลักอยู่แล้ว") : null; })()
       ),
       h("div", { className: "flex gap-3" },
-        h("button", { onClick: () => window.print(), className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "🖨️ พิมพ์ / PDF"),
+        h("button", { onClick: handlePrint, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "🖨️ พิมพ์ / PDF"),
         h("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "ปิด"),
         h("button", { onClick: saveQuote, disabled: saving, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm disabled:opacity-60" }, saving ? "กำลังบันทึก..." : (editingQuoteId ? "อัปเดตใบเสนอราคา" : "บันทึกใบเสนอราคา"))
       )
@@ -2086,7 +2153,14 @@ function CashFlow() {
         h("h4", { className: "text-sm font-semibold text-ink-700" }, "สรุปแยกรายเดือน (6 เดือนล่าสุด)")
       ),
       h("div", { className: "overflow-x-auto" },
-        h("table", { className: "w-full text-sm min-w-[560px]" },
+        h("table", { className: "w-full text-sm min-w-[560px] table-fixed" },
+          h("colgroup", null,
+            h("col", { style: { width: "18%" } }),
+            h("col", { style: { width: "20.5%" } }),
+            h("col", { style: { width: "20.5%" } }),
+            h("col", { style: { width: "20.5%" } }),
+            h("col", { style: { width: "20.5%" } })
+          ),
           h("thead", { className: "bg-ink-50 text-ink-500 text-xs" },
             h("tr", null,
               h("th", { className: "text-left py-2.5 px-4 font-medium" }, "เดือน"),
@@ -2768,7 +2842,7 @@ try {
     b.onclick=function(){ setAv({type:'icon',val:ic}); };
     grid.appendChild(b);
   });
-  
+
   // อัปโหลดรูป
   document.getElementById('uploadBtn').onclick=function(){ document.getElementById('photoInput').click(); };
   document.getElementById('photoInput').onchange=function(e){
