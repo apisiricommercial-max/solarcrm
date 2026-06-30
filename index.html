@@ -422,7 +422,7 @@ tailwind.config = {
     #boqPrintArea .text-doc-accent{color:var(--doc-accent-color)!important;-webkit-text-fill-color:var(--doc-accent-color)!important}
     #boqPrintArea .doc-accent-bar{background:var(--doc-accent-grad)!important}
     #boqPrintArea .doc-accent-soft{background:var(--doc-accent-soft-bg)!important}
-    #boqPrintArea .doc-accent-ring{border-color:var(--doc-accent-color)!important}
+    #boqPrintArea .doc-accent-ring{--tw-ring-color:var(--doc-accent-color)!important;border-color:var(--doc-accent-color)!important}
     #boqPrintArea .doc-corner-ribbon{background:var(--doc-accent-grad)!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
     #boqPrintArea .doc-grandtotal-box{background:var(--doc-accent-soft-bg)!important;border-radius:8px;padding:6px 12px;border-top:none!important}
     #boqPrintArea .doc-checkbox{color:var(--doc-accent-color)!important;-webkit-text-fill-color:var(--doc-accent-color)!important;font-weight:700}
@@ -433,7 +433,7 @@ tailwind.config = {
   .text-doc-accent{color:var(--doc-accent-color)}
   .doc-accent-bar{background:var(--doc-accent-grad)}
   .doc-accent-soft{background:var(--doc-accent-soft-bg)}
-  .doc-accent-ring{border-color:var(--doc-accent-color)}
+  .doc-accent-ring{--tw-ring-color:var(--doc-accent-color);border-color:var(--doc-accent-color)}
   .doc-corner-ribbon{position:absolute;top:0;right:0;width:64px;height:64px;background:var(--doc-accent-grad);clip-path:polygon(100% 0,0 0,100% 100%);display:flex;align-items:flex-start;justify-content:flex-end;padding:6px 8px 0 0;font-size:11px;font-weight:800;color:#fff}
 /* ===================== PREMIUM LOGIN ===================== */
 .lgn{position:fixed;inset:0;overflow:hidden;background:#070b16;display:flex;align-items:center;justify-content:center;padding:24px;perspective:1200px}
@@ -1595,19 +1595,18 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
             )
           ),
           h("div", { className: "h-[3px] rounded-full doc-accent-bar mb-3" }),
-          customer && h("div", { className: `text-sm text-ink-700 ${docType !== "quote" ? "rounded-lg ring-1 ring-ink-200 p-2.5" : ""}` },
+          customer && h("div", { className: `text-sm text-ink-700 ${docType !== "quote" ? "rounded-lg ring-1 doc-accent-ring doc-accent-soft p-2.5" : ""}` },
             h("div", { className: "flex items-baseline gap-1.5 flex-wrap" },
               h("span", { className: "font-semibold shrink-0 text-doc-accent" }, docType === "quote" ? "ลูกค้า:" : "ชื่อลูกค้า / Customer Name:"),
               h("span", null, customer.name),
               customer.phone ? h("span", { className: "text-xs text-ink-500" }, " · โทร ", customer.phone) : null
             ),
             customer.address ? h("div", { className: "text-xs text-ink-500 mt-0.5" }, "ที่อยู่ / Address: ", customer.address) : null,
-            (docType === "tax_invoice" || docType === "receipt") ? h("div", { className: "text-xs text-ink-700 mt-1 font-semibold" }, "เลขประจำตัวผู้เสียภาษี / Tax ID: ", customerTaxId ? h("b", null, customerTaxId) : h("span", { className: "text-ink-400 font-normal" }, "—")) : null
+            (docType === "tax_invoice" || docType === "receipt") && h("div", { className: "text-xs text-ink-700 mt-1.5 font-semibold print-only" }, "เลขประจำตัวผู้เสียภาษี / Tax ID: ", customerTaxId ? h("b", null, customerTaxId) : h("span", { className: "text-ink-400 font-normal" }, "—"))
           ),
-          docType !== "quote" && h("div", { className: "no-print mt-3 grid sm:grid-cols-2 gap-2" },
-            h(Field, { label: docType === "tax_invoice" ? "เลขผู้เสียภาษีลูกค้า 13 หลัก (ถ้ามี)" : "เลขผู้เสียภาษีลูกค้า (ถ้ามี)" },
-              h("input", { className: inputCls, value: customerTaxId, maxLength: 13, onChange: (e) => setCustomerTaxId(e.target.value.replace(/[^0-9]/g, "")), placeholder: "เช่น 1234567890123" })
-            )
+          (docType === "tax_invoice" || docType === "receipt") && h("div", { className: "no-print mt-2 p-2.5 rounded-lg doc-accent-soft ring-1 doc-accent-ring" },
+            h("label", { className: "text-[11px] font-semibold text-doc-accent block mb-1" }, docType === "tax_invoice" ? "👉 เลขผู้เสียภาษีลูกค้า 13 หลัก (สำหรับออกใบกำกับภาษี)" : "เลขผู้เสียภาษีลูกค้า (ถ้ามี)"),
+            h("input", { className: inputCls + " bg-white", value: customerTaxId, maxLength: 13, onChange: (e) => setCustomerTaxId(e.target.value.replace(/[^0-9]/g, "")), placeholder: "เช่น 1234567890123" })
           )
         ),
         h("div", { className: "no-print mb-3" },
