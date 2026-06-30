@@ -444,6 +444,14 @@ tailwind.config = {
     #boqPrintArea .doc-corner-ribbon{background:var(--doc-accent-grad)!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
     #boqPrintArea .doc-checkbox{color:var(--doc-accent-color)!important;-webkit-text-fill-color:var(--doc-accent-color)!important;font-weight:700}
     #boqPrintArea img{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    /* ---- บีบเอกสารให้พอดี 1 หน้า A4 มากที่สุด: ลด margin กระดาษ + ลดระยะห่างต่างๆ ลงเล็กน้อย ---- */
+    @page{size:A4;margin:10mm 12mm}
+    #boqPrintArea{padding:0!important;font-size:13px}
+    #boqPrintArea table{font-size:12.5px}
+    #boqPrintArea th,#boqPrintArea td{padding-top:5px!important;padding-bottom:5px!important}
+    /* กันตารางถูกตัดกลางแถว และกันส่วนลายเซ็น/หมายเหตุแยกไปอยู่หน้าเดียวโดดๆ ถ้าเหลือพื้นที่ไม่พอ ให้ดันไปทั้งก้อนแทน */
+    #boqPrintArea tr{break-inside:avoid;page-break-inside:avoid}
+    #boqPrintArea .print-only.grid{break-inside:avoid;page-break-inside:avoid}
   }
   /* ตัวแปรสีหัวเอกสารพิมพ์ — โทนน้ำเงิน-ม่วงของ SolarCRM ใช้ทั้งจอและกระดาษ */
   :root{ --doc-accent-color:#4f46e5; --doc-accent-grad:linear-gradient(90deg,#4f46e5,#a855f7); --doc-accent-soft-bg:#eef2ff; }
@@ -1361,7 +1369,8 @@ function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus, 
   return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shrink-0" }, c.name.replace(/^คุณ|^ช่าง/, "").trim().charAt(0) || "?"), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-1" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.type)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: onOpenBOQ, className: "relative inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:brightness-110 shadow-sm", title: "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32 BOQ \u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E19\u0E35\u0E49" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), boqCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "absolute -top-1.5 -right-1.5 bg-white text-orange-600 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center ring-2 ring-orange-200" }, boqCount)), /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-2 rounded-lg text-ink-500 hover:bg-ink-100", title: "\u0E41\u0E01\u0E49\u0E44\u0E02" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit })), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 rounded-lg text-ink-400 hover:bg-ink-100" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x })))), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-0 max-h-[72vh] overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "p-6 md:border-r border-ink-100 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-600" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-emerald-700" }, baht(c.value)), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-500 mt-0.5 truncate" }, "⭐ จาก ", primaryQuote.quoteNo || "BOQ"), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1" }, "✓ Sync เข้าบัญชีบริษัทอัตโนมัติ")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600" }, "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-brand-700" }, baht(c.budget)))), /* @__PURE__ */ React.createElement(WarrantyCard, { customer: c, onClick: () => setWarrantyOpen(true), onEdit: () => onEdit(c) }), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" }, /* @__PURE__ */ React.createElement(Line, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23", val: c.phone, href: c.phone ? `tel:${c.phone}` : null }), /* @__PURE__ */ React.createElement(Line, { label: "Line ID", val: c.lineId }), /* @__PURE__ */ React.createElement(Line, { label: "Facebook", val: c.facebook }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14", val: c.province }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48", val: c.address }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32", val: c.source }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F/\u0E40\u0E14\u0E37\u0E2D\u0E19", val: c.monthlyBill ? baht(c.monthlyBill) : "\u2014" }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08", val: c.systemSize }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14", val: thDate(c.lastContact) }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B", val: thDate(c.nextFollowup) })), c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, c.tags.map((t) => /* @__PURE__ */ React.createElement(Badge, { key: t, cls: "bg-amber-50 text-amber-700 ring-amber-200" }, "\u{1F3F7}\uFE0F ", t))), c.note && /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-ink-50 p-3 text-sm text-ink-600" }, "\u{1F4DD} ", c.note), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-medium text-ink-500 mb-1.5" }, "\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5" }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, onClick: () => onStatus(c.id, s.key), className: `px-2.5 py-1 rounded-lg text-xs font-medium transition ${c.status === s.key ? s.color + " text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, s.label))))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-ink-50/40" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white ring-1 ring-ink-100 p-3 space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E04\u0E38\u0E22\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2D\u0E30\u0E44\u0E23 *", value: log.topic, onChange: (e) => setLog((p) => ({ ...p, topic: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E2A\u0E19\u0E43\u0E08\u0E2D\u0E30\u0E44\u0E23", value: log.interest, onChange: (e) => setLog((p) => ({ ...p, interest: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E30\u0E44\u0E23\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27", value: log.sent, onChange: (e) => setLog((p) => ({ ...p, sent: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E48\u0E2D\u0E44\u0E1B\u0E04\u0E37\u0E2D\u0E2D\u0E30\u0E44\u0E23", value: log.next, onChange: (e) => setLog((p) => ({ ...p, next: e.target.value })) }), /* @__PURE__ */ React.createElement("button", { onClick: addLog, className: "w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, (c.timeline || []).slice().reverse().map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "relative pl-5" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-4 ring-brand-100" }), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mb-0.5" }, thDate(t.date)), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg bg-white ring-1 ring-ink-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-ink-800" }, t.topic), t.interest && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500 mt-1" }, "\u0E2A\u0E19\u0E43\u0E08: ", t.interest), t.sent && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500" }, "\u0E2A\u0E48\u0E07\u0E41\u0E25\u0E49\u0E27: ", t.sent), t.next && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600 mt-1" }, "\u2192 \u0E16\u0E31\u0E14\u0E44\u0E1B: ", t.next)))), (!c.timeline || c.timeline.length === 0) && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 text-center py-6" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")))), /* @__PURE__ */ React.createElement(WarrantyDetailModal, { open: warrantyOpen, customer: c, onClose: () => setWarrantyOpen(false), onAddLog, onUpdateWarranty }));
 }
 function Donut({ data, unit }) {
-  const total = data.reduce((s, d) => s + d.value, 0) || 1;
+  const totalReal = data.reduce((s, d) => s + d.value, 0);
+  const total = totalReal || 1; // ป้องกันหารด้วยศูนย์ตอนคำนวณสัดส่วนเส้นวงแหวนเท่านั้น ไม่ใช้ค่านี้แสดงผลตัวเลข
   const R = 52, C = 2 * Math.PI * R;
   const unitLabel = unit || "บาท";
   // render ครั้งแรกด้วยเส้นความยาว 0 แล้วค่อย set เป็นค่าจริงหลัง mount นิดเดียว
@@ -1373,7 +1382,7 @@ function Donut({ data, unit }) {
     return () => clearTimeout(t);
   }, [data]);
   // ปรับขนาดตัวอักษรกลางวงแหวนอัตโนมัติตามความยาวตัวเลข กันล้นออกนอกวง
-  const totalStr = fmt(total);
+  const totalStr = fmt(totalReal);
   const numSizeCls = totalStr.length > 9 ? "text-base" : totalStr.length > 7 ? "text-lg" : totalStr.length > 5 ? "text-xl" : "text-2xl";
   let acc = 0;
   return h("div", { className: "flex flex-col sm:flex-row items-center gap-6" },
@@ -1793,9 +1802,9 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
           )
         ),
         docType === "quote"
-          ? h("div", { className: "print-only grid grid-cols-2 gap-10 mt-12 pt-6 border-t border-ink-200" },
+          ? h("div", { className: "print-only grid grid-cols-2 gap-10 mt-6 pt-4 border-t border-ink-200" },
               h("div", null,
-                h("div", { className: "text-sm font-bold text-ink-800 mb-8" }, "FOR PURCHASE CONFIRMATION"),
+                h("div", { className: "text-sm font-bold text-ink-800 mb-6" }, "FOR PURCHASE CONFIRMATION"),
                 h("div", { className: "border-t border-ink-400 pt-2 text-xs text-ink-600 max-w-[200px]" }, "ผู้อนุมัติสั่งซื้อ (ลูกค้า)"),
                 h("div", { className: "text-[11px] text-ink-400 mt-1" }, "วันที่ ..... / ..... / .....")
               ),
@@ -1805,19 +1814,19 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
                 h("div", { className: "text-xs text-ink-500 mt-3" }, "( กำหนดยืนราคา ", validDays, " วัน )")
               )
             )
-          : h("div", { className: "print-only grid grid-cols-3 gap-4 mt-10 pt-6 border-t border-ink-200 items-end" },
+          : h("div", { className: "print-only grid grid-cols-3 gap-4 mt-5 pt-4 border-t border-ink-200 items-end" },
               h("div", { className: "text-center" },
-                h("div", { className: "h-12" }),
+                h("div", { className: "h-6" }),
                 h("div", { className: "border-t border-ink-400 pt-2 text-xs text-ink-600" }, "ผู้รับสินค้า / Receiver Signature"),
                 h("div", { className: "text-[11px] text-ink-400 mt-1" }, "วันที่ / Date ..... / ..... / .....")
               ),
               h("div", { className: "text-center" },
                 companyInfo.stampImage
-                  ? h("img", { src: companyInfo.stampImage, className: "h-20 object-contain mx-auto opacity-90" })
-                  : h("div", { className: "h-20 flex items-center justify-center text-[10px] text-ink-300" }, "ตราประทับบริษัท (ถ้ามี)")
+                  ? h("img", { src: companyInfo.stampImage, className: "h-14 object-contain mx-auto opacity-90" })
+                  : h("div", { className: "h-14 flex items-center justify-center text-[10px] text-ink-300" }, "ตราประทับบริษัท (ถ้ามี)")
               ),
               h("div", { className: "text-center" },
-                h("div", { className: "h-12" }),
+                h("div", { className: "h-6" }),
                 h("div", { className: "border-t border-ink-400 pt-2 text-xs text-ink-600" }, "ผู้มีอำนาจลงนาม / Authorized Signature"),
                 h("div", { className: "text-[11px] text-ink-400 mt-1" }, "วันที่ / Date ", thDate(quoteDate))
               )
@@ -1911,7 +1920,7 @@ function Dashboard({ rows, onOpen }) {
 function CustomerGroup({ title, icon, tone, rows, defaultOpen, onOpen, onEdit, onDelete }) {
   const [open, setOpen] = useState(defaultOpen);
   if (rows.length === 0) return null;
-  const toneCls = { blue: "bg-blue-50 text-blue-700 ring-blue-100", emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100", slate: "bg-ink-100 text-ink-500 ring-ink-200" }[tone];
+  const toneCls = { blue: "bg-blue-50 text-blue-700 ring-blue-100", emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100", slate: "bg-ink-100 text-ink-500 ring-ink-200", amber: "bg-amber-50 text-amber-700 ring-amber-200" }[tone];
   return h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden" },
     h("button", { onClick: () => setOpen((v) => !v), className: "w-full flex items-center justify-between px-4 py-3.5 hover:bg-ink-50/60 transition" },
       h("div", { className: "flex items-center gap-2.5" },
@@ -2010,6 +2019,9 @@ function Customers({ rows, onOpen, onEdit, onDelete, onAdd }) {
   const activeRows = filtered.filter((r) => ["new", "talking", "sent", "waiting"].includes(r.status));
   const closedRows = filtered.filter((r) => ["won", "warranty"].includes(r.status));
   const lostRows = filtered.filter((r) => r.status === "lost");
+  // กันลูกค้าที่มี status แปลกๆ (ค่าว่าง/พิมพ์ผิด/ข้อมูลเก่าก่อนหน้านี้) หายไปเงียบๆ จากทุกกลุ่มข้างบน
+  // ทั้งที่ตัวเลข "พบ X ราย" ด้านบนนับรวมไว้แล้ว ทำให้ดูเหมือนข้อมูลหาย
+  const unknownRows = filtered.filter((r) => !["new", "talking", "sent", "waiting", "won", "warranty", "lost"].includes(r.status));
   const groupingHidden = !!(flt.status); // ถ้ากรองสถานะเฉพาะเจาะจงอยู่แล้ว ไม่ต้องแบ่งกลุ่มซ้อน แสดงตารางเดียวพอ
   return h("div", { className: "space-y-4 fade-in" },
     h("div", { className: "flex flex-col sm:flex-row gap-3" },
@@ -2037,7 +2049,8 @@ function Customers({ rows, onOpen, onEdit, onDelete, onAdd }) {
     h(React.Fragment, null,
       h(CustomerGroup, { title: "กำลังดำเนินการ", icon: "🔵", tone: "blue", rows: activeRows, defaultOpen: true, onOpen, onEdit, onDelete }),
       h(CustomerGroup, { title: "ปิดเคสแล้ว", icon: "✅", tone: "emerald", rows: closedRows, defaultOpen: false, onOpen, onEdit, onDelete }),
-      h(CustomerGroup, { title: "ไม่สนใจ", icon: "⚪", tone: "slate", rows: lostRows, defaultOpen: false, onOpen, onEdit, onDelete })
+      h(CustomerGroup, { title: "ไม่สนใจ", icon: "⚪", tone: "slate", rows: lostRows, defaultOpen: false, onOpen, onEdit, onDelete }),
+      unknownRows.length > 0 && h(CustomerGroup, { title: "ไม่ทราบสถานะ (ข้อมูลเก่า/ผิดปกติ)", icon: "❓", tone: "amber", rows: unknownRows, defaultOpen: true, onOpen, onEdit, onDelete })
     )
   );
 }
