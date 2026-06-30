@@ -680,31 +680,22 @@ const db = {
   },
   // บันทึก/แก้ไขลูกค้า "รายเดียว" แบบ targeted upsert — ปลอดภัยกว่า saveAll(rows ทั้งก้อน)
   // เพราะไม่มีการลบแถวอื่นที่ไม่อยู่ใน state ปัจจุบันทิ้ง (กันปัญหา stale state ทับข้อมูลที่เพิ่งถูกแก้จากที่อื่น เช่น SQL Editor หรือแท็บอื่น)
+  // throw error ออกมาตรงๆ แทนการกลืนไว้เงียบๆ เพื่อให้ผู้เรียกรู้ตัวและแจ้งผู้ใช้ได้ถูกต้อง
   async upsertOne(row) {
     if (sb) {
-      try {
-        const uid = currentUser ? currentUser.id : null;
-        const stamped = uid ? { ...row, user_id: uid } : row;
-        const { error } = await sb.from("customers").upsert(stamped);
-        if (error) throw error;
-        return true;
-      } catch (e) {
-        console.error("Supabase upsertOne failed:", e);
-        return false;
-      }
+      const uid = currentUser ? currentUser.id : null;
+      const stamped = uid ? { ...row, user_id: uid } : row;
+      const { data, error } = await sb.from("customers").upsert(stamped).select();
+      if (error) { console.error("Supabase upsertOne failed:", error); throw error; }
+      return data;
     }
-    return false;
+    return null;
   },
   async deleteOne(id) {
     if (sb) {
-      try {
-        const { error } = await sb.from("customers").delete().eq("id", id);
-        if (error) throw error;
-        return true;
-      } catch (e) {
-        console.error("Supabase deleteOne failed:", e);
-        return false;
-      }
+      const { error } = await sb.from("customers").delete().eq("id", id);
+      if (error) { console.error("Supabase deleteOne failed:", error); throw error; }
+      return true;
     }
     return false;
   },
@@ -2667,20 +2658,28 @@ function App() {
   const acceptLead = async (l) => {
     const cust = leadToCustomer(l);
     setRows((p) => [cust, ...p]);
-    db.upsertOne(cust);
-    if (sb) { try { await sb.from("leads").update({ status: "accepted", acceptedBy: (window.__userEmail || "") }).eq("id", l.id); } catch (e) {} }
-    setLeads((p) => p.map((x) => x.id === l.id ? { ...x, status: "accepted", acceptedBy: (window.__userEmail || "") } : x));
-    alert("เพิ่มเข้าลูกค้าแล้ว! ดูได้ที่เมนู ลูกค้า");
+    try {
+      await db.upsertOne(cust);
+      if (sb) { try { await sb.from("leads").update({ status: "accepted", acceptedBy: (window.__userEmail || "") }).eq("id", l.id); } catch (e) {} }
+      setLeads((p) => p.map((x) => x.id === l.id ? { ...x, status: "accepted", acceptedBy: (window.__userEmail || "") } : x));
+      alert("เพิ่มเข้าลูกค้าแล้ว! ดูได้ที่เมนู ลูกค้า");
+    } catch (e) {
+      alert("บันทึกลูกค้าลงฐานข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
+    }
   };
   const acceptMany = async (chosen) => {
     if (!chosen || chosen.length === 0) return;
     const custs = chosen.map(leadToCustomer);
     setRows((p) => [...custs, ...p]);
-    custs.forEach((c) => db.upsertOne(c));
-    const ids = chosen.map((l) => l.id);
-    if (sb) { try { await sb.from("leads").update({ status: "accepted", acceptedBy: (window.__userEmail || "") }).in("id", ids); } catch (e) {} }
-    setLeads((p) => p.map((x) => ids.includes(x.id) ? { ...x, status: "accepted", acceptedBy: (window.__userEmail || "") } : x));
-    alert(`เพิ่ม ${chosen.length} รายเข้าลูกค้าแล้ว! ดูได้ที่เมนู ลูกค้า`);
+    try {
+      await Promise.all(custs.map((c) => db.upsertOne(c)));
+      const ids = chosen.map((l) => l.id);
+      if (sb) { try { await sb.from("leads").update({ status: "accepted", acceptedBy: (window.__userEmail || "") }).in("id", ids); } catch (e) {} }
+      setLeads((p) => p.map((x) => ids.includes(x.id) ? { ...x, status: "accepted", acceptedBy: (window.__userEmail || "") } : x));
+      alert(`เพิ่ม ${chosen.length} รายเข้าลูกค้าแล้ว! ดูได้ที่เมนู ลูกค้า`);
+    } catch (e) {
+      alert("บันทึกลูกค้าลงฐานข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
+    }
   };
   useEffect(() => {
     (async () => {
@@ -2709,40 +2708,43 @@ function App() {
       if (i >= 0) { const n = [...p]; n[i] = saved; return n; }
       return [saved, ...p];
     });
-    db.upsertOne(saved);
+    db.upsertOne(saved).catch((e) => {
+      alert("บันทึกลูกค้าลงฐานข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ") + "\n\nข้อมูลจะหายไปถ้ารีเฟรชหน้า กรุณาแจ้งผู้ดูแลระบบ");
+    });
   };
   const remove = (c) => {
     if (confirm(`\u0E25\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32 "${c.name}" ?`)) {
       setRows((p) => p.filter((x) => x.id !== c.id));
       setProfile(null);
-      db.deleteOne(c.id);
+      db.deleteOne(c.id).catch((e) => alert("ลบลูกค้าไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")));
     }
   };
+  const onDbSaveFail = (e) => alert("บันทึกข้อมูลลงฐานข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ") + "\n\nข้อมูลจะหายไปถ้ารีเฟรชหน้า กรุณาแจ้งผู้ดูแลระบบ");
   const setStatus = (id, status) => setRows((p) => p.map((x) => {
     if (x.id !== id) return x;
     // บันทึกวันที่ปิดงานอัตโนมัติ ครั้งแรกที่เข้าสถานะ "ปิดการขาย" หรือ "อยู่ในประกัน"
     // (ถ้าเคยบันทึกไว้แล้วจะไม่ทับวันที่เดิม กันยอดเดือนเพี้ยนตอนแก้สถานะไปมา)
     const needWonAt = (status === "won" || status === "warranty") && !x.wonAt;
     const next = needWonAt ? { ...x, status, wonAt: todayISO() } : { ...x, status };
-    db.upsertOne(next);
+    db.upsertOne(next).catch(onDbSaveFail);
     return next;
   }));
   const updateCustomerValue = (id, value) => setRows((p) => p.map((x) => {
     if (x.id !== id) return x;
     const next = { ...x, value: Math.round(value) };
-    db.upsertOne(next);
+    db.upsertOne(next).catch(onDbSaveFail);
     return next;
   }));
   const updateCustomerWarranty = (id, installDate, warrantyYears) => setRows((p) => p.map((x) => {
     if (x.id !== id) return x;
     const next = { ...x, installDate, warrantyYears };
-    db.upsertOne(next);
+    db.upsertOne(next).catch(onDbSaveFail);
     return next;
   }));
   const addLog = (id, log) => setRows((p) => p.map((x) => {
     if (x.id !== id) return x;
     const next = { ...x, timeline: [...x.timeline || [], log], lastContact: log.date };
-    db.upsertOne(next);
+    db.upsertOne(next).catch(onDbSaveFail);
     return next;
   }));
   const openForm = (c) => {
