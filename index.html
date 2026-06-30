@@ -423,9 +423,7 @@ tailwind.config = {
     #boqPrintArea .doc-accent-bar{background:var(--doc-accent-grad)!important}
     #boqPrintArea .doc-accent-soft{background:var(--doc-accent-soft-bg)!important}
     #boqPrintArea .doc-accent-ring{--tw-ring-color:var(--doc-accent-color)!important;border-color:var(--doc-accent-color)!important}
-    #boqPrintArea .doc-border-accent{border-color:var(--doc-accent-color)!important;opacity:1}
     #boqPrintArea .doc-corner-ribbon{background:var(--doc-accent-grad)!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
-    #boqPrintArea .doc-grandtotal-box{background:var(--doc-accent-soft-bg)!important;border-radius:8px;padding:6px 12px;border-top:none!important}
     #boqPrintArea .doc-checkbox{color:var(--doc-accent-color)!important;-webkit-text-fill-color:var(--doc-accent-color)!important;font-weight:700}
     #boqPrintArea img{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
@@ -435,7 +433,6 @@ tailwind.config = {
   .doc-accent-bar{background:var(--doc-accent-grad)}
   .doc-accent-soft{background:var(--doc-accent-soft-bg)}
   .doc-accent-ring{--tw-ring-color:var(--doc-accent-color);border-color:var(--doc-accent-color)}
-  .doc-border-accent{border-color:var(--doc-accent-color);opacity:.85}
   .doc-corner-ribbon{position:absolute;top:0;right:0;width:64px;height:64px;background:var(--doc-accent-grad);clip-path:polygon(100% 0,0 0,100% 100%);display:flex;align-items:flex-start;justify-content:flex-end;padding:6px 8px 0 0;font-size:11px;font-weight:800;color:#fff}
   
 /* ===================== PREMIUM LOGIN ===================== */
@@ -1485,6 +1482,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
   const loadQuote = (q) => {
     setItems(q.items || []); setDiscount(q.discount || 0); setVatEnabled(!!q.vatEnabled); setNote(q.note || ""); setProjectTitle(q.projectTitle || ""); setValidDays(q.validDays || 15); setEditingQuoteId(q.id);
     setQuoteNo(q.quoteNo || genQuoteNo(savedQuotes.length)); setQuoteDate((q.createdAt || todayISO()).slice(0, 10));
+    setCustomerTaxId(q.customerTaxId || ""); setPaymentMethod(q.paymentMethod || "cash"); setPaymentBank(q.paymentBank || ""); setPaymentRef(q.paymentRef || ""); setPaymentTime(q.paymentTime || "");
     setDocType("quote");
   };
   const newBlankQuote = () => {
@@ -1526,7 +1524,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     try {
       const existing = await boqDb.listQuotes();
       const isEdit = !!editingQuoteId;
-      const quote = { id: isEdit ? editingQuoteId : uid(), quoteNo, customerId: customer ? customer.id : null, customerName: customer ? customer.name : "ไม่ระบุ", items, discount: discountAmt, vatEnabled, note, projectTitle, validDays, primary: isEdit ? (existing.find((q) => q.id === editingQuoteId) || {}).primary || false : false, createdAt: isEdit ? (existing.find((q) => q.id === editingQuoteId) || {}).createdAt || new Date().toISOString() : new Date().toISOString() };
+      const quote = { id: isEdit ? editingQuoteId : uid(), quoteNo, customerId: customer ? customer.id : null, customerName: customer ? customer.name : "ไม่ระบุ", items, discount: discountAmt, vatEnabled, note, projectTitle, validDays, customerTaxId, paymentMethod, paymentBank, paymentRef, paymentTime, primary: isEdit ? (existing.find((q) => q.id === editingQuoteId) || {}).primary || false : false, createdAt: isEdit ? (existing.find((q) => q.id === editingQuoteId) || {}).createdAt || new Date().toISOString() : new Date().toISOString() };
       const next = isEdit ? existing.map((q) => q.id === editingQuoteId ? quote : q) : [...existing, quote];
       let savedOk = true;
       try { await boqDb.saveQuotes(next); } catch (e) { savedOk = false; }
@@ -1611,7 +1609,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
             )
           ),
           h("div", { className: "h-[3px] rounded-full doc-accent-bar mb-3" }),
-          customer && h("div", { className: `text-sm text-ink-700 ${docType !== "quote" ? "border-l-2 doc-border-accent pl-3 py-1" : ""}` },
+          customer && h("div", { className: "text-sm text-ink-700" },
             h("div", { className: "flex items-baseline gap-1.5 flex-wrap" },
               h("span", { className: "font-semibold shrink-0 text-doc-accent" }, docType === "quote" ? "ลูกค้า:" : "ชื่อลูกค้า / Customer Name:"),
               h("span", null, customer.name),
@@ -1660,7 +1658,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
             "คิด VAT 7%", docType === "tax_invoice" && h("span", { className: "text-[11px] text-amber-600" }, "(บังคับเปิดสำหรับใบกำกับภาษี)")
           ),
           vatEnabled && h("div", { className: "flex items-center gap-3 text-ink-600" }, h("span", null, "VAT 7%"), h("span", { className: "num font-semibold w-28 text-right" }, baht(vat))),
-          h("div", { className: "flex items-center gap-3 text-base font-bold text-ink-900 border-t border-ink-100 pt-2 mt-1 doc-grandtotal-box" }, h("span", null, "รวมทั้งสิ้น"), h("span", { className: "num w-28 text-right text-doc-accent" }, baht(grandTotal)))
+          h("div", { className: "flex items-center gap-3 text-base font-bold text-ink-900 border-t-2 border-ink-200 pt-2 mt-1" }, h("span", null, "รวมทั้งสิ้น"), h("span", { className: "num w-28 text-right text-doc-accent" }, baht(grandTotal)))
         ),
         h("div", { className: "print-only text-xs text-ink-600 text-right -mt-1 mb-3" }, "( ", thaiBahtText(grandTotal), " )"),
         h("div", { className: "no-print flex items-center gap-2 mt-2" },
