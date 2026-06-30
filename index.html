@@ -375,8 +375,14 @@ tailwind.config = {
   header svg{transition:transform .2s}
   h1:hover ~ * svg,.rounded-2xl:hover svg{transform:scale(1.06)}
   /* ===== chart flair ===== */
-  .w-32.h-32 svg{animation:donutIn 1s cubic-bezier(.2,.8,.3,1) both}
+  .donut-anim{animation:donutIn .8s cubic-bezier(.2,.8,.3,1) both}
   @keyframes donutIn{from{opacity:0;transform:scale(.6) rotate(-30deg)}to{opacity:1;transform:none}}
+  /* ---- วงแหวนแต่ละช่วงค่อยๆวาดขึ้นจากศูนย์ ---- */
+  .donut-seg{stroke-dasharray:0 1000!important;animation:donutSegDraw .9s cubic-bezier(.16,.8,.24,1) forwards}
+  @keyframes donutSegDraw{to{stroke-dasharray:var(--seg-len) var(--seg-gap)}}
+  /* ---- แถบสัดส่วนใน legend ค่อยๆงอกความกว้างขึ้น ---- */
+  .legend-bar{width:0!important;animation:legendGrow .7s cubic-bezier(.16,.8,.24,1) forwards}
+  @keyframes legendGrow{to{width:var(--w,100%)}}
   .bg-ink-100.overflow-hidden > .bg-brand-500{transform-origin:left;animation:growX 1s cubic-bezier(.2,.8,.3,1) both}
   @keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   /* stat number pop */
@@ -1186,12 +1192,49 @@ function Donut({ data }) {
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
   let acc = 0;
   const R = 52, C = 2 * Math.PI * R;
-  return /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-5" }, /* @__PURE__ */ React.createElement("div", { className: "relative w-32 h-32 shrink-0" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 140 140", className: "w-32 h-32" }, /* @__PURE__ */ React.createElement("g", { transform: "rotate(-90 70 70)" }, /* @__PURE__ */ React.createElement("circle", { cx: "70", cy: "70", r: R, fill: "none", stroke: "#f1f5f9", strokeWidth: "16" }), data.map((d, i) => {
-    const len = d.value / total * C;
-    const el = /* @__PURE__ */ React.createElement("circle", { key: i, cx: "70", cy: "70", r: R, fill: "none", stroke: d.color, strokeWidth: "16", strokeDasharray: `${len} ${C - len}`, strokeDashoffset: -acc });
-    acc += len;
-    return el;
-  }))), /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex flex-col items-center justify-center" }, /* @__PURE__ */ React.createElement("span", { className: "num text-2xl font-bold text-ink-900 leading-none" }, fmt(total)), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-ink-400 mt-0.5" }, "\u0E23\u0E32\u0E22"))), /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5 flex-1 min-w-0" }, data.map((d, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2 text-sm" }, /* @__PURE__ */ React.createElement("span", { className: "w-2.5 h-2.5 rounded-sm shrink-0", style: { background: d.color } }), /* @__PURE__ */ React.createElement("span", { className: "text-ink-600 truncate flex-1" }, d.label), /* @__PURE__ */ React.createElement("span", { className: "num font-semibold text-ink-800" }, d.value)))));
+  // ปรับขนาดตัวอักษรกลางวงแหวนอัตโนมัติตามความยาวตัวเลข กันล้นออกนอกวง
+  const totalStr = fmt(total);
+  const numSizeCls = totalStr.length > 9 ? "text-base" : totalStr.length > 7 ? "text-lg" : totalStr.length > 5 ? "text-xl" : "text-2xl";
+  return h("div", { className: "flex flex-col sm:flex-row items-center gap-6" },
+    h("div", { className: "relative w-36 h-36 shrink-0" },
+      h("svg", { viewBox: "0 0 140 140", className: "w-36 h-36 donut-anim" },
+        h("g", { transform: "rotate(-90 70 70)" },
+          h("circle", { cx: "70", cy: "70", r: R, fill: "none", stroke: "#f1f5f9", strokeWidth: "15" }),
+          data.map((d, i) => {
+            const len = d.value / total * C;
+            const dashOffset = -acc;
+            acc += len;
+            return h("circle", {
+              key: i, cx: "70", cy: "70", r: R, fill: "none", stroke: d.color, strokeWidth: "15", strokeLinecap: data.length > 1 ? "butt" : "round",
+              strokeDashoffset: dashOffset,
+              className: "donut-seg",
+              style: { "--seg-len": len, "--seg-gap": C - len, animationDelay: (i * 0.12) + "s" }
+            });
+          })
+        )
+      ),
+      h("div", { className: "absolute inset-0 flex flex-col items-center justify-center px-3 fade-in" },
+        h("span", { className: `num ${numSizeCls} font-extrabold text-ink-900 leading-tight text-center` }, totalStr),
+        h("span", { className: "text-[10px] text-ink-400 mt-0.5 tracking-wide" }, "บาท")
+      )
+    ),
+    h("div", { className: "space-y-2.5 flex-1 min-w-0 w-full" },
+      data.map((d, i) => {
+        const pct = total > 0 ? Math.round(d.value / total * 100) : 0;
+        return h("div", { key: i, className: "group" },
+          h("div", { className: "flex items-center gap-2 text-sm mb-1" },
+            h("span", { className: "w-2.5 h-2.5 rounded-full shrink-0 transition-transform group-hover:scale-125", style: { background: d.color } }),
+            h("span", { className: "text-ink-600 truncate flex-1" }, d.label),
+            h("span", { className: "num font-semibold text-ink-800 shrink-0" }, baht(d.value)),
+            h("span", { className: "num text-[11px] text-ink-400 w-9 text-right shrink-0" }, pct, "%")
+          ),
+          h("div", { className: "h-1.5 rounded-full bg-ink-100 overflow-hidden" },
+            h("div", { className: "h-full rounded-full legend-bar", style: { "--w": pct + "%", background: d.color, animationDelay: (i * 0.08) + "s" } })
+          )
+        );
+      })
+    )
+  );
 }
 function Stat({ label, value, sub, icon, tone }) {
   const tones = { blue: "bg-brand-50 text-brand-600", green: "bg-emerald-50 text-emerald-600", amber: "bg-amber-50 text-amber-600", violet: "bg-violet-50 text-violet-600", slate: "bg-ink-100 text-ink-600", red: "bg-red-50 text-red-600" };
