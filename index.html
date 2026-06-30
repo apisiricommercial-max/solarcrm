@@ -423,6 +423,7 @@ tailwind.config = {
     #boqPrintArea .doc-accent-bar{background:var(--doc-accent-grad)!important}
     #boqPrintArea .doc-accent-soft{background:var(--doc-accent-soft-bg)!important}
     #boqPrintArea .doc-accent-ring{--tw-ring-color:var(--doc-accent-color)!important;border-color:var(--doc-accent-color)!important}
+    #boqPrintArea .doc-border-accent{border-color:var(--doc-accent-color)!important;opacity:1}
     #boqPrintArea .doc-corner-ribbon{background:var(--doc-accent-grad)!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
     #boqPrintArea .doc-grandtotal-box{background:var(--doc-accent-soft-bg)!important;border-radius:8px;padding:6px 12px;border-top:none!important}
     #boqPrintArea .doc-checkbox{color:var(--doc-accent-color)!important;-webkit-text-fill-color:var(--doc-accent-color)!important;font-weight:700}
@@ -434,6 +435,7 @@ tailwind.config = {
   .doc-accent-bar{background:var(--doc-accent-grad)}
   .doc-accent-soft{background:var(--doc-accent-soft-bg)}
   .doc-accent-ring{--tw-ring-color:var(--doc-accent-color);border-color:var(--doc-accent-color)}
+  .doc-border-accent{border-color:var(--doc-accent-color);opacity:.85}
   .doc-corner-ribbon{position:absolute;top:0;right:0;width:64px;height:64px;background:var(--doc-accent-grad);clip-path:polygon(100% 0,0 0,100% 100%);display:flex;align-items:flex-start;justify-content:flex-end;padding:6px 8px 0 0;font-size:11px;font-weight:800;color:#fff}
   
 /* ===================== PREMIUM LOGIN ===================== */
@@ -1581,7 +1583,6 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     h("div", { className: "px-6 py-5 max-h-[75vh] overflow-y-auto grid md:grid-cols-[1fr_280px] gap-5" },
       h("div", { id: "boqPrintArea", className: "relative" },
         h("div", { className: "print-only mb-4 relative overflow-hidden" },
-          docType !== "quote" && h("div", { className: "doc-corner-ribbon" }, "🧾"),
           h("div", { className: "flex items-start justify-between gap-4 pb-3 mb-3" },
             h("div", { className: "min-w-0 flex items-start gap-3" },
               h("img", { src: profileLogo, className: "w-11 h-11 rounded-xl object-cover shrink-0 ring-1 ring-ink-100", onError: (e) => { e.target.src = DEFAULT_APP_LOGO; } }),
@@ -1602,7 +1603,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
               h("div", { className: "text-[10px] text-ink-400 font-medium -mt-0.5" },
                 docType === "quote" ? "QUOTATION" : docType === "receipt" ? "RECEIPT" : "TAX INVOICE"
               ),
-              docType === "tax_invoice" && h("div", { className: "inline-block mt-1.5 px-2.5 py-0.5 rounded ring-1 doc-accent-ring text-[10px] text-doc-accent font-bold" }, "ต้นฉบับ / ORIGINAL"),
+              docType === "tax_invoice" && h("div", { className: "text-[10px] text-doc-accent font-bold tracking-wide mt-1" }, "ต้นฉบับ / ORIGINAL"),
               h("div", { className: "rounded-lg doc-accent-soft mt-2 px-3 py-1.5 inline-block text-left" },
                 h("div", { className: "text-[11px] text-ink-600" }, "เลขที่ / NO. ", h("b", { className: "text-ink-900" }, docNo)),
                 h("div", { className: "text-[11px] text-ink-600" }, "วันที่ / DATE ", h("b", { className: "text-ink-900" }, thDate(quoteDate)))
@@ -1610,7 +1611,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
             )
           ),
           h("div", { className: "h-[3px] rounded-full doc-accent-bar mb-3" }),
-          customer && h("div", { className: `text-sm text-ink-700 ${docType !== "quote" ? "rounded-lg ring-1 doc-accent-ring doc-accent-soft p-2.5" : ""}` },
+          customer && h("div", { className: `text-sm text-ink-700 ${docType !== "quote" ? "border-l-2 doc-border-accent pl-3 py-1" : ""}` },
             h("div", { className: "flex items-baseline gap-1.5 flex-wrap" },
               h("span", { className: "font-semibold shrink-0 text-doc-accent" }, docType === "quote" ? "ลูกค้า:" : "ชื่อลูกค้า / Customer Name:"),
               h("span", null, customer.name),
