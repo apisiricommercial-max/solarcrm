@@ -684,11 +684,13 @@ const db = {
   async upsertOne(row) {
     if (sb) {
       const uid = currentUser ? currentUser.id : null;
-      // คอลัมน์ installDate ในตารางเป็น type "date" ของ Postgres ซึ่งไม่ยอมรับสตริงว่าง ("")
+      // คอลัมน์ installDate, nextFollowup, lastContact เป็น type "date" ของ Postgres ซึ่งไม่ยอมรับสตริงว่าง ("")
       // และคอลัมน์ value เป็น "numeric" ก็เช่นกัน ต้องแปลงเป็น null/0 ก่อนส่งเข้า Supabase เสมอ
       const cleaned = {
         ...row,
         installDate: row.installDate ? row.installDate : null,
+        nextFollowup: row.nextFollowup ? row.nextFollowup : null,
+        lastContact: row.lastContact ? row.lastContact : null,
         value: row.value === "" || row.value === undefined ? 0 : Number(row.value) || 0
       };
       const stamped = uid ? { ...cleaned, user_id: uid } : cleaned;
