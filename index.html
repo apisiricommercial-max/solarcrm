@@ -2043,16 +2043,14 @@ function Customers({ rows, onOpen, onEdit, onDelete, onAdd }) {
       h("input", { type: "number", className: selCls, value: flt.minValue, onChange: (e) => setF("minValue", e.target.value), placeholder: "มูลค่าขั้นต่ำ (฿)" }),
       activeFilters > 0 && h("button", { onClick: () => setFlt({ province: "", status: "", heat: "", type: "", source: "", tag: "", minValue: "", due: "" }), className: "col-span-2 sm:col-span-4 text-sm text-brand-600 font-medium hover:underline text-left" }, "ล้างตัวกรองทั้งหมด")
     ),
-    h("div", { className: "text-sm text-ink-500" }, "พบ ", h("b", { className: "text-ink-800 num" }, filtered.length), " ราย",
-      h("span", { className: "text-[11px] text-red-500 ml-2" }, "[DEBUG: active=", activeRows.length, " closed=", closedRows.length, " lost=", lostRows.length, " unknown=", unknownRows.length, " sum=", activeRows.length + closedRows.length + lostRows.length + unknownRows.length, "]")
-    ),
+    h("div", { className: "text-sm text-ink-500" }, "พบ ", h("b", { className: "text-ink-800 num" }, filtered.length), " ราย"),
     filtered.length === 0 ? h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 py-14 text-center" }, h("div", { className: "text-4xl mb-2" }, "🔍"), h("div", { className: "text-ink-400 text-sm" }, "ไม่พบลูกค้าตามเงื่อนไข — ลองล้างตัวกรองหรือเพิ่มลูกค้าใหม่")) :
     groupingHidden ? h(CustomerGroup, { title: statusOf(flt.status).label, icon: "📋", tone: "blue", rows: filtered, defaultOpen: true, onOpen, onEdit, onDelete }) :
     h(React.Fragment, null,
+      unknownRows.length > 0 && h(CustomerGroup, { title: "ไม่ทราบสถานะ (ข้อมูลเก่า/ผิดปกติ — กรุณาแก้ไขสถานะ)", icon: "❓", tone: "amber", rows: unknownRows, defaultOpen: true, onOpen, onEdit, onDelete }),
       h(CustomerGroup, { title: "กำลังดำเนินการ", icon: "🔵", tone: "blue", rows: activeRows, defaultOpen: true, onOpen, onEdit, onDelete }),
       h(CustomerGroup, { title: "ปิดเคสแล้ว", icon: "✅", tone: "emerald", rows: closedRows, defaultOpen: false, onOpen, onEdit, onDelete }),
-      h(CustomerGroup, { title: "ไม่สนใจ", icon: "⚪", tone: "slate", rows: lostRows, defaultOpen: false, onOpen, onEdit, onDelete }),
-      unknownRows.length > 0 && h(CustomerGroup, { title: "ไม่ทราบสถานะ (ข้อมูลเก่า/ผิดปกติ)", icon: "❓", tone: "amber", rows: unknownRows, defaultOpen: true, onOpen, onEdit, onDelete })
+      h(CustomerGroup, { title: "ไม่สนใจ", icon: "⚪", tone: "slate", rows: lostRows, defaultOpen: false, onOpen, onEdit, onDelete })
     )
   );
 }
