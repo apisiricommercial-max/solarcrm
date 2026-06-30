@@ -1430,7 +1430,79 @@ function Stat({ label, value, sub, icon, tone }) {
   const tones = { blue: "bg-brand-50 text-brand-600", green: "bg-emerald-50 text-emerald-600", amber: "bg-amber-50 text-amber-600", violet: "bg-violet-50 text-violet-600", slate: "bg-ink-100 text-ink-600", red: "bg-red-50 text-red-600" };
   return /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-500" }, label), /* @__PURE__ */ React.createElement("span", { className: `w-9 h-9 rounded-xl flex items-center justify-center ${tones[tone]}` }, /* @__PURE__ */ React.createElement(Icon, { d: icon, cls: "w-5 h-5" }))), /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900 mt-2" }, value), sub && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, sub));
 }
+function TeamManageTab() {
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const refresh = () => { teamMemberDb.list().then((m) => { setMembers(m); setLoading(false); }); };
+  useEffect(() => { refresh(); }, []);
+  const activeCount = members.filter((m) => m.status === "active").length;
+  const doInvite = async () => {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) { alert("กรุณากรอกอีเมลให้ถูกต้อง"); return; }
+    if (members.some((m) => m.email === email && m.status === "active")) { alert("อีเมลนี้ถูกเชิญไว้แล้ว"); return; }
+    if (activeCount >= 5) { alert("เพิ่มพนักงานได้สูงสุด 5 คนต่อบัญชี กรุณาปิดใช้งานคนที่ไม่ใช้แล้วก่อนเพิ่มคนใหม่"); return; }
+    setInviting(true);
+    try {
+      await teamMemberDb.invite(email);
+      setInviteEmail("");
+      refresh();
+      alert(`เชิญ ${email} เรียบร้อย — เมื่อพนักงานล็อกอินด้วย Google อีเมลนี้ จะเห็นข้อมูลร่วมกับบัญชีนี้ทันที`);
+    } catch (e) {
+      alert("เชิญพนักงานไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
+    } finally { setInviting(false); }
+  };
+  const toggleStatus = async (m) => {
+    const next = m.status === "active" ? "disabled" : "active";
+    if (next === "active" && activeCount >= 5) { alert("เปิดใช้งานไม่ได้ เพราะมีพนักงาน active ครบ 5 คนแล้ว"); return; }
+    try {
+      await teamMemberDb.setStatus(m.id, next);
+      refresh();
+    } catch (e) {
+      alert("เปลี่ยนสถานะไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
+    }
+  };
+  const doRemove = async (m) => {
+    if (!confirm(`ลบพนักงาน "${m.email}" ออกจากทีม?`)) return;
+    try {
+      await teamMemberDb.remove(m.id);
+      refresh();
+    } catch (e) {
+      alert("ลบไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
+    }
+  };
+  return h("div", { className: "space-y-4" },
+    h("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3 text-xs text-brand-700 leading-relaxed" },
+      "พนักงานที่เชิญจะเห็นข้อมูลลูกค้า/BOQ/บัญชีร่วมกับบัญชีนี้ทั้งหมด และแก้ไขข้อมูลบริษัทได้ด้วย — เชิญได้สูงสุด ", h("b", null, "5 คน"), " (active อยู่ตอนนี้ ", h("b", null, activeCount), "/5)"
+    ),
+    h("div", { className: "flex gap-2" },
+      h("input", { className: inputCls, value: inviteEmail, onChange: (e) => setInviteEmail(e.target.value), placeholder: "อีเมล Google ของพนักงาน เช่น somchai@gmail.com", onKeyDown: (e) => e.key === "Enter" && doInvite() }),
+      h("button", { onClick: doInvite, disabled: inviting, className: "px-4 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm disabled:opacity-50 shrink-0" }, inviting ? "กำลังเชิญ..." : "+ เชิญ")
+    ),
+    loading ? h("div", { className: "text-sm text-ink-400 text-center py-6" }, "กำลังโหลด...") :
+    members.length === 0 ? h("div", { className: "text-sm text-ink-400 text-center py-6" }, "ยังไม่มีพนักงานในทีม") :
+    h("div", { className: "space-y-2" },
+      members.map((m) => h("div", { key: m.id, className: "flex items-center justify-between gap-3 rounded-xl ring-1 ring-ink-100 p-3" },
+        h("div", { className: "min-w-0" },
+          h("div", { className: "text-sm font-medium text-ink-800 truncate" }, m.email),
+          h("div", { className: "text-[11px] mt-0.5" },
+            m.status === "active"
+              ? h("span", { className: "text-emerald-600 font-semibold" }, "● ใช้งานอยู่")
+              : h("span", { className: "text-ink-400 font-semibold" }, "○ ปิดใช้งาน"),
+            !m.member_user_id && h("span", { className: "text-amber-500 ml-2" }, "(ยังไม่เคยล็อกอิน)")
+          )
+        ),
+        h("div", { className: "flex items-center gap-1.5 shrink-0" },
+          h("button", { onClick: () => toggleStatus(m), className: `px-2.5 py-1.5 rounded-lg text-xs font-semibold ${m.status === "active" ? "bg-amber-50 text-amber-700 hover:bg-amber-100" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}` }, m.status === "active" ? "ปิดใช้งาน" : "เปิดใช้งาน"),
+          h("button", { onClick: () => doRemove(m), className: "p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" }, h(Icon, { d: I.trash, cls: "w-4 h-4" }))
+        )
+      ))
+    )
+  );
+}
 function CompanySettingsModal({ open, onClose }) {
+  const [tab, setTab] = useState("info");
   const [info, setInfo] = useState({ name: "", address: "", phone: "", email: "", taxId: "", stampImage: "" });
   const stampRef = useRef(null);
   useEffect(() => { if (open) setInfo(getCompanyInfo()); }, [open]);
@@ -1453,10 +1525,14 @@ function CompanySettingsModal({ open, onClose }) {
   };
   return h(Modal, { open, onClose },
     h("div", { className: "flex items-center justify-between px-6 py-4 border-b border-ink-100" },
-      h("h3", { className: "text-lg font-semibold text-ink-800" }, "ตั้งค่าข้อมูลบริษัท"),
+      h("h3", { className: "text-lg font-semibold text-ink-800" }, "ตั้งค่าบริษัท"),
       h("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600" }, h(Icon, { d: I.x }))
     ),
-    h("div", { className: "px-6 py-5 space-y-3" },
+    h("div", { className: "flex gap-1.5 px-6 pt-4" },
+      h("button", { onClick: () => setTab("info"), className: `px-3.5 py-1.5 rounded-lg text-sm font-semibold transition ${tab === "info" ? "bg-brand-600 text-white" : "bg-ink-50 text-ink-500 hover:bg-ink-100"}` }, "🏢 ข้อมูลบริษัท"),
+      h("button", { onClick: () => setTab("team"), className: `px-3.5 py-1.5 rounded-lg text-sm font-semibold transition ${tab === "team" ? "bg-brand-600 text-white" : "bg-ink-50 text-ink-500 hover:bg-ink-100"}` }, "👥 จัดการทีม")
+    ),
+    tab === "info" ? h("div", { className: "px-6 py-5 space-y-3" },
       h("p", { className: "text-xs text-ink-400 mb-2" }, "ข้อมูลนี้จะแสดงเป็นหัวกระดาษบนใบเสนอราคา BOQ ทุกใบ"),
       h(Field, { label: "ชื่อบริษัท (ดึงจากโปรไฟล์อัตโนมัติ แก้ที่นี่ได้)", full: true }, h("input", { className: inputCls, value: info.name, onChange: (e) => set("name", e.target.value), placeholder: "เช่น บริษัท เอบีซี โซลาร์ จำกัด" })),
       h(Field, { label: "ที่อยู่บริษัท", full: true }, h("textarea", { className: inputCls + " h-16 resize-none", value: info.address, onChange: (e) => set("address", e.target.value), placeholder: "เลขที่ / หมู่ / ตำบล / อำเภอ / จังหวัด / รหัสไปรษณีย์" })),
@@ -1472,8 +1548,8 @@ function CompanySettingsModal({ open, onClose }) {
           h("button", { type: "button", onClick: () => set("stampImage", ""), className: "absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white shadow ring-1 ring-ink-200 flex items-center justify-center text-ink-500 hover:text-red-600 text-xs" }, "✕")
         )
       )
-    ),
-    h("div", { className: "flex justify-end gap-3 px-6 py-4 border-t border-ink-100" },
+    ) : h("div", { className: "px-6 py-5" }, h(TeamManageTab, null)),
+    tab === "info" && h("div", { className: "flex justify-end gap-3 px-6 py-4 border-t border-ink-100" },
       h("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "ปิด"),
       h("button", { onClick: save, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, "บันทึก")
     )
@@ -2254,6 +2330,38 @@ const profitTemplateDb = {
     return rows;
   }
 };
+/* ===================== ระบบทีม/พนักงาน (Sub-account สูงสุด 5 คน) ===================== */
+const teamMemberDb = {
+  // เจ้าของบัญชีเรียกดูรายชื่อพนักงานที่ตัวเองเชิญไว้ทั้งหมด
+  async list() {
+    if (!sb) return [];
+    const uidNow = currentUser ? currentUser.id : null;
+    if (!uidNow) return [];
+    const { data, error } = await sb.from("team_members").select("*").eq("owner_id", uidNow).order("createdAt", { ascending: true });
+    if (error) { console.error("teamMemberDb.list failed:", error); return []; }
+    return data || [];
+  },
+  // เชิญพนักงานใหม่ด้วยอีเมล (ยังไม่ต้องมีบัญชี Google มาก่อนก็ได้ ระบบจะผูกให้อัตโนมัติตอน login ครั้งแรก)
+  async invite(email) {
+    const uidNow = currentUser ? currentUser.id : null;
+    if (!uidNow) throw new Error("ยังไม่ได้ล็อกอิน");
+    const row = { id: uid(), owner_id: uidNow, email: email.trim().toLowerCase(), status: "active", createdAt: new Date().toISOString() };
+    const { data, error } = await sb.from("team_members").insert(row).select();
+    if (error) throw error;
+    return data;
+  },
+  // เปิด/ปิดการมองเห็นข้อมูลของพนักงานคนนั้น (ไม่ลบบัญชี แค่ตัดสิทธิ์เข้าถึงข้อมูลทันทีผ่าน RLS)
+  async setStatus(id, status) {
+    const { error } = await sb.from("team_members").update({ status }).eq("id", id);
+    if (error) throw error;
+    return true;
+  },
+  async remove(id) {
+    const { error } = await sb.from("team_members").delete().eq("id", id);
+    if (error) throw error;
+    return true;
+  }
+};
 function ProfitCalc() {
   const [v, setV] = useState({ sell: 280000, panel: 70000, inverter: 35000, battery: 0, mount: 18000, wiring: 12000, labor: 35000, transport: 5000, other: 8000, tax: 0 });
   const [templates, setTemplates] = useState([]);
@@ -2659,6 +2767,24 @@ function App() {
   const [boqOpen, setBoqOpen] = useState(false);
   const [leads, setLeads] = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
+  // เช็คว่า user ที่ login อยู่นี้เป็น "พนักงาน" (sub-account) ของบัญชีอื่นหรือไม่ ใช้แสดง banner แจ้งให้รู้ตัว
+  const [teamRole, setTeamRole] = useState(null); // null = ยังไม่รู้/เป็นเจ้าของเอง, { ownerEmail } = เป็นพนักงานของ owner คนนั้น
+  useEffect(() => {
+    if (!sb || !currentUser) return;
+    const myEmail = (window.__userEmail || "").trim().toLowerCase();
+    if (!myEmail) return;
+    sb.from("team_members").select("id, owner_id, member_user_id").eq("email", myEmail).eq("status", "active").maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setTeamRole({ ownerId: data.owner_id });
+          // บันทึกว่าพนักงานคนนี้เคย login แล้ว (เฉพาะครั้งแรกที่ยังไม่เคยมีค่า) ใช้แสดงผลในหน้าจัดการทีมเท่านั้น
+          if (!data.member_user_id) {
+            sb.from("team_members").update({ member_user_id: currentUser.id }).eq("id", data.id).then(() => {}).catch(() => {});
+          }
+        }
+      })
+      .catch(() => {});
+  }, [currentUser]);
   const loadLeads = async () => {
     if (!sb) return;
     setLeadsLoading(true);
@@ -2840,7 +2966,7 @@ function App() {
     } catch (e) { console.error("Export cashflow sheet failed:", e); }
     XLSX.writeFile(wb, "รายงาน_SolarCRM_" + todayISO() + ".xlsx");
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: () => {
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
   }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)" }[view])), ["dash", "leads", "pipe", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "pipe" && /* @__PURE__ */ React.createElement(Pipeline, { rows, onOpen: openProfile, onStatus: setStatus }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
