@@ -418,7 +418,23 @@ tailwind.config = {
       border-color:#cbd5e1!important}
     #boqPrintArea table,#boqPrintArea th,#boqPrintArea td{background:#fff!important;border-color:#cbd5e1!important}
     #boqPrintArea .text-brand-700,#boqPrintArea .text-brand-600{color:#1e293b!important;-webkit-text-fill-color:#1e293b!important;font-weight:700}
+    /* ---- สีสันของหัวเอกสาร (โลโก้ ชื่อเอกสาร แถบไฮไลต์) ได้รับการยกเว้นจากกฎบังคับสีดำ-ขาวด้านบน ---- */
+    #boqPrintArea .text-doc-accent{color:var(--doc-accent-color)!important;-webkit-text-fill-color:var(--doc-accent-color)!important}
+    #boqPrintArea .doc-accent-bar{background:var(--doc-accent-grad)!important}
+    #boqPrintArea .doc-accent-soft{background:var(--doc-accent-soft-bg)!important}
+    #boqPrintArea .doc-accent-ring{border-color:var(--doc-accent-color)!important}
+    #boqPrintArea .doc-corner-ribbon{background:var(--doc-accent-grad)!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+    #boqPrintArea .doc-grandtotal-box{background:var(--doc-accent-soft-bg)!important;border-radius:8px;padding:6px 12px;border-top:none!important}
+    #boqPrintArea .doc-checkbox{color:var(--doc-accent-color)!important;-webkit-text-fill-color:var(--doc-accent-color)!important;font-weight:700}
+    #boqPrintArea img{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
+  /* ตัวแปรสีหัวเอกสารพิมพ์ — โทนน้ำเงิน-ม่วงของ SolarCRM ใช้ทั้งจอและกระดาษ */
+  :root{ --doc-accent-color:#4f46e5; --doc-accent-grad:linear-gradient(90deg,#4f46e5,#a855f7); --doc-accent-soft-bg:#eef2ff; }
+  .text-doc-accent{color:var(--doc-accent-color)}
+  .doc-accent-bar{background:var(--doc-accent-grad)}
+  .doc-accent-soft{background:var(--doc-accent-soft-bg)}
+  .doc-accent-ring{border-color:var(--doc-accent-color)}
+  .doc-corner-ribbon{position:absolute;top:0;right:0;width:64px;height:64px;background:var(--doc-accent-grad);clip-path:polygon(100% 0,0 0,100% 100%);display:flex;align-items:flex-start;justify-content:flex-end;padding:6px 8px 0 0;font-size:11px;font-weight:800;color:#fff}
 /* ===================== PREMIUM LOGIN ===================== */
 .lgn{position:fixed;inset:0;overflow:hidden;background:#070b16;display:flex;align-items:center;justify-content:center;padding:24px;perspective:1200px}
 .lgn-aurora,.lgn-aurora i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;pointer-events:none}
@@ -665,6 +681,12 @@ const db = {
 
 /* ===================== BOQ: คลังรายการ + ใบเสนอราคาแยกรายการ ===================== */
 const BOQ_CATEGORIES = ["แผงโซลาร์", "อินเวอร์เตอร์", "โครงสร้าง/ติดตั้ง", "ไฟฟ้า/สายไฟ", "ค่าแรง", "เอกสาร/ดำเนินการ", "อื่นๆ"];
+const PAYMENT_METHODS = [
+  { key: "cash", label: "เงินสด / Cash" },
+  { key: "cheque", label: "เช็ค / Cheque" },
+  { key: "transfer", label: "โอนเงิน / Transfer" },
+  { key: "credit", label: "บัตรเครดิต / Credit Card" }
+];
 const BOQ_CATALOG_SEED = [
   { id: "c1", name: "แผงโซลาร์เซลล์ Mono 550W", category: "แผงโซลาร์", unit: "แผง", price: 4500 },
   { id: "c2", name: "อินเวอร์เตอร์ On-Grid 5kW", category: "อินเวอร์เตอร์", unit: "ชุด", price: 35000 },
@@ -879,7 +901,7 @@ function thaiBahtText(amount) {
 /* ===================== ข้อมูลบริษัท (สำหรับหัวกระดาษใบเสนอราคา) ===================== */
 const COMPANY_INFO_KEY = "solar_company_info_v1";
 function getCompanyInfo() {
-  let info = { name: "", address: "", phone: "", email: "", taxId: "" };
+  let info = { name: "", address: "", phone: "", email: "", taxId: "", stampImage: "" };
   try { const raw = localStorage.getItem(COMPANY_INFO_KEY); if (raw) info = JSON.parse(raw); } catch (e) {}
   // ถ้ายังไม่ได้ตั้งชื่อบริษัทใน BOQ ให้ดึงจากช่อง "ชื่อบริษัท/ร้าน" ในโปรไฟล์มาใช้อัตโนมัติ
   if (!info.name) {
@@ -1289,10 +1311,19 @@ function Stat({ label, value, sub, icon, tone }) {
   return /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-500" }, label), /* @__PURE__ */ React.createElement("span", { className: `w-9 h-9 rounded-xl flex items-center justify-center ${tones[tone]}` }, /* @__PURE__ */ React.createElement(Icon, { d: icon, cls: "w-5 h-5" }))), /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900 mt-2" }, value), sub && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, sub));
 }
 function CompanySettingsModal({ open, onClose }) {
-  const [info, setInfo] = useState({ name: "", address: "", phone: "", email: "", taxId: "" });
+  const [info, setInfo] = useState({ name: "", address: "", phone: "", email: "", taxId: "", stampImage: "" });
+  const stampRef = useRef(null);
   useEffect(() => { if (open) setInfo(getCompanyInfo()); }, [open]);
   if (!open) return null;
   const set = (k, v) => setInfo((p) => ({ ...p, [k]: v }));
+  const onPickStamp = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert("ไฟล์ใหญ่เกิน 2MB กรุณาเลือกรูปเล็กลง"); return; }
+    const reader = new FileReader();
+    reader.onload = () => set("stampImage", reader.result);
+    reader.readAsDataURL(file);
+  };
   const save = () => {
     saveCompanyInfo(info);
     // sync ชื่อบริษัทกลับไปที่โปรไฟล์ (key เดียวกับช่อง "ชื่อบริษัท/ร้าน") ให้เป็นชื่อเดียวกันทั้งระบบ
@@ -1311,7 +1342,16 @@ function CompanySettingsModal({ open, onClose }) {
       h(Field, { label: "ที่อยู่บริษัท", full: true }, h("textarea", { className: inputCls + " h-16 resize-none", value: info.address, onChange: (e) => set("address", e.target.value), placeholder: "เลขที่ / หมู่ / ตำบล / อำเภอ / จังหวัด / รหัสไปรษณีย์" })),
       h(Field, { label: "เลขประจำตัวผู้เสียภาษี 13 หลัก (จำเป็นสำหรับออกใบกำกับภาษี)", full: true }, h("input", { className: inputCls, value: info.taxId, maxLength: 13, onChange: (e) => set("taxId", e.target.value.replace(/[^0-9]/g, "")), placeholder: "เช่น 0105561000000" })),
       h(Field, { label: "เบอร์โทร" }, h("input", { className: inputCls, value: info.phone, onChange: (e) => set("phone", e.target.value) })),
-      h(Field, { label: "อีเมล" }, h("input", { className: inputCls, value: info.email, onChange: (e) => set("email", e.target.value) }))
+      h(Field, { label: "อีเมล" }, h("input", { className: inputCls, value: info.email, onChange: (e) => set("email", e.target.value) })),
+      h(Field, { label: "ตราประทับบริษัท (ไม่บังคับ — ใช้บนใบกำกับภาษี/ใบเสร็จ)", full: true },
+        h("input", { ref: stampRef, type: "file", accept: "image/*", className: "hidden", onChange: onPickStamp }),
+        !info.stampImage ? h("button", { type: "button", onClick: () => stampRef.current.click(), className: "w-full py-5 rounded-xl border-2 border-dashed border-ink-200 text-ink-400 text-sm hover:border-brand-300 hover:text-brand-500 flex flex-col items-center gap-1.5" },
+          h(Icon, { d: I.copy, cls: "w-6 h-6" }), "แตะเพื่ออัปโหลดรูปตราประทับ (พื้นหลังโปร่งใสจะสวยที่สุด)"
+        ) : h("div", { className: "relative inline-block" },
+          h("img", { src: info.stampImage, className: "h-24 object-contain rounded-lg ring-1 ring-ink-200 bg-ink-50 p-2" }),
+          h("button", { type: "button", onClick: () => set("stampImage", ""), className: "absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white shadow ring-1 ring-ink-200 flex items-center justify-center text-ink-500 hover:text-red-600 text-xs" }, "✕")
+        )
+      )
     ),
     h("div", { className: "flex justify-end gap-3 px-6 py-4 border-t border-ink-100" },
       h("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "ปิด"),
@@ -1392,6 +1432,10 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
   const [docNo, setDocNo] = useState("");
   const [customerTaxId, setCustomerTaxId] = useState("");
   const [customerTaxAddress, setCustomerTaxAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cash"); // cash | cheque | transfer | credit
+  const [paymentBank, setPaymentBank] = useState("");
+  const [paymentRef, setPaymentRef] = useState("");
+  const [paymentTime, setPaymentTime] = useState("");
   const [companyInfo, setCompanyInfoState] = useState(getCompanyInfo());
   const [companySettingsOpen, setCompanySettingsOpen] = useState(false);
   const refreshSavedQuotes = () => {
@@ -1404,6 +1448,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
       boqDb.listQuotes().then((all) => setQuoteNo(genQuoteNo(all.length)));
       setItems([]); setDiscount(0); setVatEnabled(false); setNote(""); setProjectTitle(""); setValidDays(15); setEditingQuoteId(null); setQuoteDate(todayISO());
       setDocType("quote"); setCustomerTaxId(""); setCustomerTaxAddress("");
+      setPaymentMethod("cash"); setPaymentBank(""); setPaymentRef(""); setPaymentTime("");
       refreshSavedQuotes();
     }
   }, [open, customer]);
@@ -1520,30 +1565,44 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     ),
     h("div", { className: "px-6 py-5 max-h-[75vh] overflow-y-auto grid md:grid-cols-[1fr_280px] gap-5" },
       h("div", { id: "boqPrintArea" },
-        h("div", { className: "print-only mb-5" },
-          h("div", { className: "flex items-start justify-between border-b-2 border-ink-800 pb-3 mb-3" },
-            h("div", null,
-              h("div", { className: "text-lg font-bold text-ink-900" }, companyInfo.name || "(ยังไม่ได้ตั้งชื่อบริษัท)"),
-              companyInfo.address && h("div", { className: "text-xs text-ink-600 mt-0.5 max-w-xs" }, companyInfo.address),
-              companyInfo.taxId && h("div", { className: "text-xs text-ink-600 mt-0.5" }, "เลขประจำตัวผู้เสียภาษี ", companyInfo.taxId),
-              (companyInfo.phone || companyInfo.email) && h("div", { className: "text-xs text-ink-600 mt-0.5" }, companyInfo.phone ? `โทร. ${companyInfo.phone}` : "", companyInfo.phone && companyInfo.email ? "  ·  " : "", companyInfo.email || "")
+        h("div", { className: "print-only mb-4 relative overflow-hidden" },
+          docType !== "quote" && h("div", { className: "doc-corner-ribbon" }, "🧾"),
+          h("div", { className: "flex items-start justify-between gap-4 pb-3 mb-3" },
+            h("div", { className: "min-w-0 flex items-start gap-3" },
+              h("img", { src: "https://img2.pic.in.th/fe62e09e-51fe-49ec-abcf-e53fb6c0edb1656c7fc15474af67.png", className: "w-11 h-11 rounded-xl object-cover shrink-0 ring-1 ring-ink-100" }),
+              h("div", { className: "min-w-0" },
+                h("div", { className: "text-[10px] font-bold tracking-wide" }, h("span", { className: "text-doc-accent" }, "SOLAR"), h("span", { className: "text-ink-700" }, "CRM")),
+                h("div", { className: "text-base font-bold text-ink-900 leading-tight mt-0.5" }, companyInfo.name || "(ยังไม่ได้ตั้งชื่อบริษัท)"),
+                companyInfo.address && h("div", { className: "text-[11px] text-ink-500 mt-0.5 max-w-xs leading-snug" }, companyInfo.address),
+                companyInfo.taxId && h("div", { className: "text-[11px] text-ink-500 mt-0.5" }, "เลขประจำตัวผู้เสียภาษี ", h("b", { className: "text-ink-700" }, companyInfo.taxId)),
+                (companyInfo.phone || companyInfo.email) && h("div", { className: "text-[11px] text-ink-500 mt-0.5" }, companyInfo.phone ? `โทร. ${companyInfo.phone}` : "", companyInfo.phone && companyInfo.email ? "  ·  " : "", companyInfo.email || "")
+              )
             ),
-            h("div", { className: "text-right" },
-              h("div", { className: "text-base font-bold text-ink-900" },
-                docType === "quote" ? "QUOTATION / ใบเสนอราคา" :
-                docType === "receipt" ? "RECEIPT / ใบเสร็จรับเงิน" :
-                "TAX INVOICE / ใบกำกับภาษี / ใบเสร็จรับเงิน"
+            h("div", { className: "text-right shrink-0" },
+              h("div", { className: "text-lg font-extrabold text-doc-accent" },
+                docType === "quote" ? "ใบเสนอราคา" :
+                docType === "receipt" ? "ใบเสร็จรับเงิน" :
+                "ใบกำกับภาษี / ใบเสร็จรับเงิน"
               ),
-              docType === "tax_invoice" && h("div", { className: "text-[10px] text-ink-500 font-semibold" }, "ต้นฉบับ / ORIGINAL"),
-              h("div", { className: "text-xs text-ink-500 mt-1" }, "เลขที่ / NO. ", h("b", { className: "text-ink-800" }, docNo)),
-              h("div", { className: "text-xs text-ink-500" }, "วันที่ / DATE ", h("b", { className: "text-ink-800" }, thDate(quoteDate)))
+              h("div", { className: "text-[10px] text-ink-400 font-medium -mt-0.5" },
+                docType === "quote" ? "QUOTATION" : docType === "receipt" ? "RECEIPT" : "TAX INVOICE"
+              ),
+              docType === "tax_invoice" && h("div", { className: "inline-block mt-1.5 px-2.5 py-0.5 rounded ring-1 doc-accent-ring text-[10px] text-doc-accent font-bold" }, "ต้นฉบับ / ORIGINAL"),
+              h("div", { className: "rounded-lg doc-accent-soft mt-2 px-3 py-1.5 inline-block text-left" },
+                h("div", { className: "text-[11px] text-ink-600" }, "เลขที่ / NO. ", h("b", { className: "text-ink-900" }, docNo)),
+                h("div", { className: "text-[11px] text-ink-600" }, "วันที่ / DATE ", h("b", { className: "text-ink-900" }, thDate(quoteDate)))
+              )
             )
           ),
-          customer && h("div", { className: "text-sm text-ink-700" },
-            h("span", { className: "font-semibold" }, "ลูกค้า: "), customer.name,
-            customer.phone ? `  ·  โทร ${customer.phone}` : "",
-            customer.address ? h("div", { className: "text-xs text-ink-500 mt-0.5" }, "ที่อยู่: ", customer.address) : null,
-            (docType === "tax_invoice" || docType === "receipt") && customerTaxId ? h("div", { className: "text-xs text-ink-500 mt-0.5" }, "เลขประจำตัวผู้เสียภาษี: ", customerTaxId) : null
+          h("div", { className: "h-[3px] rounded-full doc-accent-bar mb-3" }),
+          customer && h("div", { className: `text-sm text-ink-700 ${docType !== "quote" ? "rounded-lg ring-1 ring-ink-200 p-2.5" : ""}` },
+            h("div", { className: "flex items-baseline gap-1.5 flex-wrap" },
+              h("span", { className: "font-semibold shrink-0 text-doc-accent" }, docType === "quote" ? "ลูกค้า:" : "ชื่อลูกค้า / Customer Name:"),
+              h("span", null, customer.name),
+              customer.phone ? h("span", { className: "text-xs text-ink-500" }, " · โทร ", customer.phone) : null
+            ),
+            customer.address ? h("div", { className: "text-xs text-ink-500 mt-0.5" }, "ที่อยู่ / Address: ", customer.address) : null,
+            (docType === "tax_invoice" || docType === "receipt") ? h("div", { className: "text-xs text-ink-700 mt-1 font-semibold" }, "เลขประจำตัวผู้เสียภาษี / Tax ID: ", customerTaxId ? h("b", null, customerTaxId) : h("span", { className: "text-ink-400 font-normal" }, "—")) : null
           ),
           docType !== "quote" && h("div", { className: "no-print mt-3 grid sm:grid-cols-2 gap-2" },
             h(Field, { label: docType === "tax_invoice" ? "เลขผู้เสียภาษีลูกค้า 13 หลัก (ถ้ามี)" : "เลขผู้เสียภาษีลูกค้า (ถ้ามี)" },
@@ -1586,7 +1645,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
             "คิด VAT 7%", docType === "tax_invoice" && h("span", { className: "text-[11px] text-amber-600" }, "(บังคับเปิดสำหรับใบกำกับภาษี)")
           ),
           vatEnabled && h("div", { className: "flex items-center gap-3 text-ink-600" }, h("span", null, "VAT 7%"), h("span", { className: "num font-semibold w-28 text-right" }, baht(vat))),
-          h("div", { className: "flex items-center gap-3 text-base font-bold text-ink-900 border-t border-ink-100 pt-2 mt-1" }, h("span", null, "รวมทั้งสิ้น"), h("span", { className: "num w-28 text-right text-brand-700" }, baht(grandTotal)))
+          h("div", { className: "flex items-center gap-3 text-base font-bold text-ink-900 border-t border-ink-100 pt-2 mt-1 doc-grandtotal-box" }, h("span", null, "รวมทั้งสิ้น"), h("span", { className: "num w-28 text-right text-doc-accent" }, baht(grandTotal)))
         ),
         h("div", { className: "print-only text-xs text-ink-600 text-right -mt-1 mb-3" }, "( ", thaiBahtText(grandTotal), " )"),
         h("div", { className: "no-print flex items-center gap-2 mt-2" },
@@ -1595,20 +1654,62 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
         ),
         h(Field, { label: "หมายเหตุในใบเสนอราคา", full: true }, h("textarea", { className: inputCls + " h-16 resize-none mt-1 no-print", value: note, onChange: (e) => setNote(e.target.value), placeholder: "เช่น ราคานี้ไม่รวมค่าขนส่งนอกเขต / ยืนราคา 30 วัน" })),
         note && h("p", { className: "print-only text-xs text-ink-500 mt-1" }, "หมายเหตุ: ", note),
-        h("div", { className: "print-only grid grid-cols-2 gap-10 mt-12 pt-6 border-t border-ink-200" },
-          h("div", null,
-            h("div", { className: "text-sm font-bold text-ink-800 mb-8" }, docType === "quote" ? "FOR PURCHASE CONFIRMATION" : "FOR PAYMENT CONFIRMATION"),
-            h("div", { className: "border-t border-ink-400 pt-2 text-xs text-ink-600 max-w-[200px]" }, docType === "quote" ? "ผู้อนุมัติสั่งซื้อ (ลูกค้า)" : "ผู้จ่ายเงิน (ลูกค้า)"),
-            h("div", { className: "text-[11px] text-ink-400 mt-1" }, "วันที่ ..... / ..... / .....")
+        docType !== "quote" && h("div", { className: "rounded-xl ring-1 ring-ink-200 p-3 mt-4" },
+          h("div", { className: "text-xs font-semibold text-doc-accent mb-2" }, "การชำระเงินจะสมบูรณ์เมื่อบริษัทได้รับเงินเรียบร้อยแล้ว / Payment Method"),
+          h("div", { className: "flex flex-wrap gap-x-5 gap-y-2 mb-2" },
+            PAYMENT_METHODS.map((pm) => h("label", { key: pm.key, className: "flex items-center gap-1.5 text-sm text-ink-700 cursor-pointer no-print" },
+              h("input", { type: "radio", name: "paymentMethod", checked: paymentMethod === pm.key, onChange: () => setPaymentMethod(pm.key) }),
+              pm.label
+            )),
+            h("div", { className: "print-only flex flex-wrap gap-x-5 gap-y-1" },
+              PAYMENT_METHODS.map((pm) => h("span", { key: pm.key, className: "inline-flex items-center gap-1.5 text-sm text-ink-700" },
+                h("span", { className: "doc-checkbox" }, paymentMethod === pm.key ? "☑" : "☐"),
+                pm.label
+              ))
+            )
           ),
-          h("div", { className: "text-right" },
-            h("div", { className: "text-sm font-bold text-ink-800" }, companyInfo.name || ""),
-            companyInfo.email && h("div", { className: "text-xs text-brand-600 mt-1" }, companyInfo.email),
-            docType === "quote"
-              ? h("div", { className: "text-xs text-ink-500 mt-3" }, "( กำหนดยืนราคา ", validDays, " วัน )")
-              : h("div", { className: "border-t border-ink-400 pt-2 mt-8 text-xs text-ink-600 max-w-[200px] ml-auto text-center" }, "ผู้รับเงิน")
+          h("div", { className: "no-print grid sm:grid-cols-3 gap-2" },
+            h(Field, { label: "ธนาคาร / Bank" }, h("input", { className: inputCls, value: paymentBank, onChange: (e) => setPaymentBank(e.target.value), placeholder: "เช่น กสิกรไทย" })),
+            h(Field, { label: paymentMethod === "cheque" ? "เลขที่เช็ค" : "เลขที่อ้างอิง/รายการโอน" }, h("input", { className: inputCls, value: paymentRef, onChange: (e) => setPaymentRef(e.target.value), placeholder: "ถ้ามี" })),
+            h(Field, { label: "เวลา / Time" }, h("input", { type: "time", className: inputCls, value: paymentTime, onChange: (e) => setPaymentTime(e.target.value) }))
+          ),
+          h("div", { className: "print-only flex flex-wrap gap-x-6 gap-y-1 text-xs text-ink-600 mt-1" },
+            (paymentMethod === "cheque" || paymentMethod === "transfer") && h("span", null, "ธนาคาร: ", h("b", null, paymentBank || "............................")),
+            (paymentMethod === "cheque" || paymentMethod === "transfer") && h("span", null, paymentMethod === "cheque" ? "เลขที่เช็ค: " : "เลขที่อ้างอิง: ", h("b", null, paymentRef || "............................")),
+            h("span", null, "วันที่: ", h("b", null, thDate(quoteDate))),
+            paymentTime && h("span", null, "เวลา: ", h("b", null, paymentTime, " น."))
           )
-        )
+        ),
+        docType === "quote"
+          ? h("div", { className: "print-only grid grid-cols-2 gap-10 mt-12 pt-6 border-t border-ink-200" },
+              h("div", null,
+                h("div", { className: "text-sm font-bold text-ink-800 mb-8" }, "FOR PURCHASE CONFIRMATION"),
+                h("div", { className: "border-t border-ink-400 pt-2 text-xs text-ink-600 max-w-[200px]" }, "ผู้อนุมัติสั่งซื้อ (ลูกค้า)"),
+                h("div", { className: "text-[11px] text-ink-400 mt-1" }, "วันที่ ..... / ..... / .....")
+              ),
+              h("div", { className: "text-right" },
+                h("div", { className: "text-sm font-bold text-ink-800" }, companyInfo.name || ""),
+                companyInfo.email && h("div", { className: "text-xs text-brand-600 mt-1" }, companyInfo.email),
+                h("div", { className: "text-xs text-ink-500 mt-3" }, "( กำหนดยืนราคา ", validDays, " วัน )")
+              )
+            )
+          : h("div", { className: "print-only grid grid-cols-3 gap-4 mt-10 pt-6 border-t border-ink-200 items-end" },
+              h("div", { className: "text-center" },
+                h("div", { className: "h-12" }),
+                h("div", { className: "border-t border-ink-400 pt-2 text-xs text-ink-600" }, "ผู้รับสินค้า / Receiver Signature"),
+                h("div", { className: "text-[11px] text-ink-400 mt-1" }, "วันที่ / Date ..... / ..... / .....")
+              ),
+              h("div", { className: "text-center" },
+                companyInfo.stampImage
+                  ? h("img", { src: companyInfo.stampImage, className: "h-20 object-contain mx-auto opacity-90" })
+                  : h("div", { className: "h-20 flex items-center justify-center text-[10px] text-ink-300" }, "ตราประทับบริษัท (ถ้ามี)")
+              ),
+              h("div", { className: "text-center" },
+                h("div", { className: "h-12" }),
+                h("div", { className: "border-t border-ink-400 pt-2 text-xs text-ink-600" }, "ผู้มีอำนาจลงนาม / Authorized Signature"),
+                h("div", { className: "text-[11px] text-ink-400 mt-1" }, "วันที่ / Date ", thDate(quoteDate))
+              )
+            )
       ),
       h("div", { className: "no-print" },
         savedQuotes.length > 0 && h("div", { className: "mb-4" },
