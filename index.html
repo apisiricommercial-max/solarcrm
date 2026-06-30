@@ -480,9 +480,15 @@ tailwind.config = {
 
 .lgn-title{font-size:30px;font-weight:800;margin:18px 0 0;letter-spacing:.3px;background:linear-gradient(90deg,#fff,#86efac,#93c5fd,#fff);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;transform:translateZ(40px);animation:lgnText 4s linear infinite}
 @keyframes lgnText{to{background-position:200% center}}
-.lgn-sub{color:rgba(255,255,255,.5);font-size:13px;margin-top:6px;transform:translateZ(30px)}
-.lgn-desc{color:rgba(255,255,255,.72);font-size:13px;font-weight:400;margin:16px 0 20px;line-height:1.75;transform:translateZ(20px)}
-.lgn-desc-accent{color:#6ee7b7;font-weight:700;padding:0 2px}
+.lgn-sub{color:rgba(255,255,255,.65);font-size:13.5px;margin-top:6px;transform:translateZ(30px)}
+.lgn-desc{color:rgba(255,255,255,.85);font-size:14.5px;font-weight:600;margin:20px 0 0;line-height:1.6;transform:translateZ(20px)}
+
+.lgn-highlight{position:relative;margin:14px 0 20px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(96,165,250,.1));border:1px solid rgba(52,211,153,.25);transform:translateZ(22px);overflow:hidden}
+.lgn-highlight::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(255,255,255,.08),transparent);animation:lgnHighlightSheen 3.5s ease-in-out infinite}
+@keyframes lgnHighlightSheen{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.lgn-highlight p{position:relative;color:rgba(255,255,255,.92);font-size:12.5px;line-height:1.6;margin:0}
+.lgn-highlight p b{color:#6ee7b7;font-weight:700}
+.lgn-highlight-sub{margin-top:6px!important;color:rgba(255,255,255,.55)!important;font-size:11.5px!important;font-style:italic}
 
 .lgn-chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:22px;transform:translateZ(25px)}
 .lgn-chip{font-size:11px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);padding:5px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
@@ -678,36 +684,6 @@ const db = {
     try { const raw = safeGet(); return raw ? JSON.parse(raw) : null; }
     catch (e) { return null; }
   },
-  // บันทึก/แก้ไขลูกค้า "รายเดียว" แบบ targeted upsert — ปลอดภัยกว่า saveAll(rows ทั้งก้อน)
-  // เพราะไม่มีการลบแถวอื่นที่ไม่อยู่ใน state ปัจจุบันทิ้ง (กันปัญหา stale state ทับข้อมูลที่เพิ่งถูกแก้จากที่อื่น เช่น SQL Editor หรือแท็บอื่น)
-  // throw error ออกมาตรงๆ แทนการกลืนไว้เงียบๆ เพื่อให้ผู้เรียกรู้ตัวและแจ้งผู้ใช้ได้ถูกต้อง
-  async upsertOne(row) {
-    if (sb) {
-      const uid = currentUser ? currentUser.id : null;
-      // คอลัมน์ installDate, nextFollowup, lastContact เป็น type "date" ของ Postgres ซึ่งไม่ยอมรับสตริงว่าง ("")
-      // และคอลัมน์ value เป็น "numeric" ก็เช่นกัน ต้องแปลงเป็น null/0 ก่อนส่งเข้า Supabase เสมอ
-      const cleaned = {
-        ...row,
-        installDate: row.installDate ? row.installDate : null,
-        nextFollowup: row.nextFollowup ? row.nextFollowup : null,
-        lastContact: row.lastContact ? row.lastContact : null,
-        value: row.value === "" || row.value === undefined ? 0 : Number(row.value) || 0
-      };
-      const stamped = uid ? { ...cleaned, user_id: uid } : cleaned;
-      const { data, error } = await sb.from("customers").upsert(stamped).select();
-      if (error) { console.error("Supabase upsertOne failed:", error); throw error; }
-      return data;
-    }
-    return null;
-  },
-  async deleteOne(id) {
-    if (sb) {
-      const { error } = await sb.from("customers").delete().eq("id", id);
-      if (error) { console.error("Supabase deleteOne failed:", error); throw error; }
-      return true;
-    }
-    return false;
-  },
   async saveAll(rows) {
     if (sb) {
       try {
@@ -872,36 +848,6 @@ const cashflowDb = {
     }
     try { const raw = localStorage.getItem(CASHFLOW_KEY); return raw ? JSON.parse(raw) : []; }
     catch (e) { return []; }
-  },
-  // บันทึก/แก้ไขรายการเดียวแบบ targeted — ปลอดภัยกว่า saveAll ที่ sync ทั้งก้อนแล้วลบของที่ไม่ตรงกับ stale state ทิ้ง
-  async upsertOne(row) {
-    if (sb) {
-      try {
-        const uid = currentUser ? currentUser.id : null;
-        const stamped = uid ? { ...row, user_id: uid } : row;
-        const { error } = await sb.from("cashflow").upsert(stamped);
-        if (error) throw error;
-        return true;
-      } catch (e) {
-        console.error("Cashflow upsertOne failed:", e);
-        try { localStorage.setItem(CASHFLOW_KEY, JSON.stringify([row])); } catch (e2) {}
-        return false;
-      }
-    }
-    return false;
-  },
-  async deleteOne(id) {
-    if (sb) {
-      try {
-        const { error } = await sb.from("cashflow").delete().eq("id", id);
-        if (error) throw error;
-        return true;
-      } catch (e) {
-        console.error("Cashflow deleteOne failed:", e);
-        return false;
-      }
-    }
-    return false;
   },
   async saveAll(rows) {
     if (sb) {
@@ -2378,19 +2324,21 @@ function CashFlow() {
     cashflowDb.list().then((d) => { setRows(d); setLoaded(true); });
   }, []);
   const [syncError, setSyncError] = useState(false);
+  useEffect(() => {
+    if (!loaded) return;
+    cashflowDb.saveAll(rows).then(() => setSyncError(false)).catch(() => setSyncError(true));
+  }, [rows, loaded]);
   const save = (entry) => {
     setRows((p) => {
       const i = p.findIndex((x) => x.id === entry.id);
       if (i >= 0) { const n = [...p]; n[i] = entry; return n; }
       return [entry, ...p];
     });
-    cashflowDb.upsertOne(entry).then((ok) => setSyncError(!ok));
     setFormOpen(false); setEditing(null);
   };
   const remove = (id) => {
     if (!confirm("ลบรายการนี้?")) return;
     setRows((p) => p.filter((x) => x.id !== id));
-    cashflowDb.deleteOne(id);
   };
   const monthRows = rows.filter((r) => (r.date || "").slice(0, 7) === filterMonth);
   const visible = filterType === "all" ? monthRows : monthRows.filter((r) => r.type === filterType);
@@ -2667,28 +2615,18 @@ function App() {
   const acceptLead = async (l) => {
     const cust = leadToCustomer(l);
     setRows((p) => [cust, ...p]);
-    try {
-      await db.upsertOne(cust);
-      if (sb) { try { await sb.from("leads").update({ status: "accepted", acceptedBy: (window.__userEmail || "") }).eq("id", l.id); } catch (e) {} }
-      setLeads((p) => p.map((x) => x.id === l.id ? { ...x, status: "accepted", acceptedBy: (window.__userEmail || "") } : x));
-      alert("เพิ่มเข้าลูกค้าแล้ว! ดูได้ที่เมนู ลูกค้า");
-    } catch (e) {
-      alert("บันทึกลูกค้าลงฐานข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
-    }
+    if (sb) { try { await sb.from("leads").update({ status: "accepted", acceptedBy: (window.__userEmail || "") }).eq("id", l.id); } catch (e) {} }
+    setLeads((p) => p.map((x) => x.id === l.id ? { ...x, status: "accepted", acceptedBy: (window.__userEmail || "") } : x));
+    alert("เพิ่มเข้าลูกค้าแล้ว! ดูได้ที่เมนู ลูกค้า");
   };
   const acceptMany = async (chosen) => {
     if (!chosen || chosen.length === 0) return;
     const custs = chosen.map(leadToCustomer);
     setRows((p) => [...custs, ...p]);
-    try {
-      await Promise.all(custs.map((c) => db.upsertOne(c)));
-      const ids = chosen.map((l) => l.id);
-      if (sb) { try { await sb.from("leads").update({ status: "accepted", acceptedBy: (window.__userEmail || "") }).in("id", ids); } catch (e) {} }
-      setLeads((p) => p.map((x) => ids.includes(x.id) ? { ...x, status: "accepted", acceptedBy: (window.__userEmail || "") } : x));
-      alert(`เพิ่ม ${chosen.length} รายเข้าลูกค้าแล้ว! ดูได้ที่เมนู ลูกค้า`);
-    } catch (e) {
-      alert("บันทึกลูกค้าลงฐานข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
-    }
+    const ids = chosen.map((l) => l.id);
+    if (sb) { try { await sb.from("leads").update({ status: "accepted", acceptedBy: (window.__userEmail || "") }).in("id", ids); } catch (e) {} }
+    setLeads((p) => p.map((x) => ids.includes(x.id) ? { ...x, status: "accepted", acceptedBy: (window.__userEmail || "") } : x));
+    alert(`เพิ่ม ${chosen.length} รายเข้าลูกค้าแล้ว! ดูได้ที่เมนู ลูกค้า`);
   };
   useEffect(() => {
     (async () => {
@@ -2709,53 +2647,36 @@ function App() {
       setLoaded(true);
     })();
   }, []);
+  useEffect(() => {
+    if (loaded) db.saveAll(rows);
+  }, [rows, loaded]);
   const upsert = (c) => {
-    const isNew = !c.id || !rows.some((x) => x.id === c.id);
-    const saved = isNew ? { ...c, id: c.id || uid(), createdAt: c.createdAt || todayISO(), timeline: c.timeline || [] } : c;
     setRows((p) => {
-      const i = p.findIndex((x) => x.id === saved.id);
-      if (i >= 0) { const n = [...p]; n[i] = saved; return n; }
-      return [saved, ...p];
-    });
-    db.upsertOne(saved).catch((e) => {
-      alert("บันทึกลูกค้าลงฐานข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ") + "\n\nข้อมูลจะหายไปถ้ารีเฟรชหน้า กรุณาแจ้งผู้ดูแลระบบ");
+      const i = p.findIndex((x) => x.id === c.id);
+      if (i >= 0) {
+        const n = [...p];
+        n[i] = c;
+        return n;
+      }
+      return [{ ...c, id: uid(), createdAt: todayISO(), timeline: c.timeline || [] }, ...p];
     });
   };
   const remove = (c) => {
     if (confirm(`\u0E25\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32 "${c.name}" ?`)) {
       setRows((p) => p.filter((x) => x.id !== c.id));
       setProfile(null);
-      db.deleteOne(c.id).catch((e) => alert("ลบลูกค้าไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")));
     }
   };
-  const onDbSaveFail = (e) => alert("บันทึกข้อมูลลงฐานข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ") + "\n\nข้อมูลจะหายไปถ้ารีเฟรชหน้า กรุณาแจ้งผู้ดูแลระบบ");
   const setStatus = (id, status) => setRows((p) => p.map((x) => {
     if (x.id !== id) return x;
     // บันทึกวันที่ปิดงานอัตโนมัติ ครั้งแรกที่เข้าสถานะ "ปิดการขาย" หรือ "อยู่ในประกัน"
     // (ถ้าเคยบันทึกไว้แล้วจะไม่ทับวันที่เดิม กันยอดเดือนเพี้ยนตอนแก้สถานะไปมา)
     const needWonAt = (status === "won" || status === "warranty") && !x.wonAt;
-    const next = needWonAt ? { ...x, status, wonAt: todayISO() } : { ...x, status };
-    db.upsertOne(next).catch(onDbSaveFail);
-    return next;
+    return needWonAt ? { ...x, status, wonAt: todayISO() } : { ...x, status };
   }));
-  const updateCustomerValue = (id, value) => setRows((p) => p.map((x) => {
-    if (x.id !== id) return x;
-    const next = { ...x, value: Math.round(value) };
-    db.upsertOne(next).catch(onDbSaveFail);
-    return next;
-  }));
-  const updateCustomerWarranty = (id, installDate, warrantyYears) => setRows((p) => p.map((x) => {
-    if (x.id !== id) return x;
-    const next = { ...x, installDate, warrantyYears };
-    db.upsertOne(next).catch(onDbSaveFail);
-    return next;
-  }));
-  const addLog = (id, log) => setRows((p) => p.map((x) => {
-    if (x.id !== id) return x;
-    const next = { ...x, timeline: [...x.timeline || [], log], lastContact: log.date };
-    db.upsertOne(next).catch(onDbSaveFail);
-    return next;
-  }));
+  const updateCustomerValue = (id, value) => setRows((p) => p.map((x) => x.id === id ? { ...x, value: Math.round(value) } : x));
+  const updateCustomerWarranty = (id, installDate, warrantyYears) => setRows((p) => p.map((x) => x.id === id ? { ...x, installDate, warrantyYears } : x));
+  const addLog = (id, log) => setRows((p) => p.map((x) => x.id === id ? { ...x, timeline: [...x.timeline || [], log], lastContact: log.date } : x));
   const openForm = (c) => {
     setEditing(c || null);
     setFormOpen(true);
@@ -2900,10 +2821,10 @@ function LoginScreen() {
       React.createElement("div", { className: "lgn-logo" }, React.createElement("img", { src: "https://img2.pic.in.th/fe62e09e-51fe-49ec-abcf-e53fb6c0edb1656c7fc15474af67.png", alt: "SolarCRM", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" } })),
       React.createElement("h1", { className: "lgn-title" }, "SolarCRM"),
       React.createElement("p", { className: "lgn-sub" }, "\u0E23\u0E30\u0E1A\u0E1A\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"),
-      React.createElement("p", { className: "lgn-desc" },
-        "SolarCRM ไม่ได้แค่เก็บลูกค้า แต่ช่วยกันลูกค้าหลุดจากมือคุณ — แจ้งเตือนทันทีเมื่อมี",
-        React.createElement("span", { className: "lgn-desc-accent" }, "ดีลเสี่ยงหลุด"),
-        "หรือถึงคิวต้องติดตาม"
+      React.createElement("p", { className: "lgn-desc" }, "SolarCRM ไม่ได้แค่เก็บลูกค้า แต่ช่วยกันลูกค้าหลุดจากมือคุณ"),
+      React.createElement("div", { className: "lgn-highlight" },
+        React.createElement("p", null, "ระบบจะแจ้งเตือนว่า", React.createElement("b", null, "ใครต้องตาม"), " ", React.createElement("b", null, "ใครยังไม่โทร"), " และ", React.createElement("b", null, "ดีลไหนกำลังเสี่ยงหลุด")),
+        React.createElement("p", { className: "lgn-highlight-sub" }, "เพราะในงานโซลาร์ ลูกค้า 1 ราย อาจมีมูลค่าหลักแสน")
       ),
       React.createElement("div", { className: "lgn-chips" },
         React.createElement("span", { className: "lgn-chip" }, "\u26A1 \u0E40\u0E23\u0E35\u0E22\u0E25\u0E44\u0E17\u0E21\u0E4C"),
