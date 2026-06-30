@@ -262,6 +262,11 @@ tailwind.config = {
   tbody.divide-y tr:hover::before{transform:scaleY(1)}
   thead.bg-ink-50{background:linear-gradient(180deg,#f8fafc,#f1f5f9)!important;border-bottom:1px solid #e8edf3}
 
+  /* ---- ตารางสรุปบัญชีรายเดือน: ใช้ CSS Grid แทน <table> เพื่อรับประกัน column alignment เป๊ะ 100%
+     ทุกแถว (หัวตารางและข้อมูล) ใช้ grid-template-columns ค่าเดียวกันผ่าน class นี้ จึงตรงกันเสมอไม่ว่ากรณีใด ---- */
+  .grid-cashflow-row{display:grid;grid-template-columns:18% 20.5% 20.5% 20.5% 20.5%}
+  div.divide-y > .grid-cashflow-row:nth-child(even){background:rgba(15,23,42,.012)}
+
   /* ---- คอลัมน์ Kanban: ไล่สีนวลตามสถานะ + เส้นบนสีคอลัมน์ ---- */
   div[class*="w-72"][class*="rounded-2xl"][class*="bg-ink-100"]{background:linear-gradient(180deg,rgba(15,23,42,.045),rgba(15,23,42,.02))!important;border:1px solid rgba(15,23,42,.04);position:relative}
   div[class*="w-72"][class*="rounded-2xl"][class*="bg-ink-100"]::before{content:"";position:absolute;top:0;left:14px;right:14px;height:3px;border-radius:0 0 4px 4px;background:rgb(var(--b400))}
@@ -2267,41 +2272,37 @@ function CashFlow() {
         h("h4", { className: "text-sm font-semibold text-ink-700" }, "สรุปแยกรายเดือน (6 เดือนล่าสุด)")
       ),
       h("div", null,
-        h("table", { className: "w-full text-sm", style: { tableLayout: "fixed" } },
-          h("thead", { className: "bg-ink-50 text-ink-500 text-xs" },
-            h("tr", null,
-              h("th", { className: "text-left py-2.5 px-1.5 sm:px-4 font-medium", style: { width: "18%" } }, "เดือน"),
-              h("th", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium", style: { width: "20.5%" } }, "รายรับ"),
-              h("th", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium", style: { width: "20.5%" } }, "รายจ่าย"),
-              h("th", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium", style: { width: "20.5%" } }, h("span", { className: "hidden sm:inline" }, "🧾 "), "VAT"),
-              h("th", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium", style: { width: "20.5%" } }, "คงเหลือ")
-            )
-          ),
-          h("tbody", { className: "divide-y divide-ink-50" },
-            monthlyData.slice().reverse().map((m) => {
-              const mNet = m.income - m.expense;
-              const isCurrent = m.month === filterMonth;
-              return h("tr", { key: m.month, onClick: () => setFilterMonth(m.month), className: `cursor-pointer hover:bg-brand-50/40 ${isCurrent ? "bg-brand-50/70" : ""}` },
-                h("td", { className: "py-2.5 px-1.5 sm:px-4 font-medium text-ink-700 truncate" }, monthLabel(m.month), isCurrent && h("span", { className: "ml-1.5 text-[10px] text-brand-600 font-bold hidden sm:inline" }, "● กำลังดู")),
-                h("td", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-emerald-600 font-medium" }, baht(m.income)),
-                h("td", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-red-600 font-medium" }, baht(m.expense)),
-                h("td", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-amber-700 font-medium" }, m.vat > 0 ? baht(m.vat) : "—"),
-                h("td", { className: `py-2.5 px-1.5 sm:px-4 text-right num font-bold ${mNet >= 0 ? "text-ink-800" : "text-red-600"}` }, baht(mNet))
-              );
-            }),
-            (() => {
-              const sumIncome = monthlyData.reduce((s, m) => s + m.income, 0);
-              const sumExpense = monthlyData.reduce((s, m) => s + m.expense, 0);
-              const sumVat = monthlyData.reduce((s, m) => s + m.vat, 0);
-              return h("tr", { className: "bg-ink-50/70 font-bold" },
-                h("td", { className: "py-2.5 px-1.5 sm:px-4 text-ink-800" }, "รวม 6 เดือน"),
-                h("td", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-emerald-700" }, baht(sumIncome)),
-                h("td", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-red-700" }, baht(sumExpense)),
-                h("td", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-amber-800" }, baht(sumVat)),
-                h("td", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-ink-900" }, baht(sumIncome - sumExpense))
-              );
-            })()
-          )
+        h("div", { className: "grid-cashflow-row bg-ink-50 text-ink-500 text-xs" },
+          h("div", { className: "text-left py-2.5 px-1.5 sm:px-4 font-medium" }, "เดือน"),
+          h("div", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium" }, "รายรับ"),
+          h("div", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium" }, "รายจ่าย"),
+          h("div", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium" }, h("span", { className: "hidden sm:inline" }, "🧾 "), "VAT"),
+          h("div", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium" }, "คงเหลือ")
+        ),
+        h("div", { className: "divide-y divide-ink-50" },
+          monthlyData.slice().reverse().map((m) => {
+            const mNet = m.income - m.expense;
+            const isCurrent = m.month === filterMonth;
+            return h("div", { key: m.month, onClick: () => setFilterMonth(m.month), className: `grid-cashflow-row cursor-pointer hover:bg-brand-50/40 ${isCurrent ? "bg-brand-50/70" : ""}` },
+              h("div", { className: "py-2.5 px-1.5 sm:px-4 font-medium text-ink-700 truncate flex items-center" }, monthLabel(m.month), isCurrent && h("span", { className: "ml-1.5 text-[10px] text-brand-600 font-bold hidden sm:inline" }, "● กำลังดู")),
+              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-emerald-600 font-medium flex items-center justify-end" }, baht(m.income)),
+              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-red-600 font-medium flex items-center justify-end" }, baht(m.expense)),
+              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-amber-700 font-medium flex items-center justify-end" }, m.vat > 0 ? baht(m.vat) : "—"),
+              h("div", { className: `py-2.5 px-1.5 sm:px-4 text-right num font-bold flex items-center justify-end ${mNet >= 0 ? "text-ink-800" : "text-red-600"}` }, baht(mNet))
+            );
+          }),
+          (() => {
+            const sumIncome = monthlyData.reduce((s, m) => s + m.income, 0);
+            const sumExpense = monthlyData.reduce((s, m) => s + m.expense, 0);
+            const sumVat = monthlyData.reduce((s, m) => s + m.vat, 0);
+            return h("div", { className: "grid-cashflow-row bg-ink-50/70 font-bold" },
+              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-ink-800 flex items-center" }, "รวม 6 เดือน"),
+              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-emerald-700 flex items-center justify-end" }, baht(sumIncome)),
+              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-red-700 flex items-center justify-end" }, baht(sumExpense)),
+              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-amber-800 flex items-center justify-end" }, baht(sumVat)),
+              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-ink-900 flex items-center justify-end" }, baht(sumIncome - sumExpense))
+            );
+          })()
         )
       ),
       h("p", { className: "text-[11px] text-ink-400 px-4 py-2.5 border-t border-ink-50" }, "💡 แตะที่แถวเดือนไหน เพื่อดูรายละเอียดรายการของเดือนนั้นด้านล่าง")
