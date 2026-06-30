@@ -1549,6 +1549,74 @@ function Dashboard({ rows, onOpen }) {
     return /* @__PURE__ */ React.createElement("button", { key: c.id, onClick: () => onOpen(c), className: "text-left rounded-xl ring-1 ring-ink-100 hover:ring-brand-300 hover:shadow p-3 transition" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "font-medium text-ink-800 text-sm truncate" }, c.name), du < 0 ? /* @__PURE__ */ React.createElement(Badge, { cls: "bg-red-50 text-red-600 ring-red-200" }, "\u0E40\u0E25\u0E22 ", Math.abs(du), " \u0E27\u0E31\u0E19") : /* @__PURE__ */ React.createElement(Badge, { cls: "bg-amber-50 text-amber-600 ring-amber-200" }, "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49")), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, c.province, " \xB7 ", c.systemSize, " \xB7 ", baht(c.value)));
   }))));
 }
+function CustomerGroup({ title, icon, tone, rows, defaultOpen, onOpen, onEdit, onDelete }) {
+  const [open, setOpen] = useState(defaultOpen);
+  if (rows.length === 0) return null;
+  const toneCls = { blue: "bg-blue-50 text-blue-700 ring-blue-100", emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100", slate: "bg-ink-100 text-ink-500 ring-ink-200" }[tone];
+  return h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden" },
+    h("button", { onClick: () => setOpen((v) => !v), className: "w-full flex items-center justify-between px-4 py-3.5 hover:bg-ink-50/60 transition" },
+      h("div", { className: "flex items-center gap-2.5" },
+        h("span", { className: `text-base` }, icon),
+        h("span", { className: "font-semibold text-ink-800 text-sm" }, title),
+        h("span", { className: `text-xs font-bold px-2 py-0.5 rounded-full ring-1 ${toneCls}` }, rows.length, " ราย")
+      ),
+      h(Icon, { d: open ? I.chevronUp : I.chevronDown, cls: "w-4 h-4 text-ink-400" })
+    ),
+    open && h(React.Fragment, null,
+      h("div", { className: "hidden md:block border-t border-ink-100" },
+        h("table", { className: "w-full text-sm" },
+          h("thead", { className: "bg-ink-50 text-ink-500 text-xs uppercase tracking-wide" },
+            h("tr", null,
+              h("th", { className: "text-left font-medium px-4 py-2.5" }, "ลูกค้า"),
+              h("th", { className: "text-left font-medium px-4 py-2.5" }, "จังหวัด"),
+              h("th", { className: "text-left font-medium px-4 py-2.5" }, "ระบบ"),
+              h("th", { className: "text-left font-medium px-4 py-2.5" }, "มูลค่า"),
+              h("th", { className: "text-left font-medium px-4 py-2.5" }, "ระดับ"),
+              h("th", { className: "text-left font-medium px-4 py-2.5" }, "ติดตาม"),
+              h("th", { className: "px-4 py-2.5" })
+            )
+          ),
+          h("tbody", { className: "divide-y divide-ink-50" },
+            rows.map((c) => {
+              const du = daysUntil(c.nextFollowup);
+              return h("tr", { key: c.id, className: "hover:bg-brand-50/40 transition cursor-pointer", onClick: () => onOpen(c) },
+                h("td", { className: "px-4 py-3" }, h("div", { className: "font-medium text-ink-800" }, c.name), h("div", { className: "text-xs text-ink-400" }, c.phone || "—", " · ", c.type)),
+                h("td", { className: "px-4 py-3 text-ink-600" }, c.province || "—"),
+                h("td", { className: "px-4 py-3 text-ink-600" }, c.systemSize),
+                h("td", { className: "px-4 py-3 num font-semibold text-ink-800" }, baht(c.value)),
+                h("td", { className: "px-4 py-3" }, h(HeatBadge, { h: c.heat })),
+                h("td", { className: "px-4 py-3" }, c.nextFollowup ? h("span", { className: `text-xs font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, du < 0 ? `เลย ${Math.abs(du)} วัน` : du === 0 ? "วันนี้" : thDate(c.nextFollowup)) : h("span", { className: "text-xs text-ink-300" }, "—")),
+                h("td", { className: "px-4 py-3", onClick: (e) => e.stopPropagation() },
+                  h("div", { className: "flex gap-1" },
+                    h("button", { onClick: () => onEdit(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-brand-600" }, h(Icon, { d: I.edit, cls: "w-4 h-4" })),
+                    h("button", { onClick: () => onDelete(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" }, h(Icon, { d: I.trash, cls: "w-4 h-4" }))
+                  )
+                )
+              );
+            })
+          )
+        )
+      ),
+      h("div", { className: "md:hidden divide-y divide-ink-50" },
+        rows.map((c) => {
+          const du = daysUntil(c.nextFollowup);
+          return h("div", { key: c.id, className: "p-4", onClick: () => onOpen(c) },
+            h("div", { className: "flex items-start justify-between" },
+              h("div", { className: "min-w-0" }, h("div", { className: "font-semibold text-ink-800 truncate" }, c.name), h("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province || "—", " · ", c.phone || "—")),
+              h("span", { className: "num font-bold text-emerald-600 shrink-0 ml-2" }, baht(c.value))
+            ),
+            h("div", { className: "flex flex-wrap items-center gap-2 mt-2" }, h(HeatBadge, { h: c.heat }), h(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.systemSize)),
+            c.nextFollowup && h("div", { className: `text-xs mt-2 font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, "ติดตาม: ", du < 0 ? `เลย ${Math.abs(du)} วัน` : du === 0 ? "วันนี้" : thDate(c.nextFollowup)),
+            h("div", { className: "flex gap-2 mt-3 pt-3 border-t border-ink-50", onClick: (e) => e.stopPropagation() },
+              h("button", { onClick: () => onEdit(c), className: "flex-1 py-1.5 rounded-lg bg-ink-100 text-ink-600 text-xs font-medium" }, "แก้ไข"),
+              h("button", { onClick: () => onDelete(c), className: "flex-1 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium" }, "ลบ")
+            )
+          );
+        })
+      )
+    )
+  );
+}
 function Customers({ rows, onOpen, onEdit, onDelete, onAdd }) {
   const [q, setQ] = useState("");
   const [showFilter, setShowFilter] = useState(false);
@@ -1579,13 +1647,40 @@ function Customers({ rows, onOpen, onEdit, onDelete, onAdd }) {
   }, [rows, q, flt]);
   const activeFilters = Object.values(flt).filter(Boolean).length;
   const selCls = "rounded-lg border border-ink-200 bg-white px-2.5 py-2 text-sm text-ink-700 outline-none focus:border-brand-500";
-  return /* @__PURE__ */ React.createElement("div", { className: "space-y-4 fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-col sm:flex-row gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "relative flex-1" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" }, /* @__PURE__ */ React.createElement(Icon, { d: I.search, cls: "w-5 h-5" })), /* @__PURE__ */ React.createElement("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: "\u0E04\u0E49\u0E19\u0E2B\u0E32\u0E0A\u0E37\u0E48\u0E2D \u0E40\u0E1A\u0E2D\u0E23\u0E4C Line \u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14 \u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38\u2026", className: "w-full pl-10 pr-3 py-2.5 rounded-xl border border-ink-200 bg-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" })), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowFilter((v) => !v), className: `px-4 py-2.5 rounded-xl text-sm font-medium ring-1 inline-flex items-center gap-2 ${activeFilters ? "bg-brand-50 text-brand-700 ring-brand-200" : "bg-white text-ink-600 ring-ink-200"}` }, /* @__PURE__ */ React.createElement(Icon, { d: I.filter, cls: "w-4 h-4" }), "\u0E15\u0E31\u0E27\u0E01\u0E23\u0E2D\u0E07", activeFilters > 0 && /* @__PURE__ */ React.createElement("span", { className: "num bg-brand-600 text-white rounded-full px-1.5 text-xs" }, activeFilters)), /* @__PURE__ */ React.createElement("button", { onClick: onAdd, className: "px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm inline-flex items-center gap-2 justify-center" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")), showFilter && /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 fade-in" }, /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.province, onChange: (e) => setF("province", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14"), provincesPresent.map((p) => /* @__PURE__ */ React.createElement("option", { key: p }, p))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.status, onChange: (e) => setF("status", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E2A\u0E16\u0E32\u0E19\u0E30"), STATUSES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.key, value: s.key }, s.label))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.heat, onChange: (e) => setF("heat", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E23\u0E30\u0E14\u0E31\u0E1A"), HEATS.map((h) => /* @__PURE__ */ React.createElement("option", { key: h.key, value: h.key }, h.label))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.type, onChange: (e) => setF("type", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17"), TYPES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.source, onChange: (e) => setF("source", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32"), SOURCES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s }, s))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.tag, onChange: (e) => setF("tag", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E17\u0E38\u0E01 Tag"), TAGS.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t))), /* @__PURE__ */ React.createElement("select", { className: selCls, value: flt.due, onChange: (e) => setF("due", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0E01\u0E32\u0E23\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21: \u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14"), /* @__PURE__ */ React.createElement("option", { value: "overdue" }, "\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14"), /* @__PURE__ */ React.createElement("option", { value: "today" }, "\u0E04\u0E23\u0E1A\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49"), /* @__PURE__ */ React.createElement("option", { value: "week" }, "\u0E20\u0E32\u0E22\u0E43\u0E19 7 \u0E27\u0E31\u0E19")), /* @__PURE__ */ React.createElement("input", { type: "number", className: selCls, value: flt.minValue, onChange: (e) => setF("minValue", e.target.value), placeholder: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E02\u0E31\u0E49\u0E19\u0E15\u0E48\u0E33 (\u0E3F)" }), activeFilters > 0 && /* @__PURE__ */ React.createElement("button", { onClick: () => setFlt({ province: "", status: "", heat: "", type: "", source: "", tag: "", minValue: "", due: "" }), className: "col-span-2 sm:col-span-4 text-sm text-brand-600 font-medium hover:underline text-left" }, "\u0E25\u0E49\u0E32\u0E07\u0E15\u0E31\u0E27\u0E01\u0E23\u0E2D\u0E07\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14")), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-500" }, "\u0E1E\u0E1A ", /* @__PURE__ */ React.createElement("b", { className: "text-ink-800 num" }, filtered.length), " \u0E23\u0E32\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "hidden md:block bg-white rounded-2xl ring-1 ring-ink-100 overflow-hidden shadow-sm" }, /* @__PURE__ */ React.createElement("table", { className: "w-full text-sm" }, /* @__PURE__ */ React.createElement("thead", { className: "bg-ink-50 text-ink-500 text-xs uppercase tracking-wide" }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E23\u0E30\u0E1A\u0E1A"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E23\u0E30\u0E14\u0E31\u0E1A"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("th", { className: "text-left font-medium px-4 py-3" }, "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21"), /* @__PURE__ */ React.createElement("th", { className: "px-4 py-3" }))), /* @__PURE__ */ React.createElement("tbody", { className: "divide-y divide-ink-50" }, filtered.map((c) => {
-    const du = daysUntil(c.nextFollowup);
-    return /* @__PURE__ */ React.createElement("tr", { key: c.id, className: "hover:bg-brand-50/40 transition cursor-pointer", onClick: () => onOpen(c) }, /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-medium text-ink-800" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400" }, c.phone || "\u2014", " \xB7 ", c.type)), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3 text-ink-600" }, c.province || "\u2014"), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3 text-ink-600" }, c.systemSize), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3 num font-semibold text-ink-800" }, baht(c.value)), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat })), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status })), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3" }, c.nextFollowup ? /* @__PURE__ */ React.createElement("span", { className: `text-xs font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup)) : /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-300" }, "\u2014")), /* @__PURE__ */ React.createElement("td", { className: "px-4 py-3", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-1" }, /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-brand-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit, cls: "w-4 h-4" })), /* @__PURE__ */ React.createElement("button", { onClick: () => onDelete(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.trash, cls: "w-4 h-4" })))));
-  }))), filtered.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "py-14 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-4xl mb-2" }, "\u{1F50D}"), /* @__PURE__ */ React.createElement("div", { className: "text-ink-400 text-sm" }, "\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E40\u0E07\u0E37\u0E48\u0E2D\u0E19\u0E44\u0E02 \u2014 \u0E25\u0E2D\u0E07\u0E25\u0E49\u0E32\u0E07\u0E15\u0E31\u0E27\u0E01\u0E23\u0E2D\u0E07\u0E2B\u0E23\u0E37\u0E2D\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48")), /* @__PURE__ */ React.createElement("div", { className: "md:hidden space-y-3" }, filtered.map((c) => {
-    const du = daysUntil(c.nextFollowup);
-    return /* @__PURE__ */ React.createElement("div", { key: c.id, className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm", onClick: () => onOpen(c) }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province || "\u2014", " \xB7 ", c.phone || "\u2014")), /* @__PURE__ */ React.createElement("span", { className: "num font-bold text-emerald-600 shrink-0 ml-2" }, baht(c.value))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-2" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.systemSize)), c.nextFollowup && /* @__PURE__ */ React.createElement("div", { className: `text-xs mt-2 font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21: ", du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup)), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-3 pt-3 border-t border-ink-50", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "flex-1 py-1.5 rounded-lg bg-ink-100 text-ink-600 text-xs font-medium" }, "\u0E41\u0E01\u0E49\u0E44\u0E02"), /* @__PURE__ */ React.createElement("button", { onClick: () => onDelete(c), className: "flex-1 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium" }, "\u0E25\u0E1A")));
-  }), filtered.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "py-14 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-4xl mb-2" }, "\u{1F50D}"), /* @__PURE__ */ React.createElement("div", { className: "text-ink-400 text-sm" }, "\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E40\u0E07\u0E37\u0E48\u0E2D\u0E19\u0E44\u0E02")))));
+  // แบ่งกลุ่มลูกค้าตามสถานะ ให้แยกชัดเจนว่าใครยังต้องตามต่อ / ใครปิดเคสแล้ว / ใครไม่สนใจ
+  const activeRows = filtered.filter((r) => ["new", "talking", "sent", "waiting"].includes(r.status));
+  const closedRows = filtered.filter((r) => ["won", "warranty"].includes(r.status));
+  const lostRows = filtered.filter((r) => r.status === "lost");
+  const groupingHidden = !!(flt.status); // ถ้ากรองสถานะเฉพาะเจาะจงอยู่แล้ว ไม่ต้องแบ่งกลุ่มซ้อน แสดงตารางเดียวพอ
+  return h("div", { className: "space-y-4 fade-in" },
+    h("div", { className: "flex flex-col sm:flex-row gap-3" },
+      h("div", { className: "relative flex-1" },
+        h("span", { className: "absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" }, h(Icon, { d: I.search, cls: "w-5 h-5" })),
+        h("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: "ค้นหาชื่อ เบอร์ Line จังหวัด หมายเหตุ…", className: "w-full pl-10 pr-3 py-2.5 rounded-xl border border-ink-200 bg-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" })
+      ),
+      h("button", { onClick: () => setShowFilter((v) => !v), className: `px-4 py-2.5 rounded-xl text-sm font-medium ring-1 inline-flex items-center gap-2 ${activeFilters ? "bg-brand-50 text-brand-700 ring-brand-200" : "bg-white text-ink-600 ring-ink-200"}` }, h(Icon, { d: I.filter, cls: "w-4 h-4" }), "ตัวกรอง", activeFilters > 0 && h("span", { className: "num bg-brand-600 text-white rounded-full px-1.5 text-xs" }, activeFilters)),
+      h("button", { onClick: onAdd, className: "px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm inline-flex items-center gap-2 justify-center" }, h(Icon, { d: I.plus, cls: "w-4 h-4" }), "เพิ่มลูกค้า")
+    ),
+    showFilter && h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 fade-in" },
+      h("select", { className: selCls, value: flt.province, onChange: (e) => setF("province", e.target.value) }, h("option", { value: "" }, "ทุกจังหวัด"), provincesPresent.map((p) => h("option", { key: p }, p))),
+      h("select", { className: selCls, value: flt.status, onChange: (e) => setF("status", e.target.value) }, h("option", { value: "" }, "ทุกสถานะ"), STATUSES.map((s) => h("option", { key: s.key, value: s.key }, s.label))),
+      h("select", { className: selCls, value: flt.heat, onChange: (e) => setF("heat", e.target.value) }, h("option", { value: "" }, "ทุกระดับ"), HEATS.map((hh) => h("option", { key: hh.key, value: hh.key }, hh.label))),
+      h("select", { className: selCls, value: flt.type, onChange: (e) => setF("type", e.target.value) }, h("option", { value: "" }, "ทุกประเภท"), TYPES.map((t) => h("option", { key: t }, t))),
+      h("select", { className: selCls, value: flt.source, onChange: (e) => setF("source", e.target.value) }, h("option", { value: "" }, "ทุกแหล่งที่มา"), SOURCES.map((s) => h("option", { key: s }, s))),
+      h("select", { className: selCls, value: flt.tag, onChange: (e) => setF("tag", e.target.value) }, h("option", { value: "" }, "ทุก Tag"), TAGS.map((t) => h("option", { key: t }, t))),
+      h("select", { className: selCls, value: flt.due, onChange: (e) => setF("due", e.target.value) }, h("option", { value: "" }, "การติดตาม: ทั้งหมด"), h("option", { value: "overdue" }, "เลยกำหนด"), h("option", { value: "today" }, "ครบวันนี้"), h("option", { value: "week" }, "ภายใน 7 วัน")),
+      h("input", { type: "number", className: selCls, value: flt.minValue, onChange: (e) => setF("minValue", e.target.value), placeholder: "มูลค่าขั้นต่ำ (฿)" }),
+      activeFilters > 0 && h("button", { onClick: () => setFlt({ province: "", status: "", heat: "", type: "", source: "", tag: "", minValue: "", due: "" }), className: "col-span-2 sm:col-span-4 text-sm text-brand-600 font-medium hover:underline text-left" }, "ล้างตัวกรองทั้งหมด")
+    ),
+    h("div", { className: "text-sm text-ink-500" }, "พบ ", h("b", { className: "text-ink-800 num" }, filtered.length), " ราย"),
+    filtered.length === 0 ? h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 py-14 text-center" }, h("div", { className: "text-4xl mb-2" }, "🔍"), h("div", { className: "text-ink-400 text-sm" }, "ไม่พบลูกค้าตามเงื่อนไข — ลองล้างตัวกรองหรือเพิ่มลูกค้าใหม่")) :
+    groupingHidden ? h(CustomerGroup, { title: statusOf(flt.status).label, icon: "📋", tone: "blue", rows: filtered, defaultOpen: true, onOpen, onEdit, onDelete }) :
+    h(React.Fragment, null,
+      h(CustomerGroup, { title: "กำลังดำเนินการ", icon: "🔵", tone: "blue", rows: activeRows, defaultOpen: true, onOpen, onEdit, onDelete }),
+      h(CustomerGroup, { title: "ปิดเคสแล้ว", icon: "✅", tone: "emerald", rows: closedRows, defaultOpen: false, onOpen, onEdit, onDelete }),
+      h(CustomerGroup, { title: "ไม่สนใจ", icon: "⚪", tone: "slate", rows: lostRows, defaultOpen: false, onOpen, onEdit, onDelete })
+    )
+  );
 }
 function Pipeline({ rows, onOpen, onStatus }) {
   const cols = STATUSES.filter((s) => s.key !== "lost");
