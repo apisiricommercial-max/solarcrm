@@ -743,6 +743,15 @@ function boqQuoteGrandTotal(q) {
 const CASHFLOW_KEY = "solar_cashflow_v1";
 const CASHFLOW_INCOME_CATS = ["รับเงินมัดจำ", "รับเงินงวด", "รับเงินปิดงาน", "อื่นๆ (รายรับ)"];
 const CASHFLOW_EXPENSE_CATS = ["ค่าอุปกรณ์/วัสดุ", "ค่าแรงช่าง", "ค่าขนส่ง", "ค่าการตลาด/โฆษณา", "ค่าเช่า/สาธารณูปโภค", "เงินเดือนพนักงาน", "ค่าเดินทาง", "อื่นๆ (รายจ่าย)"];
+const CASHFLOW_CHART_COLORS = ["#6366f1", "#f43f5e", "#f59e0b", "#10b981", "#06b6d4", "#a855f7", "#ec4899", "#64748b", "#0ea5e9", "#22c55e"];
+function categoryBreakdown(rows, type) {
+  const filtered = rows.filter((r) => r.type === type);
+  const byCategory = {};
+  filtered.forEach((r) => { byCategory[r.category] = (byCategory[r.category] || 0) + (Number(r.amount) || 0); });
+  return Object.entries(byCategory)
+    .map(([label, value], i) => ({ label, value, color: CASHFLOW_CHART_COLORS[i % CASHFLOW_CHART_COLORS.length] }))
+    .sort((a, b) => b.value - a.value);
+}
 const cashflowDb = {
   async list() {
     if (sb) {
@@ -1733,6 +1742,35 @@ function ProfitCalc() {
           React.createElement("div", { className: "flex justify-between text-[11px] text-ink-400 mt-2" }, React.createElement("span", null, "\u25A0 \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 " + B(cost)), React.createElement("span", null, "\u25A0 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 " + B(net)))),
         React.createElement("div", { className: "text-xs text-ink-400 leading-relaxed" }, "* \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 = \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22 - \u0E15\u0E49\u0E19\u0E17\u0E38\u0E19\u0E23\u0E27\u0E21 \u00B7 \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 = \u0E01\u0E33\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19\u0E20\u0E32\u0E29\u0E35 - \u0E20\u0E32\u0E29\u0E35 \u00B7 \u0E21\u0E32\u0E23\u0E4C\u0E08\u0E34\u0E19 = \u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34 \u00F7 \u0E23\u0E32\u0E04\u0E32\u0E02\u0E32\u0E22"))));
 }
+function TrendChart({ data }) {
+  // data: [{ month, net }]  -> วาดกราฟเส้น+พื้นที่ใต้กราฟ ของกำไรสุทธิสะสมรายเดือน
+  const W = 600, H = 160, PAD = 10;
+  const vals = data.map((d) => d.net);
+  const min = Math.min(0, ...vals), max = Math.max(1, ...vals);
+  const range = max - min || 1;
+  const stepX = (W - PAD * 2) / Math.max(1, data.length - 1);
+  const yOf = (v) => H - PAD - ((v - min) / range) * (H - PAD * 2);
+  const points = data.map((d, i) => [PAD + i * stepX, yOf(d.net)]);
+  const linePath = points.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  const areaPath = linePath + ` L${points[points.length - 1][0].toFixed(1)},${(H - PAD).toFixed(1)} L${points[0][0].toFixed(1)},${(H - PAD).toFixed(1)} Z`;
+  const zeroY = yOf(0);
+  const positive = data[data.length - 1].net >= 0;
+  return h("div", { className: "w-full" },
+    h("svg", { viewBox: `0 0 ${W} ${H}`, className: "w-full h-40", preserveAspectRatio: "none" },
+      h("defs", null, h("linearGradient", { id: "trendFill", x1: "0", y1: "0", x2: "0", y2: "1" },
+        h("stop", { offset: "0%", stopColor: positive ? "#10b981" : "#ef4444", stopOpacity: "0.35" }),
+        h("stop", { offset: "100%", stopColor: positive ? "#10b981" : "#ef4444", stopOpacity: "0" })
+      )),
+      h("line", { x1: PAD, y1: zeroY, x2: W - PAD, y2: zeroY, stroke: "#e2e8f0", strokeWidth: "1", strokeDasharray: "3 3" }),
+      h("path", { d: areaPath, fill: "url(#trendFill)" }),
+      h("path", { d: linePath, fill: "none", stroke: positive ? "#10b981" : "#ef4444", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }),
+      points.map((p, i) => h("circle", { key: i, cx: p[0], cy: p[1], r: 3.5, fill: "#fff", stroke: positive ? "#10b981" : "#ef4444", strokeWidth: "2" }))
+    ),
+    h("div", { className: "flex justify-between mt-1" },
+      data.map((d, i) => h("span", { key: i, className: "text-[10px] text-ink-400" }, d.month))
+    )
+  );
+}
 function CashFlow() {
   const [rows, setRows] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -1775,6 +1813,16 @@ function CashFlow() {
   });
   const maxVal = Math.max(1, ...monthlyData.map((m) => Math.max(m.income, m.expense)));
   const monthLabel = (m) => { const [y, mo] = m.split("-"); return new Date(+y, +mo - 1, 1).toLocaleDateString("th-TH", { month: "short", year: "2-digit" }); };
+  // กราฟแนวโน้มกำไรสุทธิสะสม 6 เดือน
+  const trendData = monthlyData.map((m) => ({ month: monthLabel(m.month), net: m.income - m.expense }));
+  // สัดส่วนรายจ่าย/รายรับตามหมวดหมู่ (ใช้ข้อมูลทั้งหมด ไม่จำกัดแค่เดือนที่เลือก เพื่อภาพรวมที่มีความหมาย)
+  const expenseBreakdown = categoryBreakdown(rows, "expense");
+  const incomeBreakdown = categoryBreakdown(rows, "income");
+  const totalExpenseAll = expenseBreakdown.reduce((s, d) => s + d.value, 0);
+  const totalIncomeAll = incomeBreakdown.reduce((s, d) => s + d.value, 0);
+  // Top 5 รายจ่ายเดี่ยวสูงสุด (รายการเดี่ยว ไม่รวมหมวด)
+  const topExpenses = rows.filter((r) => r.type === "expense").slice().sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0)).slice(0, 5);
+  const maxTopExpense = Math.max(1, ...topExpenses.map((r) => Number(r.amount) || 0));
   return h("div", { className: "space-y-5 fade-in" },
     syncError && h("div", { className: "rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-xs text-amber-700 flex items-center gap-2" },
       "⚠️ บันทึกลง Supabase ไม่สำเร็จ (อาจยังไม่ได้รัน setup_cashflow.sql) — ข้อมูลเก็บไว้ในเครื่องนี้ชั่วคราว จะไม่ sync ไปเครื่องอื่นจนกว่าจะตั้งค่าฐานข้อมูล"
@@ -1815,6 +1863,46 @@ function CashFlow() {
       h("div", { className: "flex items-center gap-4 mt-3 text-[11px] text-ink-500" },
         h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" }), "รายรับ"),
         h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" }), "รายจ่าย")
+      )
+    ),
+    h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+      h("div", { className: "flex items-center justify-between mb-4" },
+        h("h4", { className: "text-sm font-semibold text-ink-700" }, "แนวโน้มกำไรสุทธิรายเดือน"),
+        h("span", { className: `text-xs font-semibold ${trendData[trendData.length - 1].net >= 0 ? "text-emerald-600" : "text-red-600"}` },
+          trendData[trendData.length - 1].net >= 0 ? "▲ " : "▼ ", baht(Math.abs(trendData[trendData.length - 1].net)))
+      ),
+      h(TrendChart, { data: trendData })
+    ),
+    h("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4" },
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "สัดส่วนรายจ่ายตามหมวดหมู่ (สะสม)"),
+        expenseBreakdown.length === 0
+          ? h("div", { className: "text-sm text-ink-400 text-center py-10" }, "ยังไม่มีข้อมูลรายจ่าย")
+          : h(Donut, { data: expenseBreakdown })
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "สัดส่วนรายรับตามหมวดหมู่ (สะสม)"),
+        incomeBreakdown.length === 0
+          ? h("div", { className: "text-sm text-ink-400 text-center py-10" }, "ยังไม่มีข้อมูลรายรับ")
+          : h(Donut, { data: incomeBreakdown })
+      )
+    ),
+    h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+      h("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "5 รายจ่ายสูงสุด (รายการเดี่ยว)"),
+      topExpenses.length === 0 ? h("div", { className: "text-sm text-ink-400 text-center py-6" }, "ยังไม่มีรายจ่าย") :
+      h("div", { className: "space-y-3" },
+        topExpenses.map((r, i) => h("div", { key: r.id, className: "flex items-center gap-3" },
+          h("span", { className: "text-xs text-ink-400 w-4 shrink-0" }, i + 1),
+          h("div", { className: "flex-1 min-w-0" },
+            h("div", { className: "flex items-center justify-between text-xs mb-1" },
+              h("span", { className: "text-ink-700 font-medium truncate" }, r.category, r.note ? " · " + r.note : ""),
+              h("span", { className: "num font-semibold text-red-600 shrink-0 ml-2" }, baht(r.amount))
+            ),
+            h("div", { className: "h-2 rounded-full bg-ink-100 overflow-hidden" },
+              h("div", { className: "h-full rounded-full bg-gradient-to-r from-red-500 to-rose-400", style: { width: Math.max(4, (Number(r.amount) || 0) / maxTopExpense * 100) + "%" } })
+            )
+          )
+        ))
       )
     ),
     h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden" },
