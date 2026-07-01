@@ -2715,25 +2715,29 @@ ${vals.useBat?`<div class="ig"><div class="il">แบตเตอรี่</div>
 
   return h("div", { className: "space-y-5 fade-in" },
     // Hero banner
-    h("div", { className: "rounded-2xl p-5 flex items-center gap-4 flex-wrap", style: { background: "linear-gradient(135deg,#064e3b 0%,#065f46 50%,#047857 100%)" } },
-      h("div", { className: "w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0 text-2xl" }, "☀️"),
-      h("div", { className: "flex-1 min-w-0" },
-        h("div", { className: "text-white font-bold text-base" }, "คำนวณผลตอบแทนโซลาร์เซลล์"),
-        h("div", { className: "text-emerald-200 text-xs mt-0.5" }, "ประมาณการคืนทุน · ประหยัดค่าไฟ · ROI 25 ปี")
-      ),
-      result && h("div", { className: "shrink-0 text-right" },
-        h("div", { className: "text-emerald-200 text-[10px] font-semibold tracking-wider uppercase" }, "คืนทุนภายใน"),
-        h("div", { className: "text-amber-300 font-black text-3xl leading-none mt-0.5" }, result.payback ? result.payback.toFixed(1) : ">25"),
-        h("div", { className: "text-white/60 text-xs" }, "ปี")
-      ),
-      result && h("button", {
-        onClick: exportPDF,
-        className: "shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white text-emerald-700 hover:bg-emerald-50 shadow-sm transition"
-      },
-        h("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
-          h("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" })
+    h("div", { className: "rounded-2xl p-5", style: { background: "linear-gradient(135deg,#064e3b 0%,#065f46 50%,#047857 100%)" } },
+      h("div", { className: "flex items-center gap-4 flex-wrap" },
+        h("div", { className: "w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0 text-2xl" }, "☀️"),
+        h("div", { className: "flex-1 min-w-0" },
+          h("div", { className: "text-white font-bold text-base" }, "คำนวณผลตอบแทนโซลาร์เซลล์"),
+          h("div", { className: "text-emerald-200 text-xs mt-0.5" }, "ประมาณการคืนทุน · ประหยัดค่าไฟ · ROI 25 ปี")
         ),
-        "Export PDF"
+        result && h("div", { className: "shrink-0 text-right" },
+          h("div", { className: "text-emerald-200 text-[10px] font-semibold tracking-wider uppercase" }, "คืนทุนภายใน"),
+          h("div", { className: "text-amber-300 font-black text-3xl leading-none mt-0.5" }, result.payback ? result.payback.toFixed(1) : ">25"),
+          h("div", { className: "text-white/60 text-xs" }, "ปี")
+        )
+      ),
+      result && h("div", { className: "mt-4 pt-4 border-t border-white/15 flex justify-end" },
+        h("button", {
+          onClick: exportPDF,
+          className: "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:brightness-110 shadow-sm"
+        },
+          h("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
+            h("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" })
+          ),
+          "Export รายงานนำเสนอลูกค้า (PDF)"
+        )
       )
     ),
 
