@@ -2189,11 +2189,21 @@ function FollowUp({ rows, onOpen }) {
     tomorrow: active.filter((r) => daysUntil(r.nextFollowup) === 1),
     upcoming: active.filter((r) => daysUntil(r.nextFollowup) > 1 && daysUntil(r.nextFollowup) <= 14).sort((a, b) => a.nextFollowup < b.nextFollowup ? -1 : 1)
   };
+  const totalActive = groups.overdue.length + groups.today.length + groups.tomorrow.length + groups.upcoming.length;
+  const noOneHasFollowup = rows.length > 0 && active.length === 0;
   const Section = ({ title, list, tone, icon }) => /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-3" }, /* @__PURE__ */ React.createElement("h4", { className: `text-sm font-semibold ${tone}` }, icon, " ", title), /* @__PURE__ */ React.createElement("span", { className: "num text-sm font-bold text-ink-700" }, list.length)), list.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 py-3 text-center" }, "\u2014 \u0E44\u0E21\u0E48\u0E21\u0E35 \u2014") : /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, list.map((c) => {
     const du = daysUntil(c.nextFollowup);
     return /* @__PURE__ */ React.createElement("button", { key: c.id, onClick: () => onOpen(c), className: "w-full text-left flex items-center justify-between gap-3 rounded-xl ring-1 ring-ink-100 hover:ring-brand-300 hover:bg-brand-50/30 p-3 transition" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-medium text-ink-800 text-sm truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400" }, c.phone || "\u2014", " \xB7 ", c.province, " \xB7 ", c.systemSize)), /* @__PURE__ */ React.createElement("div", { className: "text-right shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "num font-semibold text-emerald-600 text-sm" }, baht(c.value)), /* @__PURE__ */ React.createElement("div", { className: `text-xs ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-400"}` }, du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : du === 1 ? "\u0E1E\u0E23\u0E38\u0E48\u0E07\u0E19\u0E35\u0E49" : thDate(c.nextFollowup))));
   })));
-  return /* @__PURE__ */ React.createElement("div", { className: "space-y-4 fade-in" }, /* @__PURE__ */ React.createElement(Section, { title: "\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E41\u0E25\u0E49\u0E27", list: groups.overdue, tone: "text-red-600", icon: "\u26A0\uFE0F" }), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Section, { title: "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49", list: groups.today, tone: "text-amber-600", icon: "\u{1F4CC}" }), /* @__PURE__ */ React.createElement(Section, { title: "\u0E1E\u0E23\u0E38\u0E48\u0E07\u0E19\u0E35\u0E49", list: groups.tomorrow, tone: "text-brand-600", icon: "\u{1F5D3}\uFE0F" })), /* @__PURE__ */ React.createElement(Section, { title: "\u0E20\u0E32\u0E22\u0E43\u0E19 14 \u0E27\u0E31\u0E19\u0E02\u0E49\u0E32\u0E07\u0E2B\u0E19\u0E49\u0E32", list: groups.upcoming, tone: "text-ink-700", icon: "\u23F3" }));
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-4 fade-in" },
+    noOneHasFollowup && /* @__PURE__ */ React.createElement("div", { className: "bg-amber-50 ring-1 ring-amber-200 rounded-2xl p-4 flex items-start gap-3" },
+      /* @__PURE__ */ React.createElement("span", { className: "text-xl shrink-0" }, "\u{1F4A1}"),
+      /* @__PURE__ */ React.createElement("div", null,
+        /* @__PURE__ */ React.createElement("div", { className: "text-sm font-semibold text-amber-800" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32\u0E19\u0E35\u0E49 \u0E40\u0E1E\u0E23\u0E32\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E15\u0E31\u0E49\u0E07\u0E27\u0E31\u0E19\u0E19\u0E31\u0E14\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21"),
+        /* @__PURE__ */ React.createElement("div", { className: "text-xs text-amber-700 mt-1 leading-relaxed" }, "\u0E2B\u0E19\u0E49\u0E32\u0E19\u0E35\u0E49\u0E08\u0E30\u0E41\u0E2A\u0E14\u0E07\u0E40\u0E09\u0E1E\u0E32\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E31\u0E49\u0E07 \u201C\u0E27\u0E31\u0E19\u0E19\u0E31\u0E14\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B\u201D \u0E44\u0E27\u0E49\u0E40\u0E17\u0E48\u0E32\u0E19\u0E31\u0E49\u0E19 \u0E44\u0E1B\u0E17\u0E35\u0E48\u0E40\u0E21\u0E19\u0E39 \u0E25\u0E39\u0E01\u0E04\u0E49\u0E32 \u2192 \u0E40\u0E1B\u0E34\u0E14\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32 \u2192 \u0E41\u0E01\u0E49\u0E44\u0E02 \u2192 \u0E15\u0E31\u0E49\u0E07\u0E27\u0E31\u0E19\u0E19\u0E31\u0E14\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B \u0E23\u0E30\u0E1A\u0E1A\u0E08\u0E30\u0E40\u0E15\u0E37\u0E2D\u0E19\u0E43\u0E2B\u0E49\u0E2D\u0E31\u0E15\u0E42\u0E19\u0E21\u0E31\u0E15\u0E34\u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32\u0E19\u0E35\u0E49\u0E40\u0E2D\u0E07")
+      )
+    ),
+    /* @__PURE__ */ React.createElement(Section, { title: "\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E41\u0E25\u0E49\u0E27", list: groups.overdue, tone: "text-red-600", icon: "\u26A0\uFE0F" }), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Section, { title: "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49", list: groups.today, tone: "text-amber-600", icon: "\u{1F4CC}" }), /* @__PURE__ */ React.createElement(Section, { title: "\u0E1E\u0E23\u0E38\u0E48\u0E07\u0E19\u0E35\u0E49", list: groups.tomorrow, tone: "text-brand-600", icon: "\u{1F5D3}\uFE0F" })), /* @__PURE__ */ React.createElement(Section, { title: "\u0E20\u0E32\u0E22\u0E43\u0E19 14 \u0E27\u0E31\u0E19\u0E02\u0E49\u0E32\u0E07\u0E2B\u0E19\u0E49\u0E32", list: groups.upcoming, tone: "text-ink-700", icon: "\u23F3" }));
 }
 const NAV = [
   { key: "dash", label: "\u0E41\u0E14\u0E0A\u0E1A\u0E2D\u0E23\u0E4C\u0E14", icon: I.dash },
@@ -2705,7 +2715,7 @@ ${vals.useBat?`<div class="ig"><div class="il">แบตเตอรี่</div>
 
   return h("div", { className: "space-y-5 fade-in" },
     // Hero banner
-    h("div", { className: "rounded-2xl p-5 flex items-center gap-4", style: { background: "linear-gradient(135deg,#064e3b 0%,#065f46 50%,#047857 100%)" } },
+    h("div", { className: "rounded-2xl p-5 flex items-center gap-4 flex-wrap", style: { background: "linear-gradient(135deg,#064e3b 0%,#065f46 50%,#047857 100%)" } },
       h("div", { className: "w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0 text-2xl" }, "☀️"),
       h("div", { className: "flex-1 min-w-0" },
         h("div", { className: "text-white font-bold text-base" }, "คำนวณผลตอบแทนโซลาร์เซลล์"),
@@ -2715,6 +2725,15 @@ ${vals.useBat?`<div class="ig"><div class="il">แบตเตอรี่</div>
         h("div", { className: "text-emerald-200 text-[10px] font-semibold tracking-wider uppercase" }, "คืนทุนภายใน"),
         h("div", { className: "text-amber-300 font-black text-3xl leading-none mt-0.5" }, result.payback ? result.payback.toFixed(1) : ">25"),
         h("div", { className: "text-white/60 text-xs" }, "ปี")
+      ),
+      result && h("button", {
+        onClick: exportPDF,
+        className: "shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white text-emerald-700 hover:bg-emerald-50 shadow-sm transition"
+      },
+        h("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
+          h("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" })
+        ),
+        "Export PDF"
       )
     ),
 
@@ -2856,17 +2875,6 @@ ${vals.useBat?`<div class="ig"><div class="il">แบตเตอรี่</div>
       h(Chart25, { years: result.years }),
       h("p", { className: "text-[10px] text-ink-300 mt-3" },
         "* ระบบ On-Grid อายุการใช้งาน 25 ปี ค่าประมาณการอาจแตกต่างตามพื้นที่และผู้ติดตั้งจริง · กรอกผลผลิตไฟ/วันที่แม่นยำจากแอปอินเวอร์เตอร์จริงเพื่อความถูกต้องสูงสุด"
-      ),
-      h("div", { className: "mt-4 pt-4 border-t border-ink-100 flex justify-end" },
-        h("button", {
-          onClick: exportPDF,
-          className: "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:brightness-110 shadow-sm"
-        },
-          h("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
-            h("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" })
-          ),
-          "Export รายงานนำเสนอลูกค้า (PDF)"
-        )
       )
     )
   );
