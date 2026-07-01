@@ -2595,6 +2595,111 @@ function SolarROI() {
       h("span", { className: "text-xs font-semibold text-brand-600 w-12 text-right shrink-0" }, `${vals[key]}${unit}`)
     );
 
+  // ฟังก์ชันสร้าง SVG string สำหรับ PDF popup (ไม่ผ่าน React DOM)
+  const buildChartSVG = (years) => {
+    const W=700,H=220,PL=64,PR=20,PT=20,PB=36,IW=W-PL-PR,IH=H-PT-PB;
+    const all=years.flatMap(y=>[y.solar,y.bat].filter(v=>v!==null));
+    const minV=Math.min(...all,0),maxV=Math.max(...all,1),range=maxV-minV||1;
+    const xOf=i=>PL+(i/(years.length-1))*IW,yOf=v=>PT+IH-((v-minV)/range)*IH;
+    const zeroY=yOf(0),barW=Math.max(5,IW/years.length-4);
+    const ticks=Array.from({length:5},(_,i)=>minV+(range/4)*i);
+    let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:220px">`;
+    ticks.forEach(t=>{
+      const y=yOf(t).toFixed(1);
+      s+=`<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#e2e8f0" stroke-width="0.8" stroke-dasharray="3 3"/>`;
+      s+=`<text x="${PL-5}" y="${parseFloat(y)+4}" text-anchor="end" font-size="10" fill="#94a3b8" font-family="sans-serif">${t===0?"0":t>0?`+${Math.round(t/1000)}k`:`${Math.round(t/1000)}k`}</text>`;
+    });
+    s+=`<line x1="${PL}" y1="${zeroY.toFixed(1)}" x2="${W-PR}" y2="${zeroY.toFixed(1)}" stroke="#10b981" stroke-width="1.5" opacity="0.7"/>`;
+    years.forEach((yr,i)=>{
+      const x=(xOf(i)-barW/2).toFixed(1),isPos=yr.solar>=0;
+      const yTop=(isPos?yOf(yr.solar):zeroY).toFixed(1),bh=Math.max(Math.abs(yOf(yr.solar)-zeroY),1).toFixed(1);
+      s+=`<rect x="${x}" y="${yTop}" width="${barW}" height="${bh}" fill="${isPos?"#10b981":"#f87171"}" rx="2" opacity="0.85"/>`;
+    });
+    years.forEach((yr,i)=>{
+      if(i===0||(i+1)%5===0)s+=`<text x="${xOf(i).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="sans-serif">ปี${yr.y}</text>`;
+    });
+    const pbIdx=years.findIndex(y=>y.solar>=0);
+    if(pbIdx>0){const px=xOf(pbIdx).toFixed(1);s+=`<line x1="${px}" y1="${PT}" x2="${px}" y2="${H-PB}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.8"/><text x="${px}" y="${PT-4}" text-anchor="middle" font-size="10" fill="#f59e0b" font-weight="bold" font-family="sans-serif">คืนทุน</text>`;}
+    s+=`</svg>`;
+    return s;
+  };
+
+  const exportPDF = () => {
+    if (!result) { alert("กรุณากรอกข้อมูลให้ครบก่อนส่งออก"); return; }
+    const co = (() => { try { return JSON.parse(localStorage.getItem("solarcrm_company") || "{}"); } catch { return {}; } })();
+    const today = new Date().toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" });
+    const chartSVG = buildChartSVG(result.years);
+    const keyYears = new Set([1,5,10,15,20,25]);
+    if (result.payback) keyYears.add(Math.ceil(result.payback));
+    const tableRows = result.years.filter(y=>keyYears.has(y.y)).sort((a,b)=>a.y-b.y).map(y=>{
+      const isPB = result.payback && Math.ceil(result.payback)===y.y;
+      const bg = isPB?"#fffbeb":y.solar>=0?"#f0fdf4":"#fff1f2";
+      return `<tr style="background:${bg}"><td style="padding:8px 12px;font-weight:${isPB?700:400};color:${isPB?"#92400e":"#374151"}">${isPB?`⭐ ปีที่ ${y.y}`:`ปีที่ ${y.y}`}</td><td style="padding:8px 12px;text-align:right;font-weight:600;color:${y.solar>=0?"#059669":"#dc2626"}">${y.solar>=0?"+":""}${Math.round(y.solar).toLocaleString("th-TH")}</td><td style="padding:8px 12px;text-align:center;font-size:12px">${y.solar>=0?"✅ กำไรสะสม":"📉 ยังลงทุน"}</td></tr>`;
+    }).join("");
+    const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>รายงานผลตอบแทนโซลาร์เซลล์</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'IBM Plex Sans Thai',sans-serif;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4;margin:14mm 16mm}@media print{.no-print{display:none!important}}.page{max-width:780px;margin:0 auto;padding:28px 0}
+.doc-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:2.5px solid #064e3b;margin-bottom:20px}
+.doc-logo{display:flex;align-items:center;gap:12px}.logo-icon{width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,#064e3b,#10b981);display:flex;align-items:center;justify-content:center;font-size:22px}
+.co-name{font-size:17px;font-weight:800;color:#064e3b}.co-sub{font-size:11px;color:#6b7280;margin-top:2px}
+.doc-right{text-align:right;font-size:12px;color:#6b7280}.doc-right b{color:#064e3b;font-size:13px;display:block}
+.hero{background:linear-gradient(135deg,#064e3b,#047857);border-radius:14px;padding:20px 24px;margin-bottom:20px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.hero h1{font-size:19px;font-weight:800;margin-bottom:6px}.hero p{font-size:12px;color:#a7f3d0;line-height:1.6}
+.pb-badge{background:rgba(255,255,255,0.14);border:1.5px solid rgba(255,255,255,0.28);border-radius:12px;padding:12px 20px;text-align:center;min-width:120px}
+.pb-label{font-size:10px;color:#a7f3d0;font-weight:600;letter-spacing:.05em;text-transform:uppercase}.pb-num{font-size:38px;font-weight:900;color:#fbbf24;line-height:1.05}.pb-unit{font-size:12px;color:rgba(255,255,255,0.65);margin-top:1px}
+.sec-title{font-size:11px;font-weight:700;color:#064e3b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:18px;display:flex;align-items:center;gap:6px;padding-bottom:6px;border-bottom:1.5px solid #d1fae5}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.mc{border-radius:10px;padding:12px 14px}
+.mc .ml{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}.mc .mv{font-size:18px;font-weight:900}.mc .ms{font-size:10px;margin-top:2px;opacity:.65}
+.mc1{background:#fffbeb;border:1px solid #fde68a;color:#92400e}.mc2{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+.mc3{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}.mc4{background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d}
+.mc5{background:#f5f3ff;border:1px solid #ddd6fe;color:#4c1d95}.mc6{background:#fff1f2;border:1px solid #fecdd3;color:#9f1239}
+.chart-wrap{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:18px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px}
+th{background:#064e3b;color:#fff;padding:8px 10px;text-align:left;font-size:11px;font-weight:600}th:not(:first-child){text-align:right}
+td{border-bottom:1px solid #e5e7eb;font-size:12px}
+.input-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.ig{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px}
+.ig .il{font-size:9px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.04em}.ig .iv{font-size:14px;font-weight:700;color:#111;margin-top:2px}.ig .iu{font-size:10px;color:#9ca3af}
+.note{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;font-size:10.5px;color:#6b7280;line-height:1.7}
+.print-bar{position:fixed;bottom:18px;right:18px;display:flex;gap:10px;z-index:100}
+.btn-p{background:#064e3b;color:#fff;border:none;padding:11px 22px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans Thai',sans-serif;box-shadow:0 4px 12px rgba(6,78,59,.4)}
+.btn-c{background:#fff;color:#374151;border:1px solid #d1d5db;padding:11px 18px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans Thai',sans-serif}</style></head>
+<body><div class="page">
+<div class="doc-header"><div class="doc-logo"><div class="logo-icon">☀️</div><div><div class="co-name">${co.name||"SolarCRM"}</div><div class="co-sub">${[co.phone,co.email].filter(Boolean).join(" · ")||"โซลาร์เซลล์"}</div></div></div><div class="doc-right"><b>รายงานผลตอบแทนโซลาร์เซลล์</b>${today}</div></div>
+<div class="hero"><div><h1>☀️ ระบบโซลาร์เซลล์ ${vals.systemSize} kWp${vals.useBat&&vals.batCapacity?` + แบต ${vals.batCapacity} kWh`:""}</h1><p>เงินลงทุน ${parseFloat(vals.totalCost).toLocaleString("th-TH")} บาท${vals.useBat&&vals.batCost?` + แบตเตอรี่ ${parseFloat(vals.batCost).toLocaleString("th-TH")} บาท`:""}<br>ผลิตไฟ ${vals.dailyUnits} หน่วย/วัน · ค่าไฟ ${vals.elecRate} บาท/หน่วย</p></div><div class="pb-badge"><div class="pb-label">คืนทุนภายใน</div><div class="pb-num">${result.payback?result.payback.toFixed(1):">25"}</div><div class="pb-unit">ปี</div></div></div>
+<div class="sec-title">📊 สรุปผลตอบแทน</div>
+<div class="metrics">
+<div class="mc mc1"><div class="ml">💰 เงินลงทุนรวม</div><div class="mv">${fmtB(result.totalInvest)}</div><div class="ms">บาท</div></div>
+<div class="mc mc2"><div class="ml">📅 ประหยัด/เดือน</div><div class="mv">${fmtB(result.year1saving/12)}</div><div class="ms">บาท/เดือน</div></div>
+<div class="mc mc3"><div class="ml">📈 ประหยัดปีแรก</div><div class="mv">${fmtB(result.year1saving)}</div><div class="ms">บาท/ปี</div></div>
+<div class="mc mc4"><div class="ml">🏆 ประหยัด 25 ปี (สุทธิ)</div><div class="mv">${fmtB(result.netFinal)}</div><div class="ms">บาท</div></div>
+<div class="mc mc5"><div class="ml">⚡ ผลิตไฟปีแรก</div><div class="mv">${fmtB(result.genYear1)}</div><div class="ms">หน่วย/ปี</div></div>
+<div class="mc mc6"><div class="ml">🎯 ROI 25 ปี</div><div class="mv">${Math.round(result.roi)}%</div><div class="ms">ผลตอบแทน</div></div>
+</div>
+<div class="sec-title">📉 กระแสเงินสดสะสม 25 ปี</div>
+<div class="chart-wrap">${chartSVG}</div>
+<div class="sec-title">📋 ตารางผลตอบแทนรายปี</div>
+<table><thead><tr><th>ปีที่</th><th>กระแสเงินสดสะสม (บาท)</th><th>สถานะ</th></tr></thead><tbody>${tableRows}</tbody></table>
+<div class="sec-title">⚙️ ข้อมูลที่ใช้คำนวณ</div>
+<div class="input-grid">
+<div class="ig"><div class="il">ขนาดระบบ</div><div class="iv">${vals.systemSize} <span class="iu">kWp</span></div></div>
+<div class="ig"><div class="il">ราคาติดตั้ง</div><div class="iv">${parseFloat(vals.totalCost).toLocaleString("th-TH")} <span class="iu">บาท</span></div></div>
+<div class="ig"><div class="il">ค่าไฟ</div><div class="iv">${vals.elecRate} <span class="iu">บาท/หน่วย</span></div></div>
+<div class="ig"><div class="il">ผลผลิต/วัน</div><div class="iv">${vals.dailyUnits} <span class="iu">หน่วย</span></div></div>
+<div class="ig"><div class="il">ค่าบำรุงรักษา</div><div class="iv">${vals.maintenance} <span class="iu">%/ปี</span></div></div>
+<div class="ig"><div class="il">ค่าไฟเพิ่มขึ้น</div><div class="iv">${vals.elecIncrease} <span class="iu">%/ปี</span></div></div>
+${vals.useBat?`<div class="ig"><div class="il">แบตเตอรี่</div><div class="iv">${vals.batCapacity} <span class="iu">kWh</span></div></div><div class="ig"><div class="il">ราคาแบต</div><div class="iv">${parseFloat(vals.batCost||0).toLocaleString("th-TH")} <span class="iu">บาท</span></div></div>`:""}
+</div>
+<div class="note">⚠️ <b>หมายเหตุ:</b> ตัวเลขทั้งหมดเป็นการประมาณการบนพื้นฐานข้อมูลที่ได้รับ ผลลัพธ์จริงอาจแตกต่างตามสภาพพื้นที่ ทิศทางหลังคา ปริมาณแสงแดดจริง และผู้ติดตั้ง · ระบบ On-Grid อายุการใช้งานประมาณ 25 ปี · จัดทำโดย ${co.name||"SolarCRM"}</div>
+</div>
+<div class="print-bar no-print"><button class="btn-c" onclick="window.close()">✕ ปิด</button><button class="btn-p" onclick="window.print()">🖨️ พิมพ์ / บันทึก PDF</button></div>
+</body></html>`;
+    const w = window.open("","_blank","width=860,height=720,scrollbars=yes");
+    if (w) { w.document.write(html); w.document.close(); }
+    else alert("กรุณาอนุญาต popup ในเบราว์เซอร์ก่อน");
+  };
+
   return h("div", { className: "space-y-5 fade-in" },
     // Hero banner
     h("div", { className: "rounded-2xl p-5 flex items-center gap-4", style: { background: "linear-gradient(135deg,#064e3b 0%,#065f46 50%,#047857 100%)" } },
@@ -2748,6 +2853,17 @@ function SolarROI() {
       h(Chart25, { years: result.years }),
       h("p", { className: "text-[10px] text-ink-300 mt-3" },
         "* ระบบ On-Grid อายุการใช้งาน 25 ปี ค่าประมาณการอาจแตกต่างตามพื้นที่และผู้ติดตั้งจริง · กรอกผลผลิตไฟ/วันที่แม่นยำจากแอปอินเวอร์เตอร์จริงเพื่อความถูกต้องสูงสุด"
+      ),
+      h("div", { className: "mt-4 pt-4 border-t border-ink-100 flex justify-end" },
+        h("button", {
+          onClick: exportPDF,
+          className: "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:brightness-110 shadow-sm"
+        },
+          h("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
+            h("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" })
+          ),
+          "Export รายงานนำเสนอลูกค้า (PDF)"
+        )
       )
     )
   );
