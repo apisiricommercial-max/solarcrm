@@ -2213,6 +2213,7 @@ const NAV = [
   { key: "follow", label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", icon: I.bell },
   { key: "profit", label: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E01\u0E33\u0E44\u0E23", icon: I.calc },
   { key: "roi", label: "☀️ คำนวณคืนทุน", icon: I.money },
+  { key: "loadcalc", label: "🔌 คำนวณโหลดไฟฟ้า", icon: I.calc },
   { key: "cashflow", label: "บัญชีบริษัท", icon: I.money }
 ];
 function EstimatorMenu({ onOpen, onCopy, onSetUrl }) {
@@ -2883,6 +2884,359 @@ ${vals.useBat?`<div class="ig"><div class="il">แบตเตอรี่</div>
     )
   );
 }
+/* ============================================================ */
+/* LoadCalc — เครื่องคำนวณโหลดไฟฟ้าในบ้าน                        */
+/* ============================================================ */
+const LOADCALC_PRESETS = [
+  { name: "เครื่องปรับอากาศ (แอร์)", icon: "❄️", watts: 1200, period: "both", hint: "900–2,000 W" },
+  { name: "ตู้เย็น", icon: "🧊", watts: 120, period: "both", hint: "80–250 W" },
+  { name: "โทรทัศน์", icon: "📺", watts: 100, period: "night", hint: "50–200 W" },
+  { name: "พัดลม", icon: "🌀", watts: 50, period: "both", hint: "30–75 W" },
+  { name: "หลอดไฟ LED", icon: "💡", watts: 10, period: "night", hint: "5–20 W/ดวง" },
+  { name: "เครื่องซักผ้า", icon: "🧺", watts: 500, period: "day", hint: "300–800 W" },
+  { name: "ปั๊มน้ำ", icon: "🚰", watts: 400, period: "both", hint: "200–750 W", freeHours: true },
+  { name: "หม้อหุงข้าว", icon: "🍚", watts: 700, period: "day", hint: "500–1,000 W" },
+  { name: "ไมโครเวฟ", icon: "📡", watts: 1000, period: "day", hint: "800–1,200 W" },
+  { name: "เครื่องทำน้ำอุ่น", icon: "🚿", watts: 3500, period: "both", hint: "2,500–4,500 W" },
+  { name: "คอมพิวเตอร์", icon: "💻", watts: 200, period: "day", hint: "150–500 W" },
+  { name: "เตารีด", icon: "👔", watts: 1000, period: "day", hint: "800–1,800 W" }
+];
+const LOADCALC_PERIODS = [["day", "☀️ กลางวัน"], ["night", "🌙 กลางคืน"], ["both", "🔄 ทั้งวัน"]];
+let loadCalcRowSeq = 0;
+function LoadCalc() {
+  const [rows, setRows] = useState(() => LOADCALC_PRESETS.map(p => ({
+    id: "lc" + (loadCalcRowSeq++), name: p.name, icon: p.icon, watts: p.watts, hint: p.hint,
+    qty: "", hours: p.period === "both" && !p.freeHours ? 24 : "", period: p.period,
+    freeHours: !!p.freeHours, isCustom: false
+  })));
+  const [settings, setSettings] = useState({ elecRate: "4.5", sunHours: 4.2, prEff: 80, dod: 80 });
+
+  const updateRow = (id, patch) => setRows(p => p.map(r => {
+    if (r.id !== id) return r;
+    const next = { ...r, ...patch };
+    // เมื่อเปลี่ยนช่วงเวลาเป็น "ทั้งวัน" ล็อกชั่วโมงเป็น 24 อัตโนมัติ (ยกเว้นเครื่องที่ freeHours เช่นปั๊มน้ำ)
+    if (patch.period) {
+      if (patch.period === "both" && !r.freeHours) next.hours = 24;
+      else if (r.period === "both" && patch.period !== "both" && next.hours === 24) next.hours = "";
+    }
+    return next;
+  }));
+  const removeRow = (id) => setRows(p => p.filter(r => r.id !== id));
+  const addRow = () => setRows(p => [...p, { id: "lc" + (loadCalcRowSeq++), name: "", icon: "🔌", watts: 100, hint: "", qty: "", hours: "", period: "day", freeHours: false, isCustom: true }]);
+
+  const set = (k, v) => setSettings(p => ({ ...p, [k]: v }));
+
+  const result = useMemo(() => {
+    const rate = parseFloat(settings.elecRate) || 4.5;
+    const sun = parseFloat(settings.sunHours) || 4;
+    const pr = settings.prEff / 100;
+    const dod = settings.dod / 100;
+    let dayWh = 0, nightWh = 0, peakW = 0;
+    const items = [];
+    rows.forEach(r => {
+      const watts = parseFloat(r.watts) || 0;
+      const qty = parseFloat(r.qty) || 0;
+      const hours = parseFloat(r.hours) || 0;
+      const wh = watts * qty * hours;
+      let d = 0, n = 0;
+      if (r.period === "day") d = wh; else if (r.period === "night") n = wh; else { d = wh / 2; n = wh / 2; }
+      dayWh += d; nightWh += n; peakW += watts * qty;
+      const kwh = wh / 1000;
+      if (kwh > 0) items.push({ name: r.name || "เครื่องใช้ไฟฟ้า", kwh, watts, qty, hours, period: r.period, dWh: d, nWh: n });
+    });
+    const totalWh = dayWh + nightWh;
+    const totalKWh = totalWh / 1000, dayKWh = dayWh / 1000, nightKWh = nightWh / 1000;
+    if (totalKWh <= 0) return null;
+    const peakKW = peakW / 1000;
+    const solarKWp = totalKWh / (sun * pr);
+    const batKWh = nightKWh / dod;
+    const invKW = peakKW * 1.25;
+    const monthlyBill = totalKWh * 30 * rate;
+    return { totalKWh, dayKWh, nightKWh, peakKW, solarKWp, batKWh, invKW, monthlyBill, items: items.sort((a, b) => b.kwh - a.kwh) };
+  }, [rows, settings]);
+
+  const fmtB = n => Math.round(n).toLocaleString("th-TH");
+  const fmt1 = n => (Math.round(n * 10) / 10).toLocaleString("th-TH", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const inputCls = "w-full rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 text-ink-800 placeholder-ink-300";
+  const periodEmoji = p => p === "day" ? "☀️" : p === "night" ? "🌙" : "🔄";
+
+  const sliderRow = (label, key, min, max, step, unit) =>
+    h("div", { className: "flex items-center gap-3" },
+      h("span", { className: "text-xs text-ink-500 w-52 shrink-0" }, label),
+      h("input", { type: "range", min, max, step, value: settings[key], onChange: e => set(key, parseFloat(e.target.value)), className: "flex-1 accent-brand-500 h-1.5" }),
+      h("span", { className: "text-xs font-semibold text-brand-600 w-14 text-right shrink-0" }, `${settings[key]}${unit}`)
+    );
+
+  // สร้าง SVG string สำหรับ PDF popup
+  const buildDoughnutSVG = (dayKWh, nightKWh) => {
+    const total = dayKWh + nightKWh;
+    const R = 62, C = 2 * Math.PI * R, cx = 90, cy = 90;
+    const dayLen = (dayKWh / total) * C;
+    let s = `<svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg" style="width:180px;height:180px">`;
+    s += `<g transform="rotate(-90 ${cx} ${cy})">`;
+    s += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#f1f5f9" stroke-width="18"/>`;
+    s += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#f59e0b" stroke-width="18" stroke-dasharray="${dayLen} ${C - dayLen}"/>`;
+    s += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#3b82f6" stroke-width="18" stroke-dasharray="${C - dayLen} ${dayLen}" stroke-dashoffset="${-dayLen}"/>`;
+    s += `</g>`;
+    s += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="20" font-weight="800" fill="#111" font-family="sans-serif">${fmt1(total)}</text>`;
+    s += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="sans-serif">kWh/วัน</text>`;
+    s += `</svg>`;
+    return s;
+  };
+
+  const exportPDF = () => {
+    if (!result) { alert("กรุณากรอกจำนวนและชั่วโมงใช้งานเครื่องใช้ไฟฟ้าก่อน"); return; }
+    const co = (() => { try { return JSON.parse(localStorage.getItem("solarcrm_company") || "{}"); } catch { return {}; } })();
+    const today = new Date().toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" });
+    const dPct = Math.round(result.dayKWh / result.totalKWh * 100), nPct = 100 - dPct;
+    const doughnutSVG = buildDoughnutSVG(result.dayKWh, result.nightKWh);
+    const topItems = result.items.slice(0, 10);
+    const maxKwh = topItems[0] ? topItems[0].kwh : 1;
+    const barRows = topItems.map((it, i) => {
+      const pct = Math.round(it.kwh / maxKwh * 100);
+      const color = it.period === "day" ? "#f59e0b" : it.period === "night" ? "#3b82f6" : "#10b981";
+      const prTxt = it.period === "day" ? "กลางวัน" : it.period === "night" ? "กลางคืน" : "ทั้งวัน";
+      return `<tr><td style="padding:6px 10px;font-size:12px">${i + 1}. ${periodEmoji(it.period)} ${it.name}</td>
+        <td style="padding:6px 10px"><div style="background:#f1f5f9;border-radius:5px;height:14px;position:relative;overflow:hidden"><div style="background:${color};height:100%;width:${pct}%;border-radius:5px"></div></div></td>
+        <td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:700;white-space:nowrap">${fmt1(it.kwh)} kWh</td>
+        <td style="padding:6px 10px;text-align:center;font-size:11px;color:#6b7280;white-space:nowrap">${prTxt}</td></tr>`;
+    }).join("");
+    const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>รายงานคำนวณโหลดไฟฟ้า · SolarCRM</title><link rel="icon" href="https://img2.pic.in.th/fe62e09e-51fe-49ec-abcf-e53fb6c0edb1656c7fc15474af67.png">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'IBM Plex Sans Thai',sans-serif;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4;margin:14mm 16mm}@media print{.no-print{display:none!important}}.page{max-width:780px;margin:0 auto;padding:28px 0}
+.doc-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:2.5px solid #064e3b;margin-bottom:20px}
+.doc-logo{display:flex;align-items:center;gap:12px}.logo-icon{width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,#064e3b,#10b981);display:flex;align-items:center;justify-content:center;font-size:22px}
+.co-name{font-size:17px;font-weight:800;color:#064e3b}.co-sub{font-size:11px;color:#6b7280;margin-top:2px}
+.doc-right{text-align:right;font-size:12px;color:#6b7280}.doc-right b{color:#064e3b;font-size:13px;display:block}
+.hero{background:linear-gradient(135deg,#064e3b,#047857);border-radius:14px;padding:20px 24px;margin-bottom:20px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.hero h1{font-size:19px;font-weight:800;margin-bottom:6px}.hero p{font-size:12px;color:#a7f3d0;line-height:1.6}
+.pb-badge{background:rgba(255,255,255,0.14);border:1.5px solid rgba(255,255,255,0.28);border-radius:12px;padding:12px 20px;text-align:center;min-width:120px}
+.pb-label{font-size:10px;color:#a7f3d0;font-weight:600;letter-spacing:.05em;text-transform:uppercase}.pb-num{font-size:32px;font-weight:900;color:#fbbf24;line-height:1.05}.pb-unit{font-size:12px;color:rgba(255,255,255,0.65);margin-top:1px}
+.sec-title{font-size:11px;font-weight:700;color:#064e3b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:18px;padding-bottom:6px;border-bottom:1.5px solid #d1fae5}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.mc{border-radius:10px;padding:11px 12px}.mc .ml{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}.mc .mv{font-size:16px;font-weight:900}.mc .ms{font-size:9.5px;margin-top:2px;opacity:.65}
+.mc1{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}.mc2{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.mc3{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}.mc4{background:#fff1f2;border:1px solid #fecdd3;color:#9f1239}
+.mc5{background:#f5f3ff;border:1px solid #ddd6fe;color:#4c1d95}.mc6{background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d}
+.mc7{background:#fefce8;border:1px solid #fef08a;color:#854d0e}.mc8{background:#f8fafc;border:1px solid #e2e8f0;color:#334155}
+.split-wrap{display:flex;align-items:center;gap:24px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:18px}
+.split-legend{flex:1;display:flex;flex-direction:column;gap:8px}
+.sl-item{display:flex;align-items:center;gap:8px;font-size:12px}.sl-dot{width:10px;height:10px;border-radius:50%}
+table{width:100%;border-collapse:collapse;margin-bottom:18px}
+.note{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;font-size:10.5px;color:#6b7280;line-height:1.7}
+.print-bar{position:fixed;bottom:18px;right:18px;display:flex;gap:10px;z-index:100}
+.btn-p{background:#064e3b;color:#fff;border:none;padding:11px 22px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans Thai',sans-serif;box-shadow:0 4px 12px rgba(6,78,59,.4)}
+.btn-c{background:#fff;color:#374151;border:1px solid #d1d5db;padding:11px 18px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans Thai',sans-serif}</style></head>
+<body><div class="page">
+<div class="doc-header"><div class="doc-logo"><div class="logo-icon">🔌</div><div><div class="co-name">${co.name || "SolarCRM"}</div><div class="co-sub">${[co.phone, co.email].filter(Boolean).join(" · ") || "โซลาร์เซลล์"}</div></div></div><div class="doc-right"><b>รายงานคำนวณโหลดไฟฟ้าในบ้าน</b>${today}</div></div>
+<div class="hero"><div><h1>🔌 โหลดไฟฟ้ารวม ${fmt1(result.totalKWh)} kWh/วัน</h1><p>ค่าไฟประมาณ ${fmtB(result.monthlyBill)} บาท/เดือน · กำลังไฟสูงสุด ${fmt1(result.peakKW)} kW</p></div><div class="pb-badge"><div class="pb-label">แนะนำโซลาร์</div><div class="pb-num">${fmt1(result.solarKWp)}</div><div class="pb-unit">kWp</div></div></div>
+<div class="sec-title">📊 สรุปผลการคำนวณ</div>
+<div class="metrics">
+<div class="mc mc1"><div class="ml">⚡ โหลดรวม/วัน</div><div class="mv">${fmt1(result.totalKWh)}</div><div class="ms">kWh/วัน</div></div>
+<div class="mc mc2"><div class="ml">☀️ โหลดกลางวัน</div><div class="mv">${fmt1(result.dayKWh)}</div><div class="ms">kWh/วัน</div></div>
+<div class="mc mc3"><div class="ml">🌙 โหลดกลางคืน</div><div class="mv">${fmt1(result.nightKWh)}</div><div class="ms">kWh/วัน</div></div>
+<div class="mc mc4"><div class="ml">📈 กำลังไฟสูงสุด</div><div class="mv">${fmt1(result.peakKW)}</div><div class="ms">kW</div></div>
+<div class="mc mc6"><div class="ml">🔆 แนะนำโซลาร์</div><div class="mv">${fmt1(result.solarKWp)}</div><div class="ms">kWp</div></div>
+<div class="mc mc5"><div class="ml">🔋 แนะนำแบตเตอรี่</div><div class="mv">${fmt1(result.batKWh)}</div><div class="ms">kWh</div></div>
+<div class="mc mc7"><div class="ml">⚙️ แนะนำอินเวอร์เตอร์</div><div class="mv">${fmt1(result.invKW)}</div><div class="ms">kW</div></div>
+<div class="mc mc8"><div class="ml">🧾 ค่าไฟ/เดือน</div><div class="mv">${fmtB(result.monthlyBill)}</div><div class="ms">บาท</div></div>
+</div>
+<div class="sec-title">🌗 สัดส่วนกลางวัน vs กลางคืน</div>
+<div class="split-wrap">${doughnutSVG}<div class="split-legend">
+<div class="sl-item"><span class="sl-dot" style="background:#f59e0b"></span>☀️ กลางวัน: <b>${fmt1(result.dayKWh)} kWh (${dPct}%)</b></div>
+<div class="sl-item"><span class="sl-dot" style="background:#3b82f6"></span>🌙 กลางคืน: <b>${fmt1(result.nightKWh)} kWh (${nPct}%)</b></div>
+<div class="sl-item">💡 โซลาร์จ่ายตรงกลางวันได้ <b>${fmt1(result.dayKWh)} kWh</b> ที่เหลือต้องพึ่งแบตเตอรี่ <b>${fmt1(result.batKWh)} kWh</b></div>
+</div></div>
+<div class="sec-title">📋 เครื่องใช้ไฟฟ้าที่กินไฟมากที่สุด (10 อันดับ)</div>
+<table>${barRows}</table>
+<div class="note">⚠️ <b>หมายเหตุ:</b> ค่ากำลังไฟเป็นค่ากลางโดยประมาณ ปรับแก้ได้ตามเครื่องใช้ไฟฟ้าจริง · แนะนำขนาดระบบเป็นค่าประมาณการ ควรปรึกษาผู้ติดตั้งจริงประกอบการตัดสินใจ · จัดทำโดย ${co.name || "SolarCRM"}</div>
+</div>
+<div class="print-bar no-print"><button class="btn-c" onclick="window.close()">✕ ปิด</button><button class="btn-p" onclick="window.print()">🖨️ พิมพ์ / บันทึก PDF</button></div>
+</body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const blobUrl = URL.createObjectURL(blob);
+    const w = window.open(blobUrl, "_blank", "width=860,height=720,scrollbars=yes");
+    if (!w) alert("กรุณาอนุญาต popup ในเบราว์เซอร์ก่อน");
+  };
+
+  return h("div", { className: "space-y-5 fade-in" },
+    // Hero banner
+    h("div", { className: "rounded-2xl p-5", style: { background: "linear-gradient(135deg,#0c4a6e 0%,#075985 50%,#0369a1 100%)" } },
+      h("div", { className: "flex items-center gap-4 flex-wrap" },
+        h("div", { className: "w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0 text-2xl" }, "🔌"),
+        h("div", { className: "flex-1 min-w-0" },
+          h("div", { className: "text-white font-bold text-base" }, "คำนวณโหลดไฟฟ้าในบ้าน"),
+          h("div", { className: "text-sky-200 text-xs mt-0.5" }, "แนะนำขนาดโซลาร์ · แบตเตอรี่ · อินเวอร์เตอร์ ให้เหมาะกับการใช้งานจริง")
+        ),
+        result && h("div", { className: "shrink-0 text-right" },
+          h("div", { className: "text-sky-200 text-[10px] font-semibold tracking-wider uppercase" }, "แนะนำโซลาร์"),
+          h("div", { className: "text-amber-300 font-black text-3xl leading-none mt-0.5" }, fmt1(result.solarKWp)),
+          h("div", { className: "text-white/60 text-xs" }, "kWp")
+        )
+      ),
+      result && h("div", { className: "mt-4 pt-4 border-t border-white/15 flex justify-end" },
+        h("button", {
+          onClick: exportPDF,
+          className: "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-sky-500 to-blue-500 text-white hover:brightness-110 shadow-sm"
+        },
+          h("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
+            h("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" })
+          ),
+          "Export รายงานคำนวณโหลด (PDF)"
+        )
+      )
+    ),
+
+    // ตารางเครื่องใช้ไฟฟ้า
+    h("div", { className: "bg-white rounded-2xl p-5 shadow-sm ring-1 ring-ink-100" },
+      h("div", { className: "flex items-center justify-between mb-4" },
+        h("div", { className: "flex items-center gap-2" },
+          h("div", { className: "w-7 h-7 rounded-lg bg-sky-100 flex items-center justify-center text-sm" }, "🔌"),
+          h("span", { className: "text-sm font-semibold text-ink-800" }, "เครื่องใช้ไฟฟ้าในบ้าน"),
+          h("span", { className: "text-xs text-ink-400" }, "ใส่จำนวน · ชั่วโมง/วัน · ช่วงเวลา")
+        )
+      ),
+      h("div", { className: "overflow-x-auto -mx-5 px-5" },
+        h("div", { className: "min-w-[720px] space-y-2" },
+          h("div", { className: "grid grid-cols-[1.6fr_1fr_0.7fr_0.8fr_1fr_0.9fr_32px] gap-2 text-[11px] font-semibold text-ink-400 px-1 pb-1" },
+            h("div", null, "เครื่องใช้ไฟฟ้า"), h("div", null, "กำลังไฟ (วัตต์)"), h("div", null, "จำนวน"), h("div", null, "ชม./วัน"), h("div", null, "ช่วงเวลา"), h("div", { className: "text-right" }, "พลังงาน"), h("div", null)
+          ),
+          rows.map(r => {
+            const watts = parseFloat(r.watts) || 0, qty = parseFloat(r.qty) || 0, hours = parseFloat(r.hours) || 0;
+            const kwh = (watts * qty * hours) / 1000;
+            const hoursLocked = r.period === "both" && !r.freeHours;
+            return h("div", { key: r.id, className: "grid grid-cols-[1.6fr_1fr_0.7fr_0.8fr_1fr_0.9fr_32px] gap-2 items-start bg-ink-50/50 rounded-xl p-2" },
+              h("div", { className: "flex items-center gap-2 min-w-0 pt-1.5" },
+                h("span", { className: "text-base shrink-0" }, r.icon),
+                r.isCustom
+                  ? h("input", { className: inputCls + " text-xs", value: r.name, onChange: e => updateRow(r.id, { name: e.target.value }), placeholder: "ชื่อเครื่องใช้ไฟฟ้า" })
+                  : h("span", { className: "text-xs font-medium text-ink-700 truncate" }, r.name)
+              ),
+              h("div", null,
+                h("input", { type: "number", className: inputCls, value: r.watts, onChange: e => updateRow(r.id, { watts: e.target.value }) }),
+                r.hint && h("div", { className: "text-[10px] text-ink-300 mt-0.5" }, "ทั่วไป ", r.hint)
+              ),
+              h("input", { type: "number", min: 0, step: 1, className: inputCls, value: r.qty, onChange: e => updateRow(r.id, { qty: e.target.value }), placeholder: "0" }),
+              h("input", { type: "number", min: 0, max: 24, step: 0.5, disabled: hoursLocked, className: inputCls + (hoursLocked ? " bg-ink-100 text-ink-400" : ""), value: r.hours, onChange: e => updateRow(r.id, { hours: e.target.value }), placeholder: "0" }),
+              h("select", { className: inputCls, value: r.period, onChange: e => updateRow(r.id, { period: e.target.value }) },
+                LOADCALC_PERIODS.map(([v, t]) => h("option", { key: v, value: v }, t))
+              ),
+              h("div", { className: "text-right pt-1.5" },
+                h("div", { className: "text-xs font-bold text-brand-600" }, kwh > 0 ? fmt1(kwh) : "0"),
+                h("div", { className: "text-[9px] text-ink-300" }, "kWh/วัน")
+              ),
+              h("button", { onClick: () => removeRow(r.id), className: "text-ink-300 hover:text-red-500 pt-1.5", title: "ลบ" },
+                h("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }, h("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M6 18L18 6M6 6l12 12" }))
+              )
+            );
+          }),
+          h("button", { onClick: addRow, className: "w-full flex items-center justify-center gap-1.5 text-sm font-semibold text-brand-600 hover:bg-brand-50 rounded-xl py-2.5 border-2 border-dashed border-brand-200 mt-2" },
+            "+ เพิ่มเครื่องใช้ไฟฟ้า"
+          )
+        )
+      )
+    ),
+
+    // ตั้งค่าระบบ
+    h("div", { className: "bg-white rounded-2xl p-5 shadow-sm ring-1 ring-ink-100" },
+      h("div", { className: "flex items-center gap-2 mb-4" },
+        h("div", { className: "w-7 h-7 rounded-lg bg-sky-100 flex items-center justify-center text-sm" }, "⚙️"),
+        h("span", { className: "text-sm font-semibold text-ink-800" }, "ตั้งค่าระบบ")
+      ),
+      h("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" },
+        h("div", null,
+          h("label", { className: "block text-xs text-ink-500 mb-1" }, "ค่าไฟ (บาท/หน่วย)"),
+          h("input", { type: "number", step: 0.1, className: inputCls, value: settings.elecRate, onChange: e => set("elecRate", e.target.value) })
+        )
+      ),
+      h("div", { className: "space-y-3" },
+        sliderRow("ชั่วโมงแสงแดด (ชม./วัน)", "sunHours", 3, 5.5, 0.1, " ชม."),
+        sliderRow("ประสิทธิภาพระบบโซลาร์ (%)", "prEff", 65, 90, 1, "%"),
+        sliderRow("ความลึกคายประจุแบต DoD (%)", "dod", 50, 95, 5, "%")
+      )
+    ),
+
+    !result
+      ? h("div", { className: "bg-white rounded-2xl p-8 shadow-sm ring-1 ring-ink-100 flex flex-col items-center justify-center text-center gap-3" },
+          h("div", { className: "text-4xl" }, "🔌"),
+          h("div", { className: "text-ink-500 text-sm" }, "กรอกจำนวนและชั่วโมงใช้งานเครื่องใช้ไฟฟ้าด้านบนเพื่อเริ่มคำนวณ")
+        )
+      : h(React.Fragment, null,
+          // Metrics
+          h("div", { className: "grid grid-cols-2 sm:grid-cols-4 gap-3" },
+            [
+              { icon: "⚡", label: "โหลดรวม/วัน", val: fmt1(result.totalKWh), sub: "kWh/วัน", color: "bg-emerald-50 ring-emerald-100" },
+              { icon: "☀️", label: "โหลดกลางวัน", val: fmt1(result.dayKWh), sub: "kWh/วัน", color: "bg-amber-50 ring-amber-100" },
+              { icon: "🌙", label: "โหลดกลางคืน", val: fmt1(result.nightKWh), sub: "kWh/วัน", color: "bg-blue-50 ring-blue-100" },
+              { icon: "📈", label: "กำลังไฟสูงสุด", val: fmt1(result.peakKW), sub: "kW", color: "bg-rose-50 ring-rose-100" },
+              { icon: "🔆", label: "แนะนำโซลาร์", val: fmt1(result.solarKWp), sub: "kWp", color: "bg-green-50 ring-green-100" },
+              { icon: "🔋", label: "แนะนำแบตเตอรี่", val: fmt1(result.batKWh), sub: "kWh", color: "bg-violet-50 ring-violet-100" },
+              { icon: "⚙️", label: "แนะนำอินเวอร์เตอร์", val: fmt1(result.invKW), sub: "kW", color: "bg-yellow-50 ring-yellow-100" },
+              { icon: "🧾", label: "ค่าไฟ/เดือน", val: fmtB(result.monthlyBill), sub: "บาท", color: "bg-slate-50 ring-slate-100" }
+            ].map(m => h("div", { key: m.label, className: `rounded-xl p-3.5 ring-1 ${m.color}` },
+              h("div", { className: "flex items-center gap-1.5 mb-1.5" },
+                h("span", { className: "text-base" }, m.icon),
+                h("span", { className: "text-[10px] font-semibold text-ink-500 uppercase tracking-wide" }, m.label)
+              ),
+              h("div", { className: "text-xl font-black text-ink-900 leading-none" }, m.val),
+              h("div", { className: "text-[11px] text-ink-400 mt-0.5" }, m.sub)
+            ))
+          ),
+
+          h("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-5" },
+            // Doughnut: day vs night (ใช้ Donut component ที่มีอยู่แล้วในระบบ)
+            h("div", { className: "bg-white rounded-2xl p-5 shadow-sm ring-1 ring-ink-100" },
+              h("div", { className: "flex items-center gap-2 mb-4" },
+                h("div", { className: "w-7 h-7 rounded-lg bg-sky-100 flex items-center justify-center text-sm" }, "🌗"),
+                h("span", { className: "text-sm font-semibold text-ink-800" }, "กลางวัน vs กลางคืน")
+              ),
+              h(Donut, {
+                data: [
+                  { label: "☀️ กลางวัน", value: result.dayKWh, color: "#f59e0b" },
+                  { label: "🌙 กลางคืน", value: result.nightKWh, color: "#3b82f6" }
+                ],
+                unit: "kWh/วัน"
+              }),
+              h("div", { className: "mt-4 pt-4 border-t border-ink-100 text-xs text-ink-500 leading-relaxed" },
+                "💡 โซลาร์จ่ายไฟตรงกลางวันได้ ", h("b", { className: "text-ink-700" }, fmt1(result.dayKWh), " kWh"),
+                " ส่วนกลางคืนต้องพึ่งแบตเตอรี่สำรอง ", h("b", { className: "text-ink-700" }, fmt1(result.batKWh), " kWh")
+              )
+            ),
+
+            // Bar chart: top appliances
+            h("div", { className: "bg-white rounded-2xl p-5 shadow-sm ring-1 ring-ink-100" },
+              h("div", { className: "flex items-center justify-between mb-4" },
+                h("div", { className: "flex items-center gap-2" },
+                  h("div", { className: "w-7 h-7 rounded-lg bg-sky-100 flex items-center justify-center text-sm" }, "📊"),
+                  h("span", { className: "text-sm font-semibold text-ink-800" }, "เครื่องใช้ไฟฟ้าที่กินไฟมากสุด")
+                )
+              ),
+              h("div", { className: "space-y-2.5" },
+                result.items.slice(0, 8).map((it, i) => {
+                  const maxKwh = result.items[0].kwh;
+                  const pct = Math.round(it.kwh / maxKwh * 100);
+                  const color = it.period === "day" ? "#f59e0b" : it.period === "night" ? "#3b82f6" : "#10b981";
+                  return h("div", { key: i },
+                    h("div", { className: "flex items-center justify-between text-xs mb-1" },
+                      h("span", { className: "text-ink-600 truncate flex-1" }, i + 1, ". ", periodEmoji(it.period), " ", it.name),
+                      h("span", { className: "font-semibold text-ink-800 shrink-0 ml-2" }, fmt1(it.kwh), " kWh")
+                    ),
+                    h("div", { className: "h-2 bg-ink-100 rounded-full overflow-hidden" },
+                      h("div", { className: "h-full rounded-full transition-all", style: { width: `${pct}%`, background: color } })
+                    )
+                  );
+                }),
+                result.items.length === 0 && h("div", { className: "text-sm text-ink-400 text-center py-6" }, "ยังไม่มีข้อมูล")
+              )
+            )
+          ),
+
+          h("p", { className: "text-[10px] text-ink-300" },
+            "* ค่ากำลังไฟเป็นค่ากลางโดยประมาณ ปรับแก้เองได้ตามเครื่องใช้ไฟฟ้าจริง · แนะนำขนาดระบบเป็นค่าประมาณการ ควรปรึกษาผู้ติดตั้งจริงประกอบการตัดสินใจ"
+          )
+        )
+  );
+}
 function CashFlow() {
   const [rows, setRows] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -3365,7 +3719,7 @@ function App() {
   return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
-  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี" }[view])), ["dash", "leads", "pipe", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "pipe" && /* @__PURE__ */ React.createElement(Pipeline, { rows, onOpen: openProfile, onStatus: setStatus }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
+  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์" }[view])), ["dash", "leads", "pipe", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "pipe" && /* @__PURE__ */ React.createElement(Pipeline, { rows, onOpen: openProfile, onStatus: setStatus }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
     upsert(c);
     setFormOpen(false);
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
