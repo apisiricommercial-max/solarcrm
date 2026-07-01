@@ -1441,6 +1441,96 @@ function DocumentsSection({ customer, onUpdate }) {
     }, uploading ? "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E2D\u0E31\u0E1B\u0E42\u0E2B\u0E25\u0E14..." : "+ \u0E41\u0E19\u0E1A\u0E23\u0E39\u0E1B\u0E40\u0E2D\u0E01\u0E2A\u0E32\u0E23")
   );
 }
+function TechnicianJobSection({ customer }) {
+  const [links, setLinks] = useState([]);
+  const [updates, setUpdates] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [lightbox, setLightbox] = useState(null);
+
+  const refresh = () => {
+    Promise.all([
+      technicianDb.listLinks(customer.id),
+      technicianDb.listUpdates(customer.id),
+      technicianDb.listPhotos(customer.id)
+    ]).then(([l, u, p]) => { setLinks(l); setUpdates(u); setPhotos(p); setLoading(false); });
+  };
+  useEffect(() => { refresh(); }, [customer.id]);
+
+  const activeLink = links.find((l) => l.is_active);
+
+  const createLink = async () => {
+    setCreating(true);
+    try {
+      await technicianDb.createLink(customer.id);
+      refresh();
+    } catch (e) {
+      alert("\u0E2A\u0E23\u0E49\u0E32\u0E07\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E44\u0E21\u0E48\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08: " + (e && e.message ? e.message : "\u0E44\u0E21\u0E48\u0E17\u0E23\u0E32\u0E1A\u0E2A\u0E32\u0E40\u0E2B\u0E15\u0E38"));
+    } finally { setCreating(false); }
+  };
+  const copyLink = (token) => {
+    const url = techLinkUrl(token);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(
+        () => alert("\u0E04\u0E31\u0E14\u0E25\u0E2D\u0E01\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E41\u0E25\u0E49\u0E27! \u0E2A\u0E48\u0E07\u0E43\u0E2B\u0E49\u0E0A\u0E48\u0E32\u0E07\u0E17\u0E32\u0E07 LINE \u0E44\u0E14\u0E49\u0E40\u0E25\u0E22"),
+        () => prompt("\u0E04\u0E31\u0E14\u0E25\u0E2D\u0E01\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E19\u0E35\u0E49:", url)
+      );
+    } else prompt("\u0E04\u0E31\u0E14\u0E25\u0E2D\u0E01\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E19\u0E35\u0E49:", url);
+  };
+  const toggleLink = async (link) => {
+    try { await technicianDb.setLinkActive(link.id, !link.is_active); refresh(); }
+    catch (e) { alert("\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E44\u0E21\u0E48\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08"); }
+  };
+  const deleteUpdate = async (id) => {
+    if (!confirm("\u0E25\u0E1A\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E2A\u0E48\u0E07\u0E07\u0E32\u0E19\u0E19\u0E35\u0E49? (\u0E23\u0E39\u0E1B\u0E20\u0E32\u0E1E\u0E17\u0E35\u0E48\u0E41\u0E19\u0E1A\u0E08\u0E30\u0E16\u0E39\u0E01\u0E25\u0E1A\u0E44\u0E1B\u0E14\u0E49\u0E27\u0E22)")) return;
+    try { await technicianDb.deleteUpdate(id); refresh(); }
+    catch (e) { alert("\u0E25\u0E1A\u0E44\u0E21\u0E48\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08"); }
+  };
+  const photosByUpdate = (updateId) => photos.filter((p) => p.job_update_id === updateId);
+
+  if (loading) return h("div", { className: "text-xs text-ink-400 text-center py-3" }, "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E42\u0E2B\u0E25\u0E14...");
+
+  return h("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" },
+    h("div", { className: "flex items-center justify-between mb-3" },
+      h("div", { className: "text-xs font-medium text-ink-500" }, "\u{1F527} \u0E07\u0E32\u0E19\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E08\u0E32\u0E01\u0E0A\u0E48\u0E32\u0E07"),
+      activeLink
+        ? h("button", { onClick: () => copyLink(activeLink.token), className: "text-xs px-2.5 py-1 rounded-lg bg-brand-600 text-white font-semibold" }, "\u{1F4CB} \u0E04\u0E31\u0E14\u0E25\u0E2D\u0E01\u0E25\u0E34\u0E07\u0E01\u0E4C")
+        : h("button", { onClick: createLink, disabled: creating, className: "text-xs px-2.5 py-1 rounded-lg bg-brand-600 text-white font-semibold disabled:opacity-50" }, creating ? "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E2A\u0E23\u0E49\u0E32\u0E07..." : "+ \u0E2A\u0E23\u0E49\u0E32\u0E07\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E2A\u0E48\u0E07\u0E07\u0E32\u0E19")
+    ),
+    activeLink && h("div", { className: "flex items-center justify-between text-[11px] text-ink-400 mb-3 bg-ink-50 rounded-lg px-2.5 py-1.5" },
+      h("span", null, "\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E43\u0E0A\u0E49\u0E07\u0E32\u0E19\u0E2D\u0E22\u0E39\u0E48 \xB7 \u0E2A\u0E23\u0E49\u0E32\u0E07\u0E42\u0E14\u0E22 ", activeLink.created_by || "-"),
+      h("button", { onClick: () => toggleLink(activeLink), className: "text-red-500 font-semibold" }, "\u0E1B\u0E34\u0E14\u0E25\u0E34\u0E07\u0E01\u0E4C")
+    ),
+    updates.length === 0
+      ? h("div", { className: "text-xs text-ink-400 text-center py-4" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E01\u0E32\u0E23\u0E2A\u0E48\u0E07\u0E07\u0E32\u0E19\u0E08\u0E32\u0E01\u0E0A\u0E48\u0E32\u0E07")
+      : h("div", { className: "space-y-3" },
+          updates.map((u) => {
+            const st = techStatusOf(u.job_status);
+            const ph = photosByUpdate(u.id);
+            return h("div", { key: u.id, className: "bg-ink-50/60 rounded-xl p-3" },
+              h("div", { className: "flex items-start justify-between gap-2" },
+                h("div", { className: "min-w-0" },
+                  h("div", { className: "flex items-center gap-1.5" }, h("span", null, st.icon), h("span", { className: "text-sm font-semibold text-ink-800" }, st.label)),
+                  h("div", { className: "text-[11px] text-ink-400 mt-0.5 truncate" }, u.technician_name, " \xB7 ", u.technician_phone, " \xB7 ", thDate(u.work_date), u.start_time ? ` ${u.start_time}-${u.end_time || ""}` : "")
+                ),
+                h("button", { onClick: () => deleteUpdate(u.id), className: "text-ink-300 hover:text-red-500 text-xs shrink-0" }, "\u0E25\u0E1A")
+              ),
+              u.note && h("div", { className: "text-xs text-ink-600 mt-1.5" }, u.note),
+              ph.length > 0 && h("div", { className: "grid grid-cols-4 gap-1.5 mt-2" },
+                ph.map((p) => h("button", { key: p.id, onClick: () => setLightbox(p.photo_url), className: "relative" },
+                  h("img", { src: p.photo_url, className: "w-full h-14 object-cover rounded-lg ring-1 ring-ink-200" }),
+                  h("div", { className: "absolute bottom-0 inset-x-0 bg-black/50 text-white text-[8px] text-center rounded-b-lg" }, techPhotoTypeOf(p.photo_type).label)
+                ))
+              )
+            );
+          })
+        ),
+    lightbox && h("div", { className: "fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4", onClick: () => setLightbox(null) },
+      h("img", { src: lightbox, className: "max-w-full max-h-full rounded-xl" })
+    )
+  );
+}
 function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus, onOpenBOQ, onUpdateWarranty, onUpdateInstallStage, onUpdateDocuments }) {
   const [log, setLog] = useState({ topic: "", interest: "", sent: "", next: "" });
   const [boqCount, setBoqCount] = useState(0);
@@ -1467,7 +1557,7 @@ function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus, 
     setLog({ topic: "", interest: "", sent: "", next: "" });
   };
   const Line = ({ label, val, href }) => /* @__PURE__ */ React.createElement("div", { className: "flex justify-between gap-3 py-1.5 border-b border-ink-50 last:border-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-400" }, label), href && val ? /* @__PURE__ */ React.createElement("a", { href, target: "_blank", className: "text-sm text-brand-600 font-medium text-right break-all" }, val) : /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-700 font-medium text-right break-all" }, val || "\u2014"));
-  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shrink-0" }, c.name.replace(/^คุณ|^ช่าง/, "").trim().charAt(0) || "?"), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-1" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.type)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: onOpenBOQ, className: "relative inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:brightness-110 shadow-sm", title: "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32 BOQ \u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E19\u0E35\u0E49" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), boqCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "absolute -top-1.5 -right-1.5 bg-white text-orange-600 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center ring-2 ring-orange-200" }, boqCount)), /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-2 rounded-lg text-ink-500 hover:bg-ink-100", title: "\u0E41\u0E01\u0E49\u0E44\u0E02" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit })), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 rounded-lg text-ink-400 hover:bg-ink-100" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x })))), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-0 max-h-[72vh] overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "p-6 md:border-r border-ink-100 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-600" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-emerald-700" }, baht(c.value)), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-500 mt-0.5 truncate" }, "⭐ จาก ", primaryQuote.quoteNo || "BOQ"), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1" }, "✓ Sync เข้าบัญชีบริษัทอัตโนมัติ")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600" }, "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-brand-700" }, baht(c.budget)))), /* @__PURE__ */ React.createElement(WarrantyCard, { customer: c, onClick: () => setWarrantyOpen(true), onEdit: () => onEdit(c) }), /* @__PURE__ */ React.createElement(InstallStageStepper, { customer: c, onUpdate: onUpdateInstallStage }), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" }, /* @__PURE__ */ React.createElement(Line, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23", val: c.phone, href: c.phone ? `tel:${c.phone}` : null }), /* @__PURE__ */ React.createElement(Line, { label: "Line ID", val: c.lineId }), /* @__PURE__ */ React.createElement(Line, { label: "Facebook", val: c.facebook }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14", val: c.province }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48", val: c.address }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32", val: c.source }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F/\u0E40\u0E14\u0E37\u0E2D\u0E19", val: c.monthlyBill ? baht(c.monthlyBill) : "\u2014" }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08", val: c.systemSize }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14", val: thDate(c.lastContact) }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B", val: thDate(c.nextFollowup) })), c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, c.tags.map((t) => /* @__PURE__ */ React.createElement(Badge, { key: t, cls: "bg-amber-50 text-amber-700 ring-amber-200" }, "\u{1F3F7}\uFE0F ", t))), c.note && /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-ink-50 p-3 text-sm text-ink-600" }, "\u{1F4DD} ", c.note), /* @__PURE__ */ React.createElement(DocumentsSection, { customer: c, onUpdate: onUpdateDocuments }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-medium text-ink-500 mb-1.5" }, "\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5" }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, onClick: () => onStatus(c.id, s.key), className: `px-2.5 py-1 rounded-lg text-xs font-medium transition ${c.status === s.key ? s.color + " text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, s.label))))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-ink-50/40" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white ring-1 ring-ink-100 p-3 space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E04\u0E38\u0E22\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2D\u0E30\u0E44\u0E23 *", value: log.topic, onChange: (e) => setLog((p) => ({ ...p, topic: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E2A\u0E19\u0E43\u0E08\u0E2D\u0E30\u0E44\u0E23", value: log.interest, onChange: (e) => setLog((p) => ({ ...p, interest: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E30\u0E44\u0E23\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27", value: log.sent, onChange: (e) => setLog((p) => ({ ...p, sent: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E48\u0E2D\u0E44\u0E1B\u0E04\u0E37\u0E2D\u0E2D\u0E30\u0E44\u0E23", value: log.next, onChange: (e) => setLog((p) => ({ ...p, next: e.target.value })) }), /* @__PURE__ */ React.createElement("button", { onClick: addLog, className: "w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, (c.timeline || []).slice().reverse().map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "relative pl-5" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-4 ring-brand-100" }), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mb-0.5" }, thDate(t.date)), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg bg-white ring-1 ring-ink-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-ink-800" }, t.topic), t.interest && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500 mt-1" }, "\u0E2A\u0E19\u0E43\u0E08: ", t.interest), t.sent && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500" }, "\u0E2A\u0E48\u0E07\u0E41\u0E25\u0E49\u0E27: ", t.sent), t.next && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600 mt-1" }, "\u2192 \u0E16\u0E31\u0E14\u0E44\u0E1B: ", t.next)))), (!c.timeline || c.timeline.length === 0) && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 text-center py-6" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")))), /* @__PURE__ */ React.createElement(WarrantyDetailModal, { open: warrantyOpen, customer: c, onClose: () => setWarrantyOpen(false), onAddLog, onUpdateWarranty }));
+  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shrink-0" }, c.name.replace(/^คุณ|^ช่าง/, "").trim().charAt(0) || "?"), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-1" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.type)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: onOpenBOQ, className: "relative inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:brightness-110 shadow-sm", title: "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32 BOQ \u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E19\u0E35\u0E49" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), boqCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "absolute -top-1.5 -right-1.5 bg-white text-orange-600 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center ring-2 ring-orange-200" }, boqCount)), /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-2 rounded-lg text-ink-500 hover:bg-ink-100", title: "\u0E41\u0E01\u0E49\u0E44\u0E02" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit })), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 rounded-lg text-ink-400 hover:bg-ink-100" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x })))), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-0 max-h-[72vh] overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "p-6 md:border-r border-ink-100 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-600" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-emerald-700" }, baht(c.value)), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-500 mt-0.5 truncate" }, "⭐ จาก ", primaryQuote.quoteNo || "BOQ"), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1" }, "✓ Sync เข้าบัญชีบริษัทอัตโนมัติ")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600" }, "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-brand-700" }, baht(c.budget)))), /* @__PURE__ */ React.createElement(WarrantyCard, { customer: c, onClick: () => setWarrantyOpen(true), onEdit: () => onEdit(c) }), /* @__PURE__ */ React.createElement(InstallStageStepper, { customer: c, onUpdate: onUpdateInstallStage }), /* @__PURE__ */ React.createElement(TechnicianJobSection, { customer: c }), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" }, /* @__PURE__ */ React.createElement(Line, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23", val: c.phone, href: c.phone ? `tel:${c.phone}` : null }), /* @__PURE__ */ React.createElement(Line, { label: "Line ID", val: c.lineId }), /* @__PURE__ */ React.createElement(Line, { label: "Facebook", val: c.facebook }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14", val: c.province }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48", val: c.address }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32", val: c.source }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F/\u0E40\u0E14\u0E37\u0E2D\u0E19", val: c.monthlyBill ? baht(c.monthlyBill) : "\u2014" }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08", val: c.systemSize }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14", val: thDate(c.lastContact) }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B", val: thDate(c.nextFollowup) })), c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, c.tags.map((t) => /* @__PURE__ */ React.createElement(Badge, { key: t, cls: "bg-amber-50 text-amber-700 ring-amber-200" }, "\u{1F3F7}\uFE0F ", t))), c.note && /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-ink-50 p-3 text-sm text-ink-600" }, "\u{1F4DD} ", c.note), /* @__PURE__ */ React.createElement(DocumentsSection, { customer: c, onUpdate: onUpdateDocuments }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-medium text-ink-500 mb-1.5" }, "\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5" }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, onClick: () => onStatus(c.id, s.key), className: `px-2.5 py-1 rounded-lg text-xs font-medium transition ${c.status === s.key ? s.color + " text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, s.label))))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-ink-50/40" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white ring-1 ring-ink-100 p-3 space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E04\u0E38\u0E22\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2D\u0E30\u0E44\u0E23 *", value: log.topic, onChange: (e) => setLog((p) => ({ ...p, topic: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E2A\u0E19\u0E43\u0E08\u0E2D\u0E30\u0E44\u0E23", value: log.interest, onChange: (e) => setLog((p) => ({ ...p, interest: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E30\u0E44\u0E23\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27", value: log.sent, onChange: (e) => setLog((p) => ({ ...p, sent: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E48\u0E2D\u0E44\u0E1B\u0E04\u0E37\u0E2D\u0E2D\u0E30\u0E44\u0E23", value: log.next, onChange: (e) => setLog((p) => ({ ...p, next: e.target.value })) }), /* @__PURE__ */ React.createElement("button", { onClick: addLog, className: "w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, (c.timeline || []).slice().reverse().map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "relative pl-5" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-4 ring-brand-100" }), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mb-0.5" }, thDate(t.date)), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg bg-white ring-1 ring-ink-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-ink-800" }, t.topic), t.interest && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500 mt-1" }, "\u0E2A\u0E19\u0E43\u0E08: ", t.interest), t.sent && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500" }, "\u0E2A\u0E48\u0E07\u0E41\u0E25\u0E49\u0E27: ", t.sent), t.next && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600 mt-1" }, "\u2192 \u0E16\u0E31\u0E14\u0E44\u0E1B: ", t.next)))), (!c.timeline || c.timeline.length === 0) && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 text-center py-6" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")))), /* @__PURE__ */ React.createElement(WarrantyDetailModal, { open: warrantyOpen, customer: c, onClose: () => setWarrantyOpen(false), onAddLog, onUpdateWarranty }));
 }
 function Donut({ data, unit }) {
   const totalReal = data.reduce((s, d) => s + d.value, 0);
@@ -2575,6 +2665,99 @@ const activityDb = {
       .then(() => {}).catch((e) => console.error("activity log failed:", e));
   }
 };
+/* ===================== โมดูล Technician Job Update (ช่างส่งงานผ่านลิงก์ ไม่ต้องล็อกอิน) ===================== */
+const TECH_JOB_STATUSES = [
+  { key: "survey", label: "เข้าสำรวจหน้างาน", icon: "📐" },
+  { key: "installing", label: "เริ่มติดตั้ง", icon: "🔧" },
+  { key: "done", label: "ติดตั้งเสร็จ", icon: "✅" },
+  { key: "inspect", label: "รอตรวจสอบ", icon: "🔍" },
+  { key: "handover", label: "ส่งมอบงานแล้ว", icon: "🤝" },
+  { key: "issue", label: "มีปัญหา / ต้องแก้ไข", icon: "⚠️" }
+];
+const TECH_PHOTO_TYPES = [
+  { key: "before", label: "ก่อนติดตั้ง" },
+  { key: "during", label: "ระหว่างติดตั้ง" },
+  { key: "after", label: "หลังติดตั้ง" },
+  { key: "panel", label: "แผงโซลาร์" },
+  { key: "inverter", label: "อินเวอร์เตอร์" },
+  { key: "wiring", label: "ตู้ไฟ/สายไฟ" },
+  { key: "document", label: "เอกสารอื่นๆ" }
+];
+const techStatusOf = (k) => TECH_JOB_STATUSES.find((s) => s.key === k) || { key: k, label: k, icon: "📌" };
+const techPhotoTypeOf = (k) => TECH_PHOTO_TYPES.find((t) => t.key === k) || { key: k, label: k };
+
+// ---------- ฝั่งแอดมิน (ล็อกอินปกติ) ----------
+const technicianDb = {
+  async createLink(customerId) {
+    const myEmail = (window.__userEmail || "").trim();
+    const token = crypto.randomUUID(); // สุ่มจริง เดาไม่ได้ ต่างจาก uid() ที่มีเวลาปนอยู่
+    const row = { id: uid(), customer_id: customerId, token, created_by: myEmail, is_active: true };
+    const { data, error } = await sb.from("technician_update_links").insert(row).select().maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+  async listLinks(customerId) {
+    const { data, error } = await sb.from("technician_update_links").select("*").eq("customer_id", customerId).order("createdAt", { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async setLinkActive(linkId, isActive) {
+    const { error } = await sb.from("technician_update_links").update({ is_active: isActive }).eq("id", linkId);
+    if (error) throw error;
+  },
+  async listUpdates(customerId) {
+    const { data, error } = await sb.from("technician_job_updates").select("*").eq("customer_id", customerId).order("submitted_at", { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async listPhotos(customerId) {
+    const { data, error } = await sb.from("technician_job_photos").select("*").eq("customer_id", customerId).order("createdAt", { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async deleteUpdate(updateId) {
+    const { error } = await sb.from("technician_job_updates").delete().eq("id", updateId);
+    if (error) throw error;
+  }
+};
+function techLinkUrl(token) {
+  return `${window.location.origin}${window.location.pathname}#technician-update/${token}`;
+}
+
+// ---------- ฝั่งช่าง (สาธารณะ ไม่ต้องล็อกอิน — เรียกผ่าน RPC/Edge Function เท่านั้น) ----------
+async function techGetJob(token) {
+  const { data, error } = await sb.rpc("tech_get_job", { p_token: token });
+  if (error) throw new Error(error.message || "เกิดข้อผิดพลาด");
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || !row.is_valid) throw new Error((row && row.reason) || "ลิงก์นี้ไม่สามารถใช้งานได้");
+  return row;
+}
+async function techSubmitUpdate(token, form) {
+  const { data, error } = await sb.rpc("tech_submit_update", {
+    p_token: token,
+    p_technician_name: form.technicianName,
+    p_technician_phone: form.technicianPhone,
+    p_job_status: form.jobStatus,
+    p_work_date: form.workDate,
+    p_start_time: form.startTime || null,
+    p_end_time: form.endTime || null,
+    p_note: form.note || null
+  });
+  if (error) throw new Error(error.message || "ส่งงานไม่สำเร็จ");
+  if (!data) throw new Error("ลิงก์นี้ไม่สามารถใช้งานได้ (อาจถูกปิดหรือหมดอายุระหว่างที่กรอกฟอร์ม)");
+  return data; // job_update id
+}
+async function techUploadPhoto(token, jobUpdateId, photoType, file) {
+  const dataUrl = await resizeImageFile(file, 1600, 0.75);
+  const res = await fetch(`${window.SUPABASE_URL}/functions/v1/technician-upload-photo`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, jobUpdateId, photoType, fileName: file.name, dataUrl })
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || "อัปโหลดรูปไม่สำเร็จ");
+  return body;
+}
 /* ===================== ขั้นตอนติดตั้งหลังปิดการขาย ===================== */
 const INSTALL_STAGES = [
   { key: "survey", label: "สำรวจหน้างาน", icon: "📐", color: "bg-blue-500" },
@@ -4385,6 +4568,160 @@ function AdminAnalyticsPage({ session }) {
     )
   );
 }
+function TechnicianUpdatePage({ token }) {
+  const [phase, setPhase] = useState("loading"); // loading | form | success | error
+  const [errorMsg, setErrorMsg] = useState("");
+  const [job, setJob] = useState(null);
+  const [form, setForm] = useState({ technicianName: "", technicianPhone: "", jobStatus: "", workDate: todayISO(), startTime: "", endTime: "", note: "" });
+  const [pendingPhotos, setPendingPhotos] = useState([]); // [{localId, file, photoType, previewUrl}]
+  const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
+  const fileRef = useRef(null);
+  const [pickType, setPickType] = useState("before");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const j = await techGetJob(token);
+        setJob(j);
+        setPhase("form");
+      } catch (e) {
+        setErrorMsg(e && e.message ? e.message : "ลิงก์นี้ไม่สามารถใช้งานได้");
+        setPhase("error");
+      }
+    })();
+  }, [token]);
+
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const onPickFiles = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const items = files.map((file) => ({ localId: uid(), file, photoType: pickType, previewUrl: URL.createObjectURL(file) }));
+    setPendingPhotos((p) => [...p, ...items]);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+  const removePending = (localId) => setPendingPhotos((p) => p.filter((x) => x.localId !== localId));
+
+  const submit = async () => {
+    if (!form.technicianName.trim()) { alert("กรุณากรอกชื่อช่าง/ทีมช่าง"); return; }
+    if (!form.technicianPhone.trim()) { alert("กรุณากรอกเบอร์โทรช่าง"); return; }
+    if (!form.jobStatus) { alert("กรุณาเลือกสถานะงาน"); return; }
+    if (!form.workDate) { alert("กรุณาเลือกวันที่ดำเนินงาน"); return; }
+    setSubmitting(true);
+    try {
+      setUploadProgress("กำลังบันทึกข้อมูลงาน...");
+      const jobUpdateId = await techSubmitUpdate(token, form);
+      if (pendingPhotos.length > 0) {
+        for (let i = 0; i < pendingPhotos.length; i++) {
+          setUploadProgress(`กำลังอัปโหลดรูปที่ ${i + 1}/${pendingPhotos.length}...`);
+          try {
+            await techUploadPhoto(token, jobUpdateId, pendingPhotos[i].photoType, pendingPhotos[i].file);
+          } catch (e) {
+            console.error("photo upload failed:", e);
+          }
+        }
+      }
+      setPhase("success");
+    } catch (e) {
+      alert("ส่งงานไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
+    } finally {
+      setSubmitting(false);
+      setUploadProgress("");
+    }
+  };
+
+  const inputCls = "w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-400 text-ink-800";
+  const labelCls = "block text-sm font-semibold text-ink-700 mb-1.5";
+
+  if (phase === "loading") {
+    return h("div", { className: "min-h-screen flex items-center justify-center bg-ink-50" },
+      h("div", { className: "text-ink-400 text-sm" }, "\u{1F527} \u0E01\u0E33\u0E25\u0E31\u0E07\u0E15\u0E23\u0E27\u0E08\u0E2A\u0E2D\u0E1A\u0E25\u0E34\u0E07\u0E01\u0E4C...")
+    );
+  }
+  if (phase === "error") {
+    return h("div", { className: "min-h-screen flex flex-col items-center justify-center gap-3 bg-ink-50 px-6 text-center" },
+      h("div", { className: "text-5xl" }, "\u{1F6AB}"),
+      h("div", { className: "text-ink-700 font-bold text-lg" }, "\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E19\u0E35\u0E49\u0E44\u0E21\u0E48\u0E2A\u0E32\u0E21\u0E32\u0E23\u0E16\u0E43\u0E0A\u0E49\u0E07\u0E32\u0E19\u0E44\u0E14\u0E49"),
+      h("div", { className: "text-ink-400 text-sm" }, errorMsg)
+    );
+  }
+  if (phase === "success") {
+    return h("div", { className: "min-h-screen flex flex-col items-center justify-center gap-3 bg-emerald-50 px-6 text-center" },
+      h("div", { className: "text-6xl" }, "\u2705"),
+      h("div", { className: "text-emerald-800 font-bold text-xl" }, "\u0E2A\u0E48\u0E07\u0E07\u0E32\u0E19\u0E40\u0E23\u0E35\u0E22\u0E1A\u0E23\u0E49\u0E2D\u0E22\u0E41\u0E25\u0E49\u0E27!"),
+      h("div", { className: "text-emerald-600 text-sm" }, "\u0E02\u0E2D\u0E1A\u0E04\u0E38\u0E13\u0E17\u0E35\u0E48\u0E2A\u0E48\u0E07\u0E2D\u0E31\u0E1B\u0E40\u0E14\u0E15\u0E07\u0E32\u0E19\u0E04\u0E23\u0E31\u0E1A \u0E17\u0E32\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E44\u0E14\u0E49\u0E23\u0E31\u0E1A\u0E17\u0E23\u0E32\u0E1A\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E41\u0E25\u0E49\u0E27"),
+      h("button", {
+        onClick: () => { setPhase("form"); setForm({ technicianName: form.technicianName, technicianPhone: form.technicianPhone, jobStatus: "", workDate: todayISO(), startTime: "", endTime: "", note: "" }); setPendingPhotos([]); },
+        className: "mt-4 px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm"
+      }, "+ \u0E2A\u0E48\u0E07\u0E2D\u0E31\u0E1B\u0E40\u0E14\u0E15\u0E07\u0E32\u0E19\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07")
+    );
+  }
+
+  return h("div", { className: "min-h-screen bg-ink-50 pb-10" },
+    h("div", { className: "bg-gradient-to-br from-brand-600 to-emerald-600 px-5 py-6 text-white" },
+      h("div", { className: "text-xs opacity-80 mb-1" }, "\u{1F527} \u0E1F\u0E2D\u0E23\u0E4C\u0E21\u0E2A\u0E48\u0E07\u0E07\u0E32\u0E19\u0E0A\u0E48\u0E32\u0E07"),
+      h("div", { className: "text-xl font-bold" }, job.customer_name),
+      h("div", { className: "text-sm opacity-90 mt-1" }, [job.province, job.address].filter(Boolean).join(" \xB7 ")),
+      job.system_size && h("div", { className: "text-xs opacity-80 mt-0.5" }, "\u0E23\u0E30\u0E1A\u0E1A: ", job.system_size)
+    ),
+    h("div", { className: "max-w-lg mx-auto px-4 -mt-2 space-y-4" },
+      h("div", { className: "bg-white rounded-2xl shadow-sm p-4 space-y-4" },
+        h("div", null,
+          h("label", { className: labelCls }, "\u0E0A\u0E37\u0E48\u0E2D\u0E0A\u0E48\u0E32\u0E07 / \u0E17\u0E35\u0E21\u0E0A\u0E48\u0E32\u0E07 *"),
+          h("input", { className: inputCls, value: form.technicianName, onChange: (e) => set("technicianName", e.target.value), placeholder: "\u0E40\u0E0A\u0E48\u0E19 \u0E17\u0E35\u0E21\u0E0A\u0E48\u0E32\u0E07 A" })
+        ),
+        h("div", null,
+          h("label", { className: labelCls }, "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23\u0E0A\u0E48\u0E32\u0E07 *"),
+          h("input", { type: "tel", className: inputCls, value: form.technicianPhone, onChange: (e) => set("technicianPhone", e.target.value), placeholder: "08X-XXX-XXXX" })
+        ),
+        h("div", null,
+          h("label", { className: labelCls }, "\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E07\u0E32\u0E19 *"),
+          h("div", { className: "grid grid-cols-2 gap-2" },
+            TECH_JOB_STATUSES.map((s) => h("button", {
+              key: s.key, type: "button", onClick: () => set("jobStatus", s.key),
+              className: `flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-medium transition ${form.jobStatus === s.key ? "bg-brand-600 text-white" : "bg-ink-50 text-ink-600 hover:bg-ink-100"}`
+            }, h("span", null, s.icon), h("span", null, s.label)))
+          )
+        ),
+        h("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-3" },
+          h("div", null, h("label", { className: labelCls }, "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48 *"), h("input", { type: "date", className: inputCls, value: form.workDate, onChange: (e) => set("workDate", e.target.value) })),
+          h("div", null, h("label", { className: labelCls }, "\u0E40\u0E27\u0E25\u0E32\u0E40\u0E23\u0E34\u0E48\u0E21"), h("input", { type: "time", className: inputCls, value: form.startTime, onChange: (e) => set("startTime", e.target.value) })),
+          h("div", null, h("label", { className: labelCls }, "\u0E40\u0E27\u0E25\u0E32\u0E08\u0E1A"), h("input", { type: "time", className: inputCls, value: form.endTime, onChange: (e) => set("endTime", e.target.value) }))
+        ),
+        h("div", null,
+          h("label", { className: labelCls }, "\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38\u0E08\u0E32\u0E01\u0E0A\u0E48\u0E32\u0E07"),
+          h("textarea", { className: inputCls + " h-24 resize-none", value: form.note, onChange: (e) => set("note", e.target.value), placeholder: "\u0E23\u0E32\u0E22\u0E25\u0E30\u0E40\u0E2D\u0E35\u0E22\u0E14\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E40\u0E15\u0E34\u0E21 \u0E2B\u0E23\u0E37\u0E2D\u0E1B\u0E31\u0E0D\u0E2B\u0E32\u0E17\u0E35\u0E48\u0E1E\u0E1A\u0E40\u0E08\u0E2D..." })
+        )
+      ),
+      h("div", { className: "bg-white rounded-2xl shadow-sm p-4 space-y-3" },
+        h("div", { className: "text-sm font-semibold text-ink-700" }, "\u{1F4F7} \u0E23\u0E39\u0E1B\u0E20\u0E32\u0E1E\u0E1B\u0E23\u0E30\u0E01\u0E2D\u0E1A\u0E07\u0E32\u0E19"),
+        h("div", { className: "flex flex-wrap gap-1.5" },
+          TECH_PHOTO_TYPES.map((t) => h("button", {
+            key: t.key, type: "button", onClick: () => setPickType(t.key),
+            className: `px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${pickType === t.key ? "bg-emerald-600 text-white" : "bg-ink-50 text-ink-500 hover:bg-ink-100"}`
+          }, t.label))
+        ),
+        h("input", { ref: fileRef, type: "file", accept: "image/*", multiple: true, capture: "environment", className: "hidden", onChange: onPickFiles }),
+        h("button", {
+          type: "button", onClick: () => fileRef.current.click(),
+          className: "w-full py-3 rounded-xl border-2 border-dashed border-brand-300 text-brand-600 text-sm font-semibold hover:bg-brand-50"
+        }, "\u{1F4F8} \u0E16\u0E48\u0E32\u0E22/\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E23\u0E39\u0E1B: ", techPhotoTypeOf(pickType).label),
+        pendingPhotos.length > 0 && h("div", { className: "grid grid-cols-3 gap-2" },
+          pendingPhotos.map((p) => h("div", { key: p.localId, className: "relative" },
+            h("img", { src: p.previewUrl, className: "w-full h-20 object-cover rounded-lg ring-1 ring-ink-200" }),
+            h("div", { className: "absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] text-center py-0.5 rounded-b-lg" }, techPhotoTypeOf(p.photoType).label),
+            h("button", { type: "button", onClick: () => removePending(p.localId), className: "absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white shadow ring-1 ring-ink-200 flex items-center justify-center text-red-500 text-[10px]" }, "\u2715")
+          ))
+        )
+      ),
+      h("button", {
+        onClick: submit, disabled: submitting,
+        className: "w-full py-4 rounded-2xl bg-emerald-600 text-white font-bold text-base shadow-lg hover:bg-emerald-700 disabled:opacity-50"
+      }, submitting ? (uploadProgress || "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E2A\u0E48\u0E07...") : "\u2705 \u0E2A\u0E48\u0E07\u0E07\u0E32\u0E19")
+    )
+  );
+}
 function Gate() {
   const [ready, setReady] = React.useState(false);
   const [session, setSession] = React.useState(null);
@@ -4407,6 +4744,12 @@ function Gate() {
     });
     return () => { try { sub.subscription.unsubscribe(); } catch (e) {} };
   }, []);
+  // เส้นทางสาธารณะสำหรับ "ช่าง" ที่ไม่ต้องล็อกอินเลย — ต้องเช็คก่อนทุกอย่าง (ก่อนแม้แต่หน้าล็อกอิน)
+  const hashForTech = window.location.hash || "";
+  if (hashForTech.indexOf("#technician-update/") === 0) {
+    const token = hashForTech.replace("#technician-update/", "");
+    return React.createElement(TechnicianUpdatePage, { token });
+  }
   if (!ready) return React.createElement("div", { className: "min-h-screen flex items-center justify-center text-ink-400" }, "กำลังโหลด\u2026");
   if (sb && !session) return React.createElement(LoginScreen, null);
   // เส้นทางลับสำหรับแอดมินเจ้าของระบบเท่านั้น (#admin หรือ #admin/analytics) — ตรวจสอบสิทธิ์จริงฝั่งเซิร์ฟเวอร์อีกชั้นเสมอ
