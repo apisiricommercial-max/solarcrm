@@ -2401,56 +2401,6 @@ function Customers({ rows, onOpen, onEdit, onDelete, onAdd }) {
     )
   );
 }
-function Pipeline({ rows, onOpen, onStatus }) {
-  const cols = STATUSES.filter((s) => s.key !== "lost");
-  const [over, setOver] = useState(null);
-  const dragId = useRef(null);
-  return /* @__PURE__ */ React.createElement("div", { className: "fade-in" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-4 overflow-x-auto pb-4 kanban-scroll items-start" }, cols.map((col) => {
-    const items = rows.filter((r) => r.status === col.key);
-    const sum = items.reduce((s, r) => s + (r.value || 0), 0);
-    return /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        key: col.key,
-        // ทุกคอลัมน์สูงเท่ากันคงที่ (อิงตามพื้นที่จอ ไม่อิงจำนวนการ์ด) คอลัมน์ที่การ์ดเยอะ (เช่น ปิดการขาย/อยู่ในประกัน ที่สะสมไปเรื่อยๆ)
-        // จะมี scroll แนวตั้งในตัวเองแทน ไม่ดันให้ทั้งกระดาน Pipeline ยาวลงจนต้องเลื่อนลงก่อนเจอแถบเลื่อนแนวนอน
-        className: `kanban-col w-72 shrink-0 rounded-2xl bg-ink-100/60 p-3 transition flex flex-col ${over === col.key ? "col-over" : ""}`,
-        onDragOver: (e) => {
-          e.preventDefault();
-          setOver(col.key);
-        },
-        onDragLeave: () => setOver((o) => o === col.key ? null : o),
-        onDrop: (e) => {
-          e.preventDefault();
-          setOver(null);
-          if (dragId.current) onStatus(dragId.current, col.key);
-          dragId.current = null;
-        }
-      },
-      /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-3 px-1 shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { className: `w-2.5 h-2.5 rounded-full ${col.color}` }), /* @__PURE__ */ React.createElement("span", { className: "font-semibold text-ink-700 text-sm" }, col.label), /* @__PURE__ */ React.createElement("span", { className: "num text-xs text-ink-400" }, items.length))),
-      /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 px-1 mb-2 num shrink-0" }, baht(sum)),
-      /* @__PURE__ */ React.createElement("div", { className: "kanban-col-scroll space-y-2.5 min-h-[60px] overflow-y-auto pr-0.5" }, items.map((c) => /* @__PURE__ */ React.createElement(
-        "div",
-        {
-          key: c.id,
-          draggable: true,
-          onDragStart: (e) => {
-            dragId.current = c.id;
-            e.currentTarget.classList.add("card-drag");
-          },
-          onDragEnd: (e) => e.currentTarget.classList.remove("card-drag"),
-          onClick: () => onOpen(c),
-          className: "bg-white rounded-xl ring-1 ring-ink-100 p-3 shadow-sm cursor-grab active:cursor-grabbing hover:ring-brand-300 transition"
-        },
-        /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "font-medium text-ink-800 text-sm truncate" }, c.name), /* @__PURE__ */ React.createElement("span", { className: "text-xs shrink-0" }, heatOf(c.heat).emoji)),
-        /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province || "\u2014", " \xB7 ", c.systemSize),
-        /* @__PURE__ */ React.createElement("div", { className: "num text-sm font-bold text-emerald-600 mt-1.5" }, baht(c.value)),
-        c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1 mt-2" }, c.tags.slice(0, 2).map((t) => /* @__PURE__ */ React.createElement("span", { key: t, className: "text-[10px] bg-amber-50 text-amber-700 rounded px-1.5 py-0.5" }, t))),
-        /* @__PURE__ */ React.createElement("select", { value: c.status, onClick: (e) => e.stopPropagation(), onChange: (e) => onStatus(c.id, e.target.value), className: "mt-2 w-full text-xs rounded-lg border border-ink-200 px-2 py-1 text-ink-500 bg-ink-50 outline-none" }, cols.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.key, value: s.key }, "\u0E22\u0E49\u0E32\u0E22\u0E44\u0E1B: ", s.label)))
-      )), items.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-300 text-center py-4 border border-dashed border-ink-200 rounded-xl" }, "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E21\u0E32\u0E17\u0E35\u0E48\u0E19\u0E35\u0E48"))
-    );
-  })), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400 mt-2" }, '\u{1F4A1} \u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E02\u0E49\u0E32\u0E21\u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30 \u0E2B\u0E23\u0E37\u0E2D\u0E43\u0E0A\u0E49\u0E40\u0E21\u0E19\u0E39 "\u0E22\u0E49\u0E32\u0E22\u0E44\u0E1B" \u0E1A\u0E19\u0E01\u0E32\u0E23\u0E4C\u0E14 (\u0E40\u0E2B\u0E21\u0E32\u0E30\u0E01\u0E31\u0E1A\u0E21\u0E37\u0E2D\u0E16\u0E37\u0E2D)'));
-}
 function FollowUp({ rows, onOpen }) {
   // ลูกค้าที่ปิดเคสแล้ว (ปิดการขาย/อยู่ในประกัน) หรือไม่สนใจแล้ว ไม่ต้องติดตามต่อ
   const active = rows.filter((r) => r.nextFollowup && !["won", "warranty", "lost"].includes(r.status));
@@ -2480,8 +2430,7 @@ const NAV = [
   { key: "dash", label: "\u0E41\u0E14\u0E0A\u0E1A\u0E2D\u0E23\u0E4C\u0E14", icon: I.dash },
   { key: "leads", label: "🌐 ลูกค้าจากเว็บ", icon: I.inbox },
   { key: "cust", label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", icon: I.users },
-  { key: "pipe", label: "\u0E44\u0E1B\u0E1B\u0E4C\u0E44\u0E25\u0E19\u0E4C", icon: I.board },
-  { key: "install", label: "🏗️ งานติดตั้ง", icon: I.board },
+  { key: "install", label: "🏗️ ไปป์ไลน์งาน", icon: I.board },
   { key: "follow", label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", icon: I.bell },
   { key: "profit", label: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E01\u0E33\u0E44\u0E23", icon: I.calc },
   { key: "roi", label: "☀️ คำนวณคืนทุน", icon: I.money },
@@ -2767,6 +2716,36 @@ const INSTALL_STAGES = [
   { key: "done", label: "ติดตั้งเสร็จสมบูรณ์", icon: "✅", color: "bg-emerald-500" }
 ];
 const installStageOf = (k) => INSTALL_STAGES.find((s) => s.key === k) || null;
+/* ===================== ไปป์ไลน์งานรวม (ขาย + ติดตั้ง เป็นเส้นทางเดียวต่อเนื่อง) ===================== */
+const SALES_STAGE_KEYS = ["new", "talking", "sent", "waiting"];
+const FUNNEL_STAGES = [
+  { key: "new", label: "ลูกค้าใหม่", icon: "🆕", color: "bg-blue-500" },
+  { key: "talking", label: "กำลังคุย", icon: "💬", color: "bg-indigo-500" },
+  { key: "sent", label: "ส่งข้อมูลแล้ว", icon: "📤", color: "bg-cyan-500" },
+  { key: "waiting", label: "รอโอน", icon: "⏳", color: "bg-amber-500" },
+  ...INSTALL_STAGES
+];
+const funnelStageOf = (k) => FUNNEL_STAGES.find((s) => s.key === k) || null;
+// หาว่าลูกค้าคนนี้อยู่ขั้นตอนไหนในไปป์ไลน์รวม (คืนค่า null ถ้าไม่สนใจแล้ว — ไม่แสดงในบอร์ดนี้)
+const funnelKeyOfCustomer = (c) => {
+  if (SALES_STAGE_KEYS.includes(c.status)) return c.status;
+  if (["won", "warranty"].includes(c.status)) return c.installStage || "survey";
+  return null; // lost หรือสถานะอื่นที่ไม่รู้จัก
+};
+// ย้ายลูกค้าไปขั้นตอนเป้าหมายในไปป์ไลน์รวม จัดการ cross-over ระหว่างช่วงขาย/ติดตั้งให้อัตโนมัติ
+// (ปิดการขายอัตโนมัติเมื่อข้ามจากช่วงขายไปช่วงติดตั้ง, เปลี่ยนเป็น "อยู่ในประกัน" อัตโนมัติเมื่อถึงขั้น "เสร็จสมบูรณ์")
+const moveFunnelStage = (customer, targetKey, { onStatus, onUpdateInstallStage }) => {
+  if (SALES_STAGE_KEYS.includes(targetKey)) {
+    onStatus(customer.id, targetKey);
+    return;
+  }
+  // เป้าหมายเป็นขั้นตอนติดตั้ง (survey/permit/installing/inspect/done)
+  if (!["won", "warranty"].includes(customer.status)) {
+    onStatus(customer.id, "won"); // ทริกเกอร์ wonAt/wonBy + ตั้ง installStage เริ่มต้นเป็น survey อัตโนมัติ (ตาม logic เดิมใน setStatus)
+  }
+  onUpdateInstallStage(customer.id, targetKey);
+  if (targetKey === "done" && customer.status !== "warranty") onStatus(customer.id, "warranty");
+};
 function ProfitCalc() {
   const [v, setV] = useState({ sell: 280000, panel: 70000, inverter: 35000, battery: 0, mount: 18000, wiring: 12000, labor: 35000, transport: 5000, other: 8000, tax: 0 });
   const [templates, setTemplates] = useState([]);
@@ -3297,71 +3276,127 @@ const LOADCALC_PRESETS = [
 const LOADCALC_PERIODS = [["day", "☀️ กลางวัน"], ["night", "🌙 กลางคืน"], ["both", "🔄 ทั้งวัน"]];
 let loadCalcRowSeq = 0;
 /* ============================================================ */
-/* InstallationBoard — ติดตามขั้นตอนติดตั้งหลังปิดการขาย         */
+/* PipelineBoard — ไปป์ไลน์งานรวม (ขาย → ติดตั้ง) เส้นทางเดียวต่อเนื่อง */
+/* ค่าเริ่มต้นเป็นมุมมองลิสต์/ตาราง สลับดูแบบการ์ด (Kanban) ได้     */
 /* ============================================================ */
-function InstallationBoard({ rows, onOpen, onUpdateStage }) {
+function PipelineBoard({ rows, onOpen, onStatus, onUpdateInstallStage }) {
+  const [viewMode, setViewMode] = useState("list"); // "list" | "card"
   const [over, setOver] = useState(null);
   const dragId = useRef(null);
-  const closedRows = rows.filter((r) => ["won", "warranty"].includes(r.status));
-  if (closedRows.length === 0) {
-    return h("div", { className: "bg-white rounded-2xl p-10 shadow-sm ring-1 ring-ink-100 flex flex-col items-center justify-center text-center gap-3" },
-      h("div", { className: "text-4xl" }, "\u{1F3D7}\uFE0F"),
-      h("div", { className: "text-ink-500 text-sm" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E14\u0E35\u0E25\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22\u0E41\u0E25\u0E49\u0E27"),
-      h("div", { className: "text-ink-300 text-xs" }, "\u0E40\u0E21\u0E37\u0E48\u0E2D\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E23\u0E32\u0E22\u0E43\u0E14 \u0E08\u0E30\u0E02\u0E36\u0E49\u0E19\u0E21\u0E32\u0E43\u0E2B\u0E49\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E17\u0E35\u0E48\u0E19\u0E35\u0E48\u0E42\u0E14\u0E22\u0E2D\u0E31\u0E15\u0E42\u0E19\u0E21\u0E31\u0E15\u0E34")
+
+  const items = rows.filter((r) => funnelKeyOfCustomer(r) !== null);
+  const move = (customer, targetKey) => moveFunnelStage(customer, targetKey, { onStatus, onUpdateInstallStage });
+
+  const header = h("div", { className: "flex items-center justify-between mb-4 flex-wrap gap-2" },
+    h("div", { className: "text-xs text-ink-400" }, "พบ ", h("b", { className: "text-ink-700 num" }, items.length), " ราย ในไปป์ไลน์"),
+    h("div", { className: "flex gap-1.5" },
+      h("button", { onClick: () => setViewMode("list"), className: `px-3 py-1.5 rounded-lg text-xs font-semibold transition ${viewMode === "list" ? "bg-brand-600 text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, "📋 ลิสต์"),
+      h("button", { onClick: () => setViewMode("card"), className: `px-3 py-1.5 rounded-lg text-xs font-semibold transition ${viewMode === "card" ? "bg-brand-600 text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, "🗂️ ดูเป็นการ์ด")
+    )
+  );
+
+  if (items.length === 0) {
+    return h("div", { className: "fade-in space-y-4" }, header,
+      h("div", { className: "bg-white rounded-2xl p-10 shadow-sm ring-1 ring-ink-100 flex flex-col items-center justify-center text-center gap-3" },
+        h("div", { className: "text-4xl" }, "🏗️"),
+        h("div", { className: "text-ink-500 text-sm" }, "ยังไม่มีลูกค้าในไปป์ไลน์นี้")
+      )
     );
   }
-  return h("div", { className: "fade-in" },
-    h("div", { className: "flex gap-4 overflow-x-auto pb-4 kanban-scroll items-start" },
-      INSTALL_STAGES.map((col) => {
-        const items = closedRows.filter((r) => (r.installStage || "survey") === col.key);
-        const sum = items.reduce((s, r) => s + (r.value || 0), 0);
-        return h("div", {
-          key: col.key,
-          className: `kanban-col w-72 shrink-0 rounded-2xl bg-ink-100/60 p-3 transition flex flex-col ${over === col.key ? "col-over" : ""}`,
-          onDragOver: (e) => { e.preventDefault(); setOver(col.key); },
-          onDragLeave: () => setOver((o) => o === col.key ? null : o),
-          onDrop: (e) => {
-            e.preventDefault();
-            setOver(null);
-            if (dragId.current) onUpdateStage(dragId.current, col.key);
-            dragId.current = null;
-          }
-        },
-          h("div", { className: "flex items-center justify-between mb-3 px-1 shrink-0" },
-            h("div", { className: "flex items-center gap-2" },
-              h("span", { className: `w-6 h-6 rounded-full ${col.color} flex items-center justify-center text-xs` }, col.icon),
-              h("span", { className: "font-semibold text-ink-700 text-sm" }, col.label),
-              h("span", { className: "num text-xs text-ink-400" }, items.length)
+
+  if (viewMode === "card") {
+    return h("div", { className: "fade-in" },
+      header,
+      h("div", { className: "flex gap-4 overflow-x-auto pb-4 kanban-scroll items-start" },
+        FUNNEL_STAGES.map((col) => {
+          const colItems = items.filter((r) => funnelKeyOfCustomer(r) === col.key);
+          const sum = colItems.reduce((s, r) => s + (r.value || 0), 0);
+          return h("div", {
+            key: col.key,
+            className: `kanban-col w-72 shrink-0 rounded-2xl bg-ink-100/60 p-3 transition flex flex-col ${over === col.key ? "col-over" : ""}`,
+            onDragOver: (e) => { e.preventDefault(); setOver(col.key); },
+            onDragLeave: () => setOver((o) => o === col.key ? null : o),
+            onDrop: (e) => {
+              e.preventDefault(); setOver(null);
+              if (dragId.current) {
+                const cust = items.find((r) => r.id === dragId.current);
+                if (cust) move(cust, col.key);
+              }
+              dragId.current = null;
+            }
+          },
+            h("div", { className: "flex items-center justify-between mb-3 px-1 shrink-0" },
+              h("div", { className: "flex items-center gap-2" },
+                h("span", { className: `w-6 h-6 rounded-full ${col.color} flex items-center justify-center text-xs` }, col.icon),
+                h("span", { className: "font-semibold text-ink-700 text-sm" }, col.label),
+                h("span", { className: "num text-xs text-ink-400" }, colItems.length)
+              )
+            ),
+            h("div", { className: "text-xs text-ink-400 px-1 mb-2 num shrink-0" }, baht(sum)),
+            h("div", { className: "kanban-col-scroll space-y-2.5 min-h-[60px] overflow-y-auto pr-0.5" },
+              colItems.map((c) => h("div", {
+                key: c.id, draggable: true,
+                onDragStart: (e) => { dragId.current = c.id; e.currentTarget.classList.add("card-drag"); },
+                onDragEnd: (e) => e.currentTarget.classList.remove("card-drag"),
+                onClick: () => onOpen(c),
+                className: "bg-white rounded-xl ring-1 ring-ink-100 p-3 shadow-sm cursor-grab active:cursor-grabbing hover:ring-brand-300 transition"
+              },
+                h("div", { className: "flex items-start justify-between gap-2" },
+                  h("span", { className: "font-medium text-ink-800 text-sm truncate" }, c.name),
+                  h("span", { className: "text-xs shrink-0" }, heatOf(c.heat).emoji)
+                ),
+                h("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province || "—", " · ", c.systemSize),
+                h("div", { className: "num text-sm font-bold text-emerald-600 mt-1.5" }, baht(c.value)),
+                h("select", {
+                  value: col.key, onClick: (e) => e.stopPropagation(),
+                  onChange: (e) => move(c, e.target.value),
+                  className: "mt-2 w-full text-xs rounded-lg border border-ink-200 px-2 py-1 text-ink-500 bg-ink-50 outline-none"
+                }, FUNNEL_STAGES.map((s) => h("option", { key: s.key, value: s.key }, "ย้ายไป: ", s.label)))
+              )),
+              colItems.length === 0 && h("div", { className: "text-xs text-ink-300 text-center py-4 border border-dashed border-ink-200 rounded-xl" }, "ไม่มีงานในขั้นนี้")
             )
+          );
+        })
+      ),
+      h("p", { className: "text-xs text-ink-400 mt-2" }, "💡 ลากการ์ดข้ามคอลัมน์เพื่อเปลี่ยนขั้นตอน หรือใช้เมนู \"ย้ายไป\" บนการ์ด (เหมาะกับมือถือ)")
+    );
+  }
+
+  // มุมมองลิสต์ (ค่าเริ่มต้น) — จัดกลุ่มตามขั้นตอน แสดงเป็นตาราง/แถว ไม่ต้องลาก
+  return h("div", { className: "space-y-4 fade-in" },
+    header,
+    FUNNEL_STAGES.map((stage) => {
+      const stageItems = items.filter((r) => funnelKeyOfCustomer(r) === stage.key);
+      if (stageItems.length === 0) return null;
+      const sum = stageItems.reduce((s, r) => s + (r.value || 0), 0);
+      return h("div", { key: stage.key, className: "bg-white rounded-2xl ring-1 ring-ink-100 overflow-hidden shadow-sm" },
+        h("div", { className: "flex items-center justify-between px-4 py-3 bg-ink-50/60 border-b border-ink-100" },
+          h("div", { className: "flex items-center gap-2" },
+            h("span", { className: `w-6 h-6 rounded-full ${stage.color} flex items-center justify-center text-xs` }, stage.icon),
+            h("span", { className: "font-semibold text-ink-700 text-sm" }, stage.label),
+            h("span", { className: "text-xs bg-white rounded-full px-2 py-0.5 text-ink-500 num" }, stageItems.length)
           ),
-          h("div", { className: "text-xs text-ink-400 px-1 mb-2 num shrink-0" }, baht(sum)),
-          h("div", { className: "kanban-col-scroll space-y-2.5 min-h-[60px] overflow-y-auto pr-0.5" },
-            items.map((c) => h("div", {
-              key: c.id,
-              draggable: true,
-              onDragStart: (e) => { dragId.current = c.id; e.currentTarget.classList.add("card-drag"); },
-              onDragEnd: (e) => e.currentTarget.classList.remove("card-drag"),
-              onClick: () => onOpen(c),
-              className: "bg-white rounded-xl ring-1 ring-ink-100 p-3 shadow-sm cursor-grab active:cursor-grabbing hover:ring-brand-300 transition"
-            },
-              h("div", { className: "flex items-start justify-between gap-2" },
-                h("span", { className: "font-medium text-ink-800 text-sm truncate" }, c.name),
-                h("span", { className: "text-[10px] px-1.5 py-0.5 rounded-full bg-ink-100 text-ink-500" }, statusOf(c.status).label)
-              ),
-              h("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province || "\u2014", " \xB7 ", c.systemSize),
-              h("div", { className: "num text-sm font-bold text-emerald-600 mt-1.5" }, baht(c.value)),
-              h("select", {
-                value: c.installStage || "survey", onClick: (e) => e.stopPropagation(),
-                onChange: (e) => onUpdateStage(c.id, e.target.value),
-                className: "mt-2 w-full text-xs rounded-lg border border-ink-200 px-2 py-1 text-ink-500 bg-ink-50 outline-none"
-              }, INSTALL_STAGES.map((s) => h("option", { key: s.key, value: s.key }, "\u0E22\u0E49\u0E32\u0E22\u0E44\u0E1B: ", s.label)))
-            )),
-            items.length === 0 && h("div", { className: "text-xs text-ink-300 text-center py-4 border border-dashed border-ink-200 rounded-xl" }, "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E07\u0E32\u0E19\u0E43\u0E19\u0E02\u0E31\u0E49\u0E19\u0E19\u0E35\u0E49")
-          )
-        );
-      })
-    ),
-    h("p", { className: "text-xs text-ink-400 mt-2" }, "\u{1F4A1} \u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E02\u0E49\u0E32\u0E21\u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19 \u0E2B\u0E23\u0E37\u0E2D\u0E43\u0E0A\u0E49\u0E40\u0E21\u0E19\u0E39 \"\u0E22\u0E49\u0E32\u0E22\u0E44\u0E1B\" \u0E1A\u0E19\u0E01\u0E32\u0E23\u0E4C\u0E14 (\u0E40\u0E2B\u0E21\u0E32\u0E30\u0E01\u0E31\u0E1A\u0E21\u0E37\u0E2D\u0E16\u0E37\u0E2D)")
+          h("span", { className: "num text-xs text-ink-400 font-semibold" }, baht(sum))
+        ),
+        h("div", { className: "divide-y divide-ink-50" },
+          stageItems.map((c) => h("div", { key: c.id, className: "flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-ink-50/40" },
+            h("button", { onClick: () => onOpen(c), className: "flex-1 min-w-0 text-left flex items-center gap-3" },
+              h("span", { className: "text-sm shrink-0" }, heatOf(c.heat).emoji),
+              h("div", { className: "min-w-0" },
+                h("div", { className: "font-medium text-ink-800 text-sm truncate" }, c.name),
+                h("div", { className: "text-xs text-ink-400 truncate" }, c.province || "—", " · ", c.systemSize)
+              )
+            ),
+            h("div", { className: "num text-sm font-bold text-emerald-600 shrink-0" }, baht(c.value)),
+            h("select", {
+              value: stage.key, onClick: (e) => e.stopPropagation(),
+              onChange: (e) => move(c, e.target.value),
+              className: "text-xs rounded-lg border border-ink-200 px-2 py-1.5 text-ink-500 bg-white outline-none shrink-0"
+            }, FUNNEL_STAGES.map((s) => h("option", { key: s.key, value: s.key }, "ย้ายไป: ", s.label)))
+          ))
+        )
+      );
+    })
   );
 }
 function LoadCalc() {
@@ -4281,7 +4316,7 @@ function App() {
   return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
-  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามขั้นตอนติดตั้งหลังปิดการขาย ลากการ์ดเพื่อเปลี่ยนขั้นตอน" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), ["dash", "leads", "pipe", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "pipe" && /* @__PURE__ */ React.createElement(Pipeline, { rows, onOpen: openProfile, onStatus: setStatus }), view === "install" && /* @__PURE__ */ React.createElement(InstallationBoard, { rows, onOpen: openProfile, onUpdateStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
+  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
     upsert(c);
     setFormOpen(false);
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
