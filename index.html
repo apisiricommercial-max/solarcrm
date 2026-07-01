@@ -2636,7 +2636,7 @@ function SolarROI() {
       const bg = isPB?"#fffbeb":y.solar>=0?"#f0fdf4":"#fff1f2";
       return `<tr style="background:${bg}"><td style="padding:8px 12px;font-weight:${isPB?700:400};color:${isPB?"#92400e":"#374151"}">${isPB?`⭐ ปีที่ ${y.y}`:`ปีที่ ${y.y}`}</td><td style="padding:8px 12px;text-align:right;font-weight:600;color:${y.solar>=0?"#059669":"#dc2626"}">${y.solar>=0?"+":""}${Math.round(y.solar).toLocaleString("th-TH")}</td><td style="padding:8px 12px;text-align:center;font-size:12px">${y.solar>=0?"✅ กำไรสะสม":"📉 ยังลงทุน"}</td></tr>`;
     }).join("");
-    const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>รายงานผลตอบแทนโซลาร์เซลล์</title>
+    const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>รายงานผลตอบแทนโซลาร์เซลล์ · SolarCRM</title><link rel="icon" href="https://img2.pic.in.th/fe62e09e-51fe-49ec-abcf-e53fb6c0edb1656c7fc15474af67.png">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'IBM Plex Sans Thai',sans-serif;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4;margin:14mm 16mm}@media print{.no-print{display:none!important}}.page{max-width:780px;margin:0 auto;padding:28px 0}
 .doc-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:2.5px solid #064e3b;margin-bottom:20px}
