@@ -1373,6 +1373,10 @@ function Donut({ data, unit }) {
   const total = totalReal || 1; // ป้องกันหารด้วยศูนย์ตอนคำนวณสัดส่วนเส้นวงแหวนเท่านั้น ไม่ใช้ค่านี้แสดงผลตัวเลข
   const R = 52, C = 2 * Math.PI * R;
   const unitLabel = unit || "บาท";
+  // เฉพาะข้อมูลที่เป็นเงินบาทจริง (unit ไม่ระบุ หรือระบุเป็น "บาท") เท่านั้นที่ใส่สัญลักษณ์ ฿ นำหน้า
+  // หน่วยอื่น เช่น "ราย", "kWh/วัน" ต้องแสดงเป็นตัวเลขธรรมดา ไม่งั้นจะกลายเป็นเงินบาทผิดประเภท (เช่น "5 ราย" ไม่ควรโชว์ "฿5")
+  const isCurrency = unitLabel === "บาท";
+  const fmtRowValue = (v) => isCurrency ? baht(v) : (Number.isInteger(v) ? fmt(v) : (Math.round(v * 10) / 10).toLocaleString("th-TH", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
   // render ครั้งแรกด้วยเส้นความยาว 0 แล้วค่อย set เป็นค่าจริงหลัง mount นิดเดียว
   // เพื่อให้ CSS transition จับการเปลี่ยนแปลงได้แน่นอน (กันปัญหาวงแหวนค้างไม่มีสีเพราะ animation ไม่ trigger)
   const [animated, setAnimated] = useState(false);
@@ -1415,7 +1419,7 @@ function Donut({ data, unit }) {
           h("div", { className: "flex items-center gap-2 text-sm mb-1" },
             h("span", { className: "w-2.5 h-2.5 rounded-full shrink-0 transition-transform group-hover:scale-125", style: { background: d.color } }),
             h("span", { className: "text-ink-600 truncate flex-1" }, d.label),
-            h("span", { className: "num font-semibold text-ink-800 shrink-0" }, baht(d.value)),
+            h("span", { className: "num font-semibold text-ink-800 shrink-0" }, fmtRowValue(d.value)),
             h("span", { className: "num text-[11px] text-ink-400 w-9 text-right shrink-0" }, pct, "%")
           ),
           h("div", { className: "h-1.5 rounded-full bg-ink-100 overflow-hidden" },
@@ -3506,6 +3510,55 @@ function CashFlowForm({ open, initial, onClose, onSave }) {
     )
   );
 }
+function NotificationBell({ rows, onOpen }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  const active = rows.filter((r) => r.nextFollowup && !["won", "warranty", "lost"].includes(r.status));
+  const overdue = active.filter((r) => daysUntil(r.nextFollowup) < 0).sort((a, b) => a.nextFollowup < b.nextFollowup ? -1 : 1);
+  const today = active.filter((r) => daysUntil(r.nextFollowup) === 0);
+  const urgent = [...overdue, ...today];
+  const count = urgent.length;
+  return h("div", { ref, className: "relative" },
+    h("button", {
+      onClick: () => setOpen((v) => !v),
+      className: `relative w-10 h-10 rounded-xl flex items-center justify-center transition ${count > 0 ? "bg-red-50 hover:bg-red-100" : "bg-ink-50 hover:bg-ink-100"}`,
+      title: "การแจ้งเตือน"
+    },
+      h(Icon, { d: I.bell, cls: `w-5 h-5 ${count > 0 ? "text-red-500" : "text-ink-400"}` }),
+      count > 0 && h("span", { className: "absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center nav-leads-badge" }, count > 9 ? "9+" : count)
+    ),
+    open && h("div", { className: "absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-xl ring-1 ring-ink-100 z-50 overflow-hidden fade-in" },
+      h("div", { className: "px-4 py-3 border-b border-ink-100 flex items-center justify-between" },
+        h("span", { className: "text-sm font-semibold text-ink-800" }, "\u{1F514} \u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E48\u0E27\u0E19"),
+        count > 0 && h("span", { className: "text-[11px] font-bold text-red-500" }, count, " \u0E23\u0E32\u0E22")
+      ),
+      h("div", { className: "max-h-80 overflow-y-auto" },
+        count === 0
+          ? h("div", { className: "text-sm text-ink-400 text-center py-8" }, "\u2705 \u0E44\u0E21\u0E48\u0E21\u0E35\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E48\u0E27\u0E19")
+          : urgent.map((c) => {
+              const du = daysUntil(c.nextFollowup);
+              return h("button", {
+                key: c.id,
+                onClick: () => { setOpen(false); onOpen(c); },
+                className: "w-full text-left px-4 py-3 hover:bg-ink-50 border-b border-ink-50 last:border-0 flex items-center justify-between gap-3"
+              },
+                h("div", { className: "min-w-0" },
+                  h("div", { className: "text-sm font-medium text-ink-800 truncate" }, c.name),
+                  h("div", { className: "text-xs text-ink-400" }, c.phone || "\u2014", " \xB7 ", c.province)
+                ),
+                h("span", { className: `text-xs font-semibold shrink-0 ${du < 0 ? "text-red-600" : "text-amber-600"}` }, du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49")
+              );
+            })
+      )
+    )
+  );
+}
 function App() {
   const [rows, setRows] = useState([]);
   const [view, setView] = useState("dash");
@@ -3535,6 +3588,11 @@ function App() {
       })
       .catch(() => {});
   }, [currentUser]);
+  // นับจำนวนลูกค้าที่ต้องติดตามด่วน (เลยกำหนด + วันนี้) ใช้แสดง badge แจ้งเตือนที่เมนู sidebar และกระดิ่งแจ้งเตือน
+  const followUrgentCount = useMemo(() => {
+    const active = rows.filter((r) => r.nextFollowup && !["won", "warranty", "lost"].includes(r.status));
+    return active.filter((r) => daysUntil(r.nextFollowup) <= 0).length;
+  }, [rows]);
   const loadLeads = async () => {
     if (!sb) return;
     setLeadsLoading(true);
@@ -3719,7 +3777,7 @@ function App() {
   return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
-  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์" }[view])), ["dash", "leads", "pipe", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "pipe" && /* @__PURE__ */ React.createElement(Pipeline, { rows, onOpen: openProfile, onStatus: setStatus }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
+  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), ["dash", "leads", "pipe", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "pipe" && /* @__PURE__ */ React.createElement(Pipeline, { rows, onOpen: openProfile, onStatus: setStatus }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
     upsert(c);
     setFormOpen(false);
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
