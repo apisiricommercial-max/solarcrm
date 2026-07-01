@@ -2695,9 +2695,12 @@ ${vals.useBat?`<div class="ig"><div class="il">แบตเตอรี่</div>
 </div>
 <div class="print-bar no-print"><button class="btn-c" onclick="window.close()">✕ ปิด</button><button class="btn-p" onclick="window.print()">🖨️ พิมพ์ / บันทึก PDF</button></div>
 </body></html>`;
-    const w = window.open("","_blank","width=860,height=720,scrollbars=yes");
-    if (w) { w.document.write(html); w.document.close(); }
-    else alert("กรุณาอนุญาต popup ในเบราว์เซอร์ก่อน");
+    // ใช้ Blob URL แทน document.write บน about:blank เพื่อให้แท็บมี URL จริง (ไม่ขึ้น about:blank)
+    // และ favicon/title โหลดได้เสถียรกว่า
+    const blob = new Blob([html], { type: "text/html" });
+    const blobUrl = URL.createObjectURL(blob);
+    const w = window.open(blobUrl, "_blank", "width=860,height=720,scrollbars=yes");
+    if (!w) alert("กรุณาอนุญาต popup ในเบราว์เซอร์ก่อน");
   };
 
   return h("div", { className: "space-y-5 fade-in" },
