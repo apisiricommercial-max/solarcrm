@@ -4145,16 +4145,8 @@ function NotificationBell({ rows, onOpen }) {
       if (btnRef.current && btnRef.current.contains(e.target)) return;
       setOpen(false);
     };
-    // ปิด dropdown ทันทีถ้ามีการเลื่อนจอหรือย่อ/ขยายหน้าต่าง กันตำแหน่งเพี้ยนเพราะคำนวณไว้ครั้งเดียวตอนเปิด
-    const onScrollOrResize = () => setOpen(false);
     document.addEventListener("mousedown", close);
-    window.addEventListener("scroll", onScrollOrResize, true);
-    window.addEventListener("resize", onScrollOrResize);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      window.removeEventListener("scroll", onScrollOrResize, true);
-      window.removeEventListener("resize", onScrollOrResize);
-    };
+    return () => document.removeEventListener("mousedown", close);
   }, [open]);
 
   const active = rows.filter((r) => r.nextFollowup && !["won", "warranty", "lost"].includes(r.status));
