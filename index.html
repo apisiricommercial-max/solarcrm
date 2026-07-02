@@ -2717,13 +2717,31 @@ async function techSubmitUpdate(token, form) {
 }
 async function techUploadPhoto(token, jobUpdateId, photoType, file) {
   const dataUrl = await resizeImageFile(file, 1600, 0.75);
-  const res = await fetch(`${window.SUPABASE_URL}/functions/v1/technician-upload-photo`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token, jobUpdateId, photoType, fileName: file.name, dataUrl })
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || "อัปโหลดรูปไม่สำเร็จ");
+  let res;
+  try {
+    res = await fetch(`${window.SUPABASE_URL}/functions/v1/technician-upload-photo`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // สำคัญมาก: Supabase บล็อกคำขอที่ไม่มีกุญแจนี้ไว้ตั้งแต่ API Gateway ก่อนถึงตัวฟังก์ชันเลย
+        // (ตอนช่างไม่ได้ล็อกอิน ไม่มี user token ให้ใช้ จึงต้องแนบ anon key แทนเพื่อผ่านด่านนี้ไปก่อน
+        // ความปลอดภัยจริงๆ ยังคงอยู่ที่การตรวจสอบโทเค็นข้างในฟังก์ชันเหมือนเดิม)
+        "Authorization": "Bearer " + window.SUPABASE_ANON_KEY,
+        "apikey": window.SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ token, jobUpdateId, photoType, fileName: file.name, dataUrl })
+    });
+  } catch (networkErr) {
+    // fetch เองล้มเหลว (ก่อนได้ response ใดๆ กลับมาเลย) มักแปลว่าเรียก URL ไม่ถึง/ถูก CORS บล็อก/ไม่มีอินเทอร์เน็ต
+    throw new Error("เชื่อมต่อ Edge Function ไม่ได้ (เครือข่ายผิดพลาดหรือฟังก์ชันยังไม่ได้ deploy): " + networkErr.message);
+  }
+  const rawText = await res.text();
+  let body = {};
+  try { body = rawText ? JSON.parse(rawText) : {}; } catch (e) { /* ไม่ใช่ JSON ก็ปล่อยเป็น {} แต่เก็บ rawText ไว้แสดงแทน */ }
+  if (!res.ok) {
+    const detail = body.error || body.detail || rawText.slice(0, 150) || "ไม่มีรายละเอียดจากเซิร์ฟเวอร์";
+    throw new Error(`[HTTP ${res.status}] ${detail}`);
+  }
   return body;
 }
 /* ===================== ขั้นตอนติดตั้งหลังปิดการขาย ===================== */
