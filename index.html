@@ -4126,13 +4126,29 @@ function CashFlowForm({ open, initial, onClose, onSave }) {
 }
 function NotificationBell({ rows, onOpen }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [pos, setPos] = useState(null); // { top, right } คำนวณจากตำแหน่งจริงของปุ่มบนจอ
+  const btnRef = useRef(null);
+  const panelRef = useRef(null);
+
+  const toggleOpen = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 8, right: Math.max(8, window.innerWidth - rect.right) });
+    }
+    setOpen((v) => !v);
+  };
+
   useEffect(() => {
     if (!open) return;
-    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const close = (e) => {
+      if (panelRef.current && panelRef.current.contains(e.target)) return;
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
+
   const active = rows.filter((r) => r.nextFollowup && !["won", "warranty", "lost"].includes(r.status));
   const overdue = active.filter((r) => daysUntil(r.nextFollowup) < 0).sort((a, b) => a.nextFollowup < b.nextFollowup ? -1 : 1);
   const today = active.filter((r) => daysUntil(r.nextFollowup) === 0);
@@ -4143,16 +4159,15 @@ function NotificationBell({ rows, onOpen }) {
     .filter(({ w }) => w && (w.soon || w.expired))
     .sort((a, b) => a.w.daysLeft - b.w.daysLeft);
   const count = urgent.length + warrantyAlerts.length;
-  return h("div", { ref, className: "relative" },
-    h("button", {
-      onClick: () => setOpen((v) => !v),
-      className: `relative w-10 h-10 rounded-xl flex items-center justify-center transition ${count > 0 ? "bg-red-50 hover:bg-red-100" : "bg-ink-50 hover:bg-ink-100"}`,
-      title: "\u0E01\u0E32\u0E23\u0E41\u0E08\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19"
+
+  // dropdown ถูก "พอร์ทัล" ออกไป render ตรงที่ document.body โดยตรง แยกขาดจาก header/sticky ทั้งหมด
+  // (แก้ปัญหาช่องว่างว่างเปล่าที่เคยเกิดจากการชนกันของ position:sticky กับ position:absolute)
+  const panel = open && pos && ReactDOM.createPortal(
+    h("div", {
+      ref: panelRef,
+      className: "fixed w-80 max-w-[90vw] bg-white rounded-2xl shadow-xl ring-1 ring-ink-100 z-[9999] overflow-hidden fade-in",
+      style: { top: pos.top + "px", right: pos.right + "px" }
     },
-      h(Icon, { d: I.bell, cls: `w-5 h-5 ${count > 0 ? "text-red-500" : "text-ink-400"}` }),
-      count > 0 && h("span", { className: "absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center nav-leads-badge" }, count > 9 ? "9+" : count)
-    ),
-    open && h("div", { className: "absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-xl ring-1 ring-ink-100 z-50 overflow-hidden" },
       h("div", { className: "px-4 py-3 border-b border-ink-100 flex items-center justify-between" },
         h("span", { className: "text-sm font-semibold text-ink-800" }, "\u{1F514} \u0E01\u0E32\u0E23\u0E41\u0E08\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19"),
         count > 0 && h("span", { className: "text-[11px] font-bold text-red-500" }, count, " \u0E23\u0E32\u0E22\u0E01\u0E32\u0E23")
@@ -4190,7 +4205,21 @@ function NotificationBell({ rows, onOpen }) {
               ))
             )
       )
-    )
+    ),
+    document.body
+  );
+
+  return h(React.Fragment, null,
+    h("button", {
+      ref: btnRef,
+      onClick: toggleOpen,
+      className: `relative w-10 h-10 rounded-xl flex items-center justify-center transition ${count > 0 ? "bg-red-50 hover:bg-red-100" : "bg-ink-50 hover:bg-ink-100"}`,
+      title: "\u0E01\u0E32\u0E23\u0E41\u0E08\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19"
+    },
+      h(Icon, { d: I.bell, cls: `w-5 h-5 ${count > 0 ? "text-red-500" : "text-ink-400"}` }),
+      count > 0 && h("span", { className: "absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center nav-leads-badge" }, count > 9 ? "9+" : count)
+    ),
+    panel
   );
 }
 function App() {
