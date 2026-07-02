@@ -4669,6 +4669,7 @@ function TechnicianUpdatePage({ token }) {
     try {
       setUploadProgress("กำลังบันทึกข้อมูลงาน...");
       const jobUpdateId = await techSubmitUpdate(token, form);
+      const failedPhotos = [];
       if (pendingPhotos.length > 0) {
         for (let i = 0; i < pendingPhotos.length; i++) {
           setUploadProgress(`กำลังอัปโหลดรูปที่ ${i + 1}/${pendingPhotos.length}...`);
@@ -4676,8 +4677,17 @@ function TechnicianUpdatePage({ token }) {
             await techUploadPhoto(token, jobUpdateId, pendingPhotos[i].photoType, pendingPhotos[i].file);
           } catch (e) {
             console.error("photo upload failed:", e);
+            failedPhotos.push({ name: pendingPhotos[i].file.name, reason: e && e.message ? e.message : "ไม่ทราบสาเหตุ" });
           }
         }
+      }
+      // แจ้งเตือนให้ช่างเห็นชัดเจนถ้ามีรูปไหนอัปโหลดไม่สำเร็จ (ก่อนหน้านี้ error ถูกซ่อนไว้ ทำให้ดูเหมือนสำเร็จทั้งที่รูปหายไปเงียบๆ)
+      if (failedPhotos.length > 0) {
+        alert(
+          `⚠️ บันทึกข้อมูลงานสำเร็จ แต่รูปภาพ ${failedPhotos.length} รูปอัปโหลดไม่สำเร็จ:\n\n` +
+          failedPhotos.map((f) => `- ${f.name}: ${f.reason}`).join("\n") +
+          "\n\nกรุณาแจ้งผู้ดูแลระบบ หรือลองส่งงานใหม่อีกครั้งพร้อมแนบรูปเดิม"
+        );
       }
       setPhase("success");
     } catch (e) {
