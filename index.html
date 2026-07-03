@@ -766,6 +766,15 @@ const BOQ_CATALOG_SEED = [
 ];
 const BOQ_CATALOG_KEY = "solar_boq_catalog_v1";
 const BOQ_QUOTES_KEY = "solar_boq_quotes_v1";
+// รายชื่อคอลัมน์จริงที่ตาราง boq_quotes ใน Supabase รองรับ — ใช้กรองก่อนส่งข้อมูลทุกครั้ง
+// กันปัญหา field แปลกปลอม (เช่น paymentSchedule ที่เคยตกค้างจาก localStorage เก่า) หลุดติดไปกับแถวอื่นใน batch
+// เพราะ Supabase upsert เป็น all-or-nothing: แค่แถวเดียวมีคอลัมน์ไม่รู้จัก ทั้ง batch จะถูก reject หมด
+const BOQ_QUOTE_DB_FIELDS = ["id", "quoteNo", "customerId", "customerName", "items", "discount", "vatEnabled", "note", "projectTitle", "validDays", "customerTaxId", "paymentMethod", "paymentBank", "paymentRef", "paymentTime", "primary", "createdAt", "user_id"];
+function sanitizeQuoteForDb(row) {
+  const clean = {};
+  BOQ_QUOTE_DB_FIELDS.forEach((f) => { if (row[f] !== undefined) clean[f] = row[f]; });
+  return clean;
+}
 const boqDb = {
   async listCatalog() {
     if (sb) {
@@ -819,7 +828,7 @@ const boqDb = {
     if (sb) {
       try {
         const uid = currentUser ? currentUser.id : null;
-        const stamped = rows.map(r => uid ? { ...r, user_id: uid } : r);
+        const stamped = rows.map(r => sanitizeQuoteForDb(uid ? { ...r, user_id: uid } : r));
         const { error: upErr } = await sb.from("boq_quotes").upsert(stamped);
         if (upErr) throw upErr;
         let delQ = sb.from("boq_quotes").select("id");
@@ -968,6 +977,44 @@ async function syncCashFlowFromQuote(quote, customer) {
     }
     await cashflowDb.saveAll(next);
   } catch (e) { console.error("Sync cash flow from quote failed:", e); }
+}
+/* บันทึก/ลบ รายรับใน Cash Flow ตาม "งวดการชำระ" ทีละงวด (ไม่ใช่เต็ม 100% ทีเดียว)
+   - ติ๊ก "จ่ายแล้ว" ที่งวดไหน → สร้างรายรับเฉพาะสัดส่วนของงวดนั้น (แยก VAT ตามสัดส่วนเดียวกัน)
+   - ยกเลิกติ๊ก → ลบรายการที่เคย sync ไว้ของงวดนั้นทิ้ง กันยอดค้างผิด
+   - ใช้ installmentId คู่กับ boqQuoteId เพื่อแยกแต่ละงวดออกจากกันชัดเจน ไม่ทับกัน */
+async function syncInstallmentCashflow(quote, customer, inst) {
+  if (!quote || !customer || !inst) return;
+  try {
+    const rows = await cashflowDb.list();
+    const { net, vat } = boqQuoteBreakdown(quote);
+    const pct = (Number(inst.percent) || 0) / 100;
+    const instNet = net * pct;
+    const instVat = vat * pct;
+    const noteText = `${customer.name} · ${quote.quoteNo || "BOQ"} · ${inst.label || "งวดชำระ"}`;
+    const existingIncome = rows.find((r) => r.boqQuoteId === quote.id && r.installmentId === inst.id && r.type === "income");
+    const existingVat = rows.find((r) => r.boqQuoteId === quote.id && r.installmentId === inst.id && r.category === CASHFLOW_VAT_CAT);
+    let next = rows.slice();
+    if (inst.paid) {
+      const payDate = inst.paidDate || todayISO();
+      if (existingIncome) {
+        next = next.map((r) => r.id === existingIncome.id ? { ...r, amount: Math.round(instNet), note: noteText, date: payDate } : r);
+      } else {
+        next = [{ id: uid(), type: "income", category: "รับเงินงวด", amount: Math.round(instNet), date: payDate, note: noteText, boqQuoteId: quote.id, installmentId: inst.id, customerId: customer.id, createdAt: new Date().toISOString() }, ...next];
+      }
+      if (instVat > 0) {
+        if (existingVat) {
+          next = next.map((r) => r.id === existingVat.id ? { ...r, amount: Math.round(instVat), note: noteText, date: payDate } : r);
+        } else {
+          next = [{ id: uid(), type: "expense", category: CASHFLOW_VAT_CAT, amount: Math.round(instVat), date: payDate, note: noteText, boqQuoteId: quote.id, installmentId: inst.id, customerId: customer.id, createdAt: new Date().toISOString() }, ...next];
+        }
+      } else if (existingVat) {
+        next = next.filter((r) => r.id !== existingVat.id);
+      }
+    } else {
+      next = next.filter((r) => !(r.boqQuoteId === quote.id && r.installmentId === inst.id));
+    }
+    await cashflowDb.saveAll(next);
+  } catch (e) { console.error("Sync installment cashflow failed:", e); }
 }
 function thaiBahtText(amount) {
   const digitsTh = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"];
@@ -1579,7 +1626,7 @@ function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus, 
     setLog({ topic: "", interest: "", sent: "", next: "" });
   };
   const Line = ({ label, val, href }) => /* @__PURE__ */ React.createElement("div", { className: "flex justify-between gap-3 py-1.5 border-b border-ink-50 last:border-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-400" }, label), href && val ? /* @__PURE__ */ React.createElement("a", { href, target: "_blank", className: "text-sm text-brand-600 font-medium text-right break-all" }, val) : /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-700 font-medium text-right break-all" }, val || "\u2014"));
-  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shrink-0" }, c.name.replace(/^คุณ|^ช่าง/, "").trim().charAt(0) || "?"), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-1" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.type)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: onOpenBOQ, className: "relative inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:brightness-110 shadow-sm", title: "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32 BOQ \u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E19\u0E35\u0E49" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), boqCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "absolute -top-1.5 -right-1.5 bg-white text-orange-600 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center ring-2 ring-orange-200" }, boqCount)), /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-2 rounded-lg text-ink-500 hover:bg-ink-100", title: "\u0E41\u0E01\u0E49\u0E44\u0E02" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit })), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 rounded-lg text-ink-400 hover:bg-ink-100" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x })))), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-0 max-h-[72vh] overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "p-6 md:border-r border-ink-100 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-600" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-emerald-700" }, baht(c.value)), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-500 mt-0.5 truncate" }, "⭐ จาก ", primaryQuote.quoteNo || "BOQ"), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1" }, "✓ Sync เข้าบัญชีบริษัทอัตโนมัติ")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600" }, "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-brand-700" }, baht(c.budget)))), /* @__PURE__ */ React.createElement(WarrantyCard, { customer: c, onClick: () => setWarrantyOpen(true), onEdit: () => onEdit(c) }), /* @__PURE__ */ React.createElement(InstallStageStepper, { customer: c, onUpdate: onUpdateInstallStage }), /* @__PURE__ */ React.createElement(TechnicianJobSection, { customer: c }), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" }, /* @__PURE__ */ React.createElement(Line, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23", val: c.phone, href: c.phone ? `tel:${c.phone}` : null }), /* @__PURE__ */ React.createElement(Line, { label: "Line ID", val: c.lineId }), /* @__PURE__ */ React.createElement(Line, { label: "Facebook", val: c.facebook }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14", val: c.province }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48", val: c.address }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32", val: c.source }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F/\u0E40\u0E14\u0E37\u0E2D\u0E19", val: c.monthlyBill ? baht(c.monthlyBill) : "\u2014" }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08", val: c.systemSize }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14", val: thDate(c.lastContact) }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B", val: thDate(c.nextFollowup) })), c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, c.tags.map((t) => /* @__PURE__ */ React.createElement(Badge, { key: t, cls: "bg-amber-50 text-amber-700 ring-amber-200" }, "\u{1F3F7}\uFE0F ", t))), c.note && /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-ink-50 p-3 text-sm text-ink-600" }, "\u{1F4DD} ", c.note), /* @__PURE__ */ React.createElement(DocumentsSection, { customer: c, onUpdate: onUpdateDocuments }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-medium text-ink-500 mb-1.5" }, "\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5" }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, onClick: () => onStatus(c.id, s.key), className: `px-2.5 py-1 rounded-lg text-xs font-medium transition ${c.status === s.key ? s.color + " text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, s.label))))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-ink-50/40" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white ring-1 ring-ink-100 p-3 space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E04\u0E38\u0E22\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2D\u0E30\u0E44\u0E23 *", value: log.topic, onChange: (e) => setLog((p) => ({ ...p, topic: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E2A\u0E19\u0E43\u0E08\u0E2D\u0E30\u0E44\u0E23", value: log.interest, onChange: (e) => setLog((p) => ({ ...p, interest: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E30\u0E44\u0E23\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27", value: log.sent, onChange: (e) => setLog((p) => ({ ...p, sent: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E48\u0E2D\u0E44\u0E1B\u0E04\u0E37\u0E2D\u0E2D\u0E30\u0E44\u0E23", value: log.next, onChange: (e) => setLog((p) => ({ ...p, next: e.target.value })) }), /* @__PURE__ */ React.createElement("button", { onClick: addLog, className: "w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, (c.timeline || []).slice().reverse().map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "relative pl-5" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-4 ring-brand-100" }), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mb-0.5" }, thDate(t.date)), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg bg-white ring-1 ring-ink-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-ink-800" }, t.topic), t.interest && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500 mt-1" }, "\u0E2A\u0E19\u0E43\u0E08: ", t.interest), t.sent && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500" }, "\u0E2A\u0E48\u0E07\u0E41\u0E25\u0E49\u0E27: ", t.sent), t.next && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600 mt-1" }, "\u2192 \u0E16\u0E31\u0E14\u0E44\u0E1B: ", t.next)))), (!c.timeline || c.timeline.length === 0) && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 text-center py-6" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")))), /* @__PURE__ */ React.createElement(WarrantyDetailModal, { open: warrantyOpen, customer: c, onClose: () => setWarrantyOpen(false), onAddLog, onUpdateWarranty }));
+  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shrink-0" }, c.name.replace(/^คุณ|^ช่าง/, "").trim().charAt(0) || "?"), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-1" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.type)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: onOpenBOQ, className: "relative inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:brightness-110 shadow-sm", title: "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32 BOQ \u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E19\u0E35\u0E49" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), boqCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "absolute -top-1.5 -right-1.5 bg-white text-orange-600 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center ring-2 ring-orange-200" }, boqCount)), /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-2 rounded-lg text-ink-500 hover:bg-ink-100", title: "\u0E41\u0E01\u0E49\u0E44\u0E02" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit })), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 rounded-lg text-ink-400 hover:bg-ink-100" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x })))), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-0 max-h-[72vh] overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "p-6 md:border-r border-ink-100 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-600" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-emerald-700" }, baht(c.value)), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-500 mt-0.5 truncate" }, "⭐ จาก ", primaryQuote.quoteNo || "BOQ"), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1" }, "✓ ติดตามงวดชำระในบัญชีบริษัท")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600" }, "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-brand-700" }, baht(c.budget)))), /* @__PURE__ */ React.createElement(WarrantyCard, { customer: c, onClick: () => setWarrantyOpen(true), onEdit: () => onEdit(c) }), /* @__PURE__ */ React.createElement(InstallStageStepper, { customer: c, onUpdate: onUpdateInstallStage }), /* @__PURE__ */ React.createElement(TechnicianJobSection, { customer: c }), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" }, /* @__PURE__ */ React.createElement(Line, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23", val: c.phone, href: c.phone ? `tel:${c.phone}` : null }), /* @__PURE__ */ React.createElement(Line, { label: "Line ID", val: c.lineId }), /* @__PURE__ */ React.createElement(Line, { label: "Facebook", val: c.facebook }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14", val: c.province }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48", val: c.address }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32", val: c.source }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F/\u0E40\u0E14\u0E37\u0E2D\u0E19", val: c.monthlyBill ? baht(c.monthlyBill) : "\u2014" }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08", val: c.systemSize }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14", val: thDate(c.lastContact) }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B", val: thDate(c.nextFollowup) })), c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, c.tags.map((t) => /* @__PURE__ */ React.createElement(Badge, { key: t, cls: "bg-amber-50 text-amber-700 ring-amber-200" }, "\u{1F3F7}\uFE0F ", t))), c.note && /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-ink-50 p-3 text-sm text-ink-600" }, "\u{1F4DD} ", c.note), /* @__PURE__ */ React.createElement(DocumentsSection, { customer: c, onUpdate: onUpdateDocuments }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-medium text-ink-500 mb-1.5" }, "\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5" }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, onClick: () => onStatus(c.id, s.key), className: `px-2.5 py-1 rounded-lg text-xs font-medium transition ${c.status === s.key ? s.color + " text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, s.label))))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-ink-50/40" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white ring-1 ring-ink-100 p-3 space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E04\u0E38\u0E22\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2D\u0E30\u0E44\u0E23 *", value: log.topic, onChange: (e) => setLog((p) => ({ ...p, topic: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E2A\u0E19\u0E43\u0E08\u0E2D\u0E30\u0E44\u0E23", value: log.interest, onChange: (e) => setLog((p) => ({ ...p, interest: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E30\u0E44\u0E23\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27", value: log.sent, onChange: (e) => setLog((p) => ({ ...p, sent: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E48\u0E2D\u0E44\u0E1B\u0E04\u0E37\u0E2D\u0E2D\u0E30\u0E44\u0E23", value: log.next, onChange: (e) => setLog((p) => ({ ...p, next: e.target.value })) }), /* @__PURE__ */ React.createElement("button", { onClick: addLog, className: "w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, (c.timeline || []).slice().reverse().map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "relative pl-5" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-4 ring-brand-100" }), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mb-0.5" }, thDate(t.date)), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg bg-white ring-1 ring-ink-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-ink-800" }, t.topic), t.interest && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500 mt-1" }, "\u0E2A\u0E19\u0E43\u0E08: ", t.interest), t.sent && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500" }, "\u0E2A\u0E48\u0E07\u0E41\u0E25\u0E49\u0E27: ", t.sent), t.next && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600 mt-1" }, "\u2192 \u0E16\u0E31\u0E14\u0E44\u0E1B: ", t.next)))), (!c.timeline || c.timeline.length === 0) && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 text-center py-6" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")))), /* @__PURE__ */ React.createElement(WarrantyDetailModal, { open: warrantyOpen, customer: c, onClose: () => setWarrantyOpen(false), onAddLog, onUpdateWarranty }));
 }
 function Donut({ data, unit }) {
   const totalReal = data.reduce((s, d) => s + d.value, 0);
@@ -1904,6 +1951,40 @@ function BOQCatalogPicker({ catalog, onPick, onDeleteCatalogItem }) {
     )
   );
 }
+// งวดการชำระเงินเริ่มต้น/แม่แบบที่ใช้บ่อย — ผู้ใช้ปรับสัดส่วน/จำนวนงวดเองได้ทั้งหมด
+const scheduleDefault = () => [{ id: uid(), label: "ชำระเต็มจำนวน", percent: 100, paid: false, paidDate: null }];
+// เก็บงวดการชำระเงินแยกไว้ในเครื่องเท่านั้น (ไม่ผ่าน Supabase) เพื่อไม่ให้ไปพังการบันทึก BOQ หลัก
+// ถ้าตาราง boq_quotes ของผู้ใช้ยังไม่มีคอลัมน์นี้ — กันปัญหา "บันทึกไม่สำเร็จ" เพราะ column ไม่รู้จัก
+const BOQ_SCHEDULE_KEY = "solar_boq_payment_schedules_v1";
+function getAllSchedules() {
+  try { return JSON.parse(localStorage.getItem(BOQ_SCHEDULE_KEY) || "{}"); } catch (e) { return {}; }
+}
+function loadScheduleFor(quoteId) {
+  const all = getAllSchedules();
+  return all[quoteId];
+}
+function saveScheduleFor(quoteId, sched) {
+  const all = getAllSchedules();
+  all[quoteId] = sched;
+  try { localStorage.setItem(BOQ_SCHEDULE_KEY, JSON.stringify(all)); } catch (e) {}
+}
+function deleteScheduleFor(quoteId) {
+  const all = getAllSchedules();
+  delete all[quoteId];
+  try { localStorage.setItem(BOQ_SCHEDULE_KEY, JSON.stringify(all)); } catch (e) {}
+}
+const SCHEDULE_PRESETS = {
+  full: () => [{ id: uid(), label: "ชำระเต็มจำนวน", percent: 100, paid: false, paidDate: null }],
+  "2": () => [
+    { id: uid(), label: "งวดที่ 1 (มัดจำ)", percent: 50, paid: false, paidDate: null },
+    { id: uid(), label: "งวดที่ 2 (ปิดงาน)", percent: 50, paid: false, paidDate: null }
+  ],
+  "3": () => [
+    { id: uid(), label: "งวดที่ 1 (มัดจำ)", percent: 10, paid: false, paidDate: null },
+    { id: uid(), label: "งวดที่ 2 (ติดตั้ง)", percent: 50, paid: false, paidDate: null },
+    { id: uid(), label: "งวดที่ 3 (ปิดงาน)", percent: 40, paid: false, paidDate: null }
+  ]
+};
 function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
   const [items, setItems] = useState([]);
   const [catalog, setCatalog] = useState([]);
@@ -1928,6 +2009,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
   const [companyInfo, setCompanyInfoState] = useState(getCompanyInfo());
   const [companySettingsOpen, setCompanySettingsOpen] = useState(false);
   const [profileLogo, setProfileLogo] = useState(getProfileLogo());
+  const [schedule, setSchedule] = useState([]); // งวดการชำระเงินของใบที่กำลังแก้ไข [{id,label,percent,paid,paidDate}]
   const refreshSavedQuotes = () => {
     boqDb.listQuotes().then((all) => setSavedQuotes(customer ? all.filter((q) => q.customerId === customer.id) : []));
   };
@@ -1938,6 +2020,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
       setProfileLogo(getProfileLogo());
       boqDb.listQuotes().then((all) => setQuoteNo(genQuoteNo(all.length)));
       setItems([]); setDiscount(0); setVatEnabled(false); setNote(""); setProjectTitle(""); setValidDays(15); setEditingQuoteId(null); setQuoteDate(todayISO());
+      setSchedule(scheduleDefault());
       setDocType("quote"); setCustomerTaxId(""); setCustomerTaxAddress("");
       setPaymentMethod("cash"); setPaymentBank(""); setPaymentRef(""); setPaymentTime("");
       refreshSavedQuotes();
@@ -1961,16 +2044,19 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     setItems(q.items || []); setDiscount(q.discount || 0); setVatEnabled(!!q.vatEnabled); setNote(q.note || ""); setProjectTitle(q.projectTitle || ""); setValidDays(q.validDays || 15); setEditingQuoteId(q.id);
     setQuoteNo(q.quoteNo || genQuoteNo(savedQuotes.length)); setQuoteDate((q.createdAt || todayISO()).slice(0, 10));
     setCustomerTaxId(q.customerTaxId || ""); setPaymentMethod(q.paymentMethod || "cash"); setPaymentBank(q.paymentBank || ""); setPaymentRef(q.paymentRef || ""); setPaymentTime(q.paymentTime || "");
+    setSchedule(loadScheduleFor(q.id) || (q.paymentSchedule && q.paymentSchedule.length ? q.paymentSchedule : scheduleDefault()));
   };
   const newBlankQuote = () => {
     setItems([]); setDiscount(0); setVatEnabled(false); setNote(""); setProjectTitle(""); setValidDays(15); setEditingQuoteId(null);
     boqDb.listQuotes().then((all) => setQuoteNo(genQuoteNo(all.length)));
     setQuoteDate(todayISO());
+    setSchedule(scheduleDefault());
   };
   const deleteSavedQuote = async (id) => {
     if (!confirm("ลบใบเสนอราคานี้?")) return;
     const all = await boqDb.listQuotes();
     await boqDb.saveQuotes(all.filter((q) => q.id !== id));
+    deleteScheduleFor(id);
     if (editingQuoteId === id) newBlankQuote();
     refreshSavedQuotes();
   };
@@ -2004,18 +2090,23 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
       const quote = { id: isEdit ? editingQuoteId : uid(), quoteNo, customerId: customer ? customer.id : null, customerName: customer ? customer.name : "ไม่ระบุ", items, discount: discountAmt, vatEnabled, note, projectTitle, validDays, customerTaxId, paymentMethod, paymentBank, paymentRef, paymentTime, primary: isEdit ? (existing.find((q) => q.id === editingQuoteId) || {}).primary || false : false, createdAt: isEdit ? (existing.find((q) => q.id === editingQuoteId) || {}).createdAt || new Date().toISOString() : new Date().toISOString() };
       const next = isEdit ? existing.map((q) => q.id === editingQuoteId ? quote : q) : [...existing, quote];
       let savedOk = true;
-      try { await boqDb.saveQuotes(next); } catch (e) { savedOk = false; }
+      let saveErr = null;
+      try { await boqDb.saveQuotes(next); } catch (e) { savedOk = false; saveErr = e; }
       setEditingQuoteId(quote.id);
+      saveScheduleFor(quote.id, schedule); // เก็บงวดการชำระเงินในเครื่อง แยกจากตาราง boq_quotes เสมอ
       refreshSavedQuotes();
-      // ถ้าใบนี้เป็นใบหลักของลูกค้าอยู่แล้ว ให้ sync ยอดล่าสุดไปที่มูลค่าลูกค้า + Cash Flow ด้วย (เผื่อแก้รายการแล้วยอดเปลี่ยน)
+      // ถ้าใบนี้เป็นใบหลักของลูกค้าอยู่แล้ว ให้ sync มูลค่าลูกค้า + Cash Flow ของทุกงวดที่ "จ่ายแล้ว" ใหม่ (เผื่อแก้ยอด BOQ ภายหลังทำให้ยอดต่องวดเปลี่ยน)
       if (quote.primary && customer) {
         if (onUpdateCustomerValue) onUpdateCustomerValue(customer.id, boqQuoteGrandTotal(quote));
-        await syncCashFlowFromQuote(quote, customer);
+        for (const inst of schedule.filter((s) => s.paid)) {
+          await syncInstallmentCashflow(quote, customer, inst);
+        }
       }
       if (savedOk) {
         alert(isEdit ? "อัปเดตใบเสนอราคาแล้ว" : "บันทึกใบเสนอราคา BOQ แล้ว");
       } else {
-        alert("บันทึกลง Supabase ไม่สำเร็จ (อาจยังไม่ได้รัน setup_boq.sql เพื่อสร้างตาราง boq_quotes) — ระบบเก็บข้อมูลไว้ในเครื่องนี้แทนชั่วคราว ข้อมูลจะไม่ sync ไปเครื่องอื่นจนกว่าจะตั้งค่าฐานข้อมูลให้ถูกต้อง");
+        const errDetail = saveErr ? (saveErr.message || saveErr.details || JSON.stringify(saveErr)) : "ไม่ทราบสาเหตุ";
+        alert(`บันทึกลง Supabase ไม่สำเร็จ: ${errDetail}\n\n(อาจยังไม่ได้รัน setup_boq.sql เพื่อสร้างตาราง boq_quotes หรือมี Row Level Security block อยู่) — ระบบเก็บข้อมูลไว้ในเครื่องนี้แทนชั่วคราว ข้อมูลจะไม่ sync ไปเครื่องอื่นจนกว่าจะตั้งค่าฐานข้อมูลให้ถูกต้อง`);
       }
     } finally { setSaving(false); }
   };
@@ -2026,9 +2117,42 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     await boqDb.saveQuotes(next);
     refreshSavedQuotes();
     if (onUpdateCustomerValue) onUpdateCustomerValue(customer.id, boqQuoteGrandTotal(q));
-    await syncCashFlowFromQuote(q, customer);
-    alert(`ตั้ง "${q.quoteNo || "ใบนี้"}" เป็น BOQ หลักแล้ว — อัปเดตมูลค่าลูกค้าเป็น ${baht(boqQuoteGrandTotal(q))} และบันทึกเป็นรายรับในบัญชีบริษัทให้อัตโนมัติ`);
+    if (editingQuoteId === q.id) setSchedule(loadScheduleFor(q.id) || scheduleDefault());
+    alert(`ตั้ง "${q.quoteNo || "ใบนี้"}" เป็น BOQ หลักแล้ว — อัปเดตมูลค่าลูกค้าเป็น ${baht(boqQuoteGrandTotal(q))}\n\nหมายเหตุ: ระบบจะยังไม่บันทึกรายรับในบัญชีบริษัทจนกว่าจะติ๊ก "จ่ายแล้ว" ในแต่ละงวดการชำระเงินด้านล่าง — เพื่อให้บัญชีสะท้อนเงินที่เข้าจริง ไม่ใช่มูลค่าสัญญาทั้งหมด`);
   };
+  // ===== จัดการงวดการชำระเงิน (เก็บในเครื่องเท่านั้น แยกจาก Supabase) =====
+  const currentQuoteForSchedule = editingQuoteId ? savedQuotes.find((q) => q.id === editingQuoteId) : null;
+  const persistSchedule = (nextSchedule) => {
+    setSchedule(nextSchedule);
+    if (editingQuoteId) saveScheduleFor(editingQuoteId, nextSchedule);
+  };
+  const toggleInstallmentPaid = async (instId) => {
+    const nextSchedule = schedule.map((s) => s.id === instId ? { ...s, paid: !s.paid, paidDate: !s.paid ? todayISO() : null } : s);
+    persistSchedule(nextSchedule);
+    const toggled = nextSchedule.find((s) => s.id === instId);
+    if (currentQuoteForSchedule && currentQuoteForSchedule.primary && customer && toggled) {
+      await syncInstallmentCashflow(currentQuoteForSchedule, customer, toggled);
+    }
+  };
+  const updateInstallmentField = (instId, field, value) => {
+    persistSchedule(schedule.map((s) => s.id === instId ? { ...s, [field]: value } : s));
+  };
+  const addInstallmentRow = () => {
+    persistSchedule([...schedule, { id: uid(), label: `งวดที่ ${schedule.length + 1}`, percent: 0, paid: false, paidDate: null }]);
+  };
+  const removeInstallmentRow = async (instId) => {
+    const inst = schedule.find((s) => s.id === instId);
+    const nextSchedule = schedule.filter((s) => s.id !== instId);
+    persistSchedule(nextSchedule);
+    // ถ้างวดที่ลบเคยจ่ายแล้วและ sync เข้าบัญชีไปแล้ว ต้องลบรายการบัญชีที่ผูกไว้ทิ้งด้วย กันข้อมูลค้าง
+    if (currentQuoteForSchedule && currentQuoteForSchedule.primary && customer && inst && inst.paid) {
+      await syncInstallmentCashflow(currentQuoteForSchedule, customer, { ...inst, paid: false });
+    }
+  };
+  const applyPreset = (key) => {
+    persistSchedule(SCHEDULE_PRESETS[key]());
+  };
+  const scheduleTotalPercent = schedule.reduce((s, x) => s + (Number(x.percent) || 0), 0);
   const handlePrint = () => {
     if (docType === "tax_invoice" && !companyInfo.taxId) {
       alert("กรุณาตั้งเลขประจำตัวผู้เสียภาษี 13 หลักของบริษัทก่อน จึงจะออกใบกำกับภาษีได้ (กดปุ่ม \u201c⚙️ ตั้งค่าข้อมูลบริษัท\u201d ด้านล่าง)");
@@ -2202,6 +2326,34 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
             )
       ),
       h("div", { className: "no-print" },
+        currentQuoteForSchedule && currentQuoteForSchedule.primary && h("div", { className: "mb-4 rounded-xl ring-1 ring-emerald-200 bg-emerald-50/40 p-3.5" },
+          h("div", { className: "flex items-center justify-between mb-2 flex-wrap gap-2" },
+            h("h4", { className: "text-sm font-semibold text-ink-700 flex items-center gap-1.5" }, "\u{1F4B0} งวดการชำระเงิน", scheduleTotalPercent !== 100 && h("span", { className: "text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700" }, "รวม ", scheduleTotalPercent, "% ควรครบ 100%")),
+            h("div", { className: "flex items-center gap-1.5" },
+              h("button", { onClick: () => applyPreset("full"), className: "text-[11px] px-2 py-1 rounded-md bg-white ring-1 ring-ink-200 text-ink-600 hover:bg-ink-50" }, "เต็ม 100%"),
+              h("button", { onClick: () => applyPreset("2"), className: "text-[11px] px-2 py-1 rounded-md bg-white ring-1 ring-ink-200 text-ink-600 hover:bg-ink-50" }, "50/50"),
+              h("button", { onClick: () => applyPreset("3"), className: "text-[11px] px-2 py-1 rounded-md bg-white ring-1 ring-ink-200 text-ink-600 hover:bg-ink-50" }, "10/50/40")
+            )
+          ),
+          h("div", { className: "space-y-1.5" },
+            schedule.map((s) => {
+              const instAmount = grandTotal * (Number(s.percent) || 0) / 100;
+              return h("div", { key: s.id, className: `flex items-center gap-2 rounded-lg px-2.5 py-2 ring-1 ${s.paid ? "bg-emerald-100/60 ring-emerald-200" : "bg-white ring-ink-100"}` },
+                h("input", { type: "checkbox", checked: !!s.paid, onChange: () => toggleInstallmentPaid(s.id), className: "accent-emerald-500 w-4 h-4 shrink-0", title: "จ่ายแล้ว" }),
+                h("input", { value: s.label, onChange: (e) => updateInstallmentField(s.id, "label", e.target.value), className: "text-xs bg-transparent border-b border-transparent hover:border-ink-200 focus:border-brand-400 outline-none flex-1 min-w-0 py-0.5", placeholder: "ชื่องวด" }),
+                h("div", { className: "flex items-center gap-1 shrink-0" },
+                  h("input", { type: "number", value: s.percent, onChange: (e) => updateInstallmentField(s.id, "percent", Number(e.target.value)), className: "w-14 text-xs text-right bg-white ring-1 ring-ink-200 rounded-md px-1.5 py-1", min: 0, max: 100 }),
+                  h("span", { className: "text-[10px] text-ink-400" }, "%")
+                ),
+                h("div", { className: "text-xs font-semibold text-ink-700 num w-24 text-right shrink-0" }, baht(instAmount)),
+                s.paid && h("div", { className: "text-[10px] text-emerald-600 shrink-0" }, thDate(s.paidDate)),
+                schedule.length > 1 && h("button", { onClick: () => removeInstallmentRow(s.id), className: "text-ink-300 hover:text-red-500 shrink-0 px-1", title: "ลบงวดนี้" }, "\u2715")
+              );
+            })
+          ),
+          h("button", { onClick: addInstallmentRow, className: "text-[11px] text-brand-600 font-semibold hover:underline mt-2" }, "+ เพิ่มงวด"),
+          h("p", { className: "text-[10px] text-ink-400 mt-2" }, "\u{1F7E2} ติ๊ก \"จ่ายแล้ว\" เมื่อได้รับเงินงวดนั้นจริง ระบบจะบันทึกเป็นรายรับในบัญชีบริษัทเฉพาะยอดของงวดนั้นเท่านั้น (แยก VAT ตามสัดส่วนให้อัตโนมัติ)")
+        ),
         savedQuotes.length > 0 && h("div", { className: "mb-4" },
           h("div", { className: "flex items-center justify-between mb-2" },
             h("h4", { className: "text-sm font-semibold text-ink-700" }, "ใบเสนอราคาที่บันทึกไว้ (", savedQuotes.length, ")"),
@@ -4578,8 +4730,9 @@ function AdminAnalyticsPage({ session }) {
   const [refreshing, setRefreshing] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [onlyOnlineToday, setOnlyOnlineToday] = useState(false);
+  const [viewFilter, setViewFilter] = useState("all"); // "all" | "onlineDate" | "offline3d"
   const [onlineCheckDate, setOnlineCheckDate] = useState(todayISO());
+  const OFFLINE_DAYS_THRESHOLD = 3;
   const myEmail = (session && session.user && session.user.email || "").toLowerCase();
 
   const loadData = async (from, to) => {
@@ -4647,7 +4800,16 @@ function AdminAnalyticsPage({ session }) {
     return d.getFullYear() === y && d.getMonth() + 1 === mo && d.getDate() === da;
   };
   const isCheckDateToday = onlineCheckDate === todayISO();
-  const displayRanking = onlyOnlineToday ? data.ranking.filter((r) => isOnDate(r.lastActive, onlineCheckDate)) : data.ranking;
+  // ออฟไลน์เกิน 3 วัน: ไม่เคย active เลย (lastActive ว่าง) หรือ active ครั้งล่าสุดนานเกิน threshold วันแล้ว — ใช้เตือนบริษัทที่เสี่ยงเลิกใช้งาน
+  const daysSinceActive = (iso) => {
+    if (!iso) return Infinity;
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  };
+  const isOffline3d = (r) => daysSinceActive(r.lastActive) > OFFLINE_DAYS_THRESHOLD;
+  const displayRanking =
+    viewFilter === "onlineDate" ? data.ranking.filter((r) => isOnDate(r.lastActive, onlineCheckDate)) :
+    viewFilter === "offline3d" ? data.ranking.filter(isOffline3d).sort((a, b) => daysSinceActive(b.lastActive) - daysSinceActive(a.lastActive)) :
+    data.ranking;
 
   const cards = [
     { icon: "\u{1F465}", label: "\u0E1C\u0E39\u0E49\u0E2A\u0E21\u0E31\u0E04\u0E23\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14", val: fmt(data.totalSignups), color: "bg-blue-50 ring-blue-100 text-blue-700" },
@@ -4692,11 +4854,12 @@ function AdminAnalyticsPage({ session }) {
             )
           ),
           h("div", { className: "flex items-center gap-2 flex-wrap" },
-            h("label", { className: "flex items-center gap-1.5 text-xs text-ink-600 bg-ink-50 rounded-lg px-2.5 py-1.5 cursor-pointer select-none" },
-              h("input", { type: "checkbox", checked: onlyOnlineToday, onChange: (e) => setOnlyOnlineToday(e.target.checked), className: "accent-emerald-500" }),
-              "\u{1F7E2} \u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14\u0E43\u0E19\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48"
+            h("div", { className: "flex items-center gap-1 bg-ink-50 rounded-lg p-1" },
+              h("button", { onClick: () => setViewFilter("all"), className: `text-xs px-2.5 py-1.5 rounded-md font-semibold transition ${viewFilter === "all" ? "bg-white shadow-sm text-ink-700" : "text-ink-400 hover:text-ink-600"}` }, "\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14"),
+              h("button", { onClick: () => setViewFilter("onlineDate"), className: `text-xs px-2.5 py-1.5 rounded-md font-semibold transition ${viewFilter === "onlineDate" ? "bg-white shadow-sm text-emerald-700" : "text-ink-400 hover:text-ink-600"}` }, "\u{1F7E2} \u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E40\u0E25\u0E37\u0E2D\u0E01"),
+              h("button", { onClick: () => setViewFilter("offline3d"), className: `text-xs px-2.5 py-1.5 rounded-md font-semibold transition ${viewFilter === "offline3d" ? "bg-white shadow-sm text-red-700" : "text-ink-400 hover:text-ink-600"}` }, `\u{1F534} \u0E2D\u0E2D\u0E1F\u0E44\u0E25\u0E19\u0E4C\u0E40\u0E01\u0E34\u0E19 ${OFFLINE_DAYS_THRESHOLD} \u0E27\u0E31\u0E19`)
             ),
-            h("input", { type: "date", value: onlineCheckDate, max: todayISO(), onChange: (e) => setOnlineCheckDate(e.target.value), disabled: !onlyOnlineToday, className: "text-xs rounded-lg border border-ink-200 px-2.5 py-1.5 text-ink-600 disabled:opacity-40 disabled:cursor-not-allowed" }),
+            viewFilter === "onlineDate" && h("input", { type: "date", value: onlineCheckDate, max: todayISO(), onChange: (e) => setOnlineCheckDate(e.target.value), className: "text-xs rounded-lg border border-ink-200 px-2.5 py-1.5 text-ink-600" }),
             h("span", { className: "text-ink-200" }, "|"),
             h("input", { type: "date", value: fromDate, onChange: (e) => setFromDate(e.target.value), className: "text-xs rounded-lg border border-ink-200 px-2.5 py-1.5 text-ink-600" }),
             h("span", { className: "text-ink-300 text-xs" }, "\u2192"),
@@ -4707,11 +4870,17 @@ function AdminAnalyticsPage({ session }) {
             (data.appliedFrom || data.appliedTo) && h("button", { onClick: clearFilter, disabled: refreshing, className: "text-xs px-3 py-1.5 rounded-lg bg-ink-100 text-ink-500 font-semibold hover:bg-ink-200 disabled:opacity-50" }, "\u2715 \u0E25\u0E49\u0E32\u0E07")
           )
         ),
-        onlyOnlineToday && h("div", { className: "px-5 py-2 bg-emerald-50 border-b border-emerald-100 text-xs text-emerald-700" },
+        viewFilter === "onlineDate" && h("div", { className: "px-5 py-2 bg-emerald-50 border-b border-emerald-100 text-xs text-emerald-700" },
           "\u{1F7E2} \u0E41\u0E2A\u0E14\u0E07\u0E40\u0E09\u0E1E\u0E32\u0E30\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E17\u0E35\u0E48\u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48 ", thDateShort(onlineCheckDate), isCheckDateToday ? " (\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49)" : "", " (", displayRanking.length, " \u0E08\u0E32\u0E01 ", data.ranking.length, " \u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17)"
         ),
+        viewFilter === "offline3d" && h("div", { className: "px-5 py-2 bg-red-50 border-b border-red-100 text-xs text-red-700" },
+          `\u{1F534} \u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E17\u0E35\u0E48\u0E44\u0E21\u0E48 active \u0E40\u0E01\u0E34\u0E19 ${OFFLINE_DAYS_THRESHOLD} \u0E27\u0E31\u0E19 (`, displayRanking.length, " \u0E08\u0E32\u0E01 ", data.ranking.length, " \u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17) \u2014 \u0E40\u0E2A\u0E35\u0E48\u0E22\u0E07\u0E40\u0E25\u0E34\u0E01\u0E43\u0E0A\u0E49\u0E07\u0E32\u0E19 \u0E04\u0E27\u0E23\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E2A\u0E2D\u0E1A\u0E16\u0E32\u0E21"
+        ),
         displayRanking.length === 0
-          ? h("div", { className: "text-sm text-ink-400 text-center py-10" }, onlyOnlineToday ? `\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E44\u0E2B\u0E19\u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48 ${thDateShort(onlineCheckDate)}` : "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A")
+          ? h("div", { className: "text-sm text-ink-400 text-center py-10" },
+              viewFilter === "onlineDate" ? `\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E44\u0E2B\u0E19\u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48 ${thDateShort(onlineCheckDate)}` :
+              viewFilter === "offline3d" ? `\u{1F389} \u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E44\u0E2B\u0E19\u0E2D\u0E2D\u0E1F\u0E44\u0E25\u0E19\u0E4C\u0E40\u0E01\u0E34\u0E19 ${OFFLINE_DAYS_THRESHOLD} \u0E27\u0E31\u0E19 \u0E17\u0E38\u0E01\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E22\u0E31\u0E07 active \u0E2D\u0E22\u0E39\u0E48` :
+              "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A")
           : h(React.Fragment, null,
               // Desktop table
               h("div", { className: "hidden md:block overflow-x-auto" },
@@ -4734,7 +4903,10 @@ function AdminAnalyticsPage({ session }) {
                     h("td", { className: "px-3 py-3 text-center num" }, r.userCount),
                     h("td", { className: "px-3 py-3 text-center num font-semibold text-ink-700" }, fmt(r.customerCount)),
                     h("td", { className: "px-3 py-3 text-center num font-semibold text-ink-700" }, fmt(r.quoteCount)),
-                    h("td", { className: "px-3 py-3 text-center text-ink-500 text-xs" }, thDateShort(r.lastActive)),
+                    h("td", { className: "px-3 py-3 text-center text-ink-500 text-xs" },
+                      thDateShort(r.lastActive),
+                      viewFilter === "offline3d" && h("div", { className: "text-red-500 font-semibold mt-0.5" }, r.lastActive ? `\u0E40\u0E01\u0E34\u0E19 ${daysSinceActive(r.lastActive)} \u0E27\u0E31\u0E19` : "\u0E44\u0E21\u0E48\u0E40\u0E04\u0E22 active")
+                    ),
                     h("td", { className: "px-5 py-3 text-center" }, statusBadge(r.status))
                   )))
                 )
@@ -4756,7 +4928,7 @@ function AdminAnalyticsPage({ session }) {
                     h("div", null, h("div", { className: "num font-bold text-ink-700 text-sm" }, r.userCount), h("div", { className: "text-[10px] text-ink-400" }, "\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49")),
                     h("div", null, h("div", { className: "num font-bold text-ink-700 text-sm" }, fmt(r.customerCount)), h("div", { className: "text-[10px] text-ink-400" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")),
                     h("div", null, h("div", { className: "num font-bold text-ink-700 text-sm" }, fmt(r.quoteCount)), h("div", { className: "text-[10px] text-ink-400" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D")),
-                    h("div", null, h("div", { className: "text-ink-500 text-xs" }, thDateShort(r.lastActive)), h("div", { className: "text-[10px] text-ink-400" }, "\u0E43\u0E0A\u0E49\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14"))
+                    h("div", null, h("div", { className: "text-ink-500 text-xs" }, thDateShort(r.lastActive)), h("div", { className: "text-[10px] text-ink-400" }, viewFilter === "offline3d" ? (r.lastActive ? `\u0E40\u0E01\u0E34\u0E19 ${daysSinceActive(r.lastActive)} \u0E27\u0E31\u0E19` : "\u0E44\u0E21\u0E48\u0E40\u0E04\u0E22 active") : "\u0E43\u0E0A\u0E49\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14"))
                   )
                 ))
               )
