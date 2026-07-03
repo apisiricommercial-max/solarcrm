@@ -3883,6 +3883,25 @@ function CashFlow() {
     setRows((p) => p.filter((x) => x.id !== id));
     cashflowDb.deleteOne(id);
   };
+  // ส่งออก Excel เฉพาะเดือนที่กำลังดูอยู่ (filterMonth) — แยกไฟล์รายเดือน ไม่ปนกับเดือนอื่น
+  const exportMonthExcel = () => {
+    const mr = rows.filter((r) => (r.date || "").slice(0, 7) === filterMonth);
+    const data = mr.slice().sort((a, b) => (a.date || "").localeCompare(b.date || "")).map((r) => ({
+      "วันที่": r.date || "", "ประเภท": r.type === "income" ? "รายรับ" : "รายจ่าย", "หมวดหมู่": r.category || "",
+      "จำนวนเงิน": Number(r.amount) || 0, "หมายเหตุ": r.note || "", "อ้างอิง BOQ": r.boqQuoteId ? "ใช่" : ""
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data.length ? data : [{ "วันที่": "(ไม่มีรายการในเดือนนี้)" }]);
+    ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 14 }, { wch: 28 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws, "รายการ");
+    const mInc = mr.filter((r) => r.type === "income").reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    const mExp = mr.filter((r) => r.type === "expense").reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    const mVat = mr.filter((r) => r.category === CASHFLOW_VAT_CAT).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    const ws2 = XLSX.utils.json_to_sheet([{ "เดือน": filterMonth, "รายรับ": mInc, "รายจ่าย": mExp, "VAT รอนำส่ง": mVat, "คงเหลือสุทธิ": mInc - mExp }]);
+    ws2["!cols"] = [{ wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws2, "สรุป");
+    XLSX.writeFile(wb, `บัญชีบริษัท_${filterMonth}.xlsx`);
+  };
   const monthRows = rows.filter((r) => (r.date || "").slice(0, 7) === filterMonth);
   const visible = filterType === "all" ? monthRows : monthRows.filter((r) => r.type === filterType);
   const income = monthRows.filter((r) => r.type === "income").reduce((s, r) => s + (Number(r.amount) || 0), 0);
@@ -3925,6 +3944,7 @@ function CashFlow() {
         h("select", { className: inputCls + " w-auto", value: filterType, onChange: (e) => setFilterType(e.target.value) },
           h("option", { value: "all" }, "ทั้งหมด"), h("option", { value: "income" }, "รายรับ"), h("option", { value: "expense" }, "รายจ่าย"))
       ),
+      h("button", { onClick: exportMonthExcel, className: "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm", title: "ส่งออกรายการของเดือนที่กำลังดูอยู่เป็น Excel" }, h(Icon, { d: I.download, cls: "w-4 h-4" }), h("span", { className: "hidden sm:inline" }, "ส่งออกเดือนนี้"), h("span", { className: "sm:hidden" }, "ส่งออก")),
       h("button", { onClick: () => { setEditing(null); setFormOpen(true); }, className: "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, h(Icon, { d: I.plus, cls: "w-4 h-4" }), "เพิ่มรายการ")
     ),
     h("div", { className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" },
