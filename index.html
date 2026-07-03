@@ -4159,7 +4159,8 @@ function NotificationBell({ rows, onOpen }) {
       count > 0 && h("span", { className: "absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center nav-leads-badge" }, count > 9 ? "9+" : count)
     ),
     open && ReactDOM.createPortal(
-      h("div", { ref: menuRef, className: "fixed top-16 right-4 sm:right-6 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl ring-1 ring-ink-100 z-50 overflow-hidden" },
+      h("div", { ref: menuRef, className: "fixed top-16 right-4 sm:right-6 z-50", style: { position: "fixed" } },
+      h("div", { className: "w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl ring-1 ring-ink-100 overflow-hidden" },
       h("div", { className: "px-4 py-3 border-b border-ink-100 flex items-center justify-between" },
         h("span", { className: "text-sm font-semibold text-ink-800" }, "\u{1F514} \u0E01\u0E32\u0E23\u0E41\u0E08\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19"),
         count > 0 && h("span", { className: "text-[11px] font-bold text-red-500" }, count, " \u0E23\u0E32\u0E22\u0E01\u0E32\u0E23")
@@ -4196,6 +4197,7 @@ function NotificationBell({ rows, onOpen }) {
                 h("span", { className: `text-xs font-semibold shrink-0 ${w.expired ? "text-red-600" : "text-orange-600"}` }, w.expired ? `\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E41\u0E25\u0E49\u0E27 ${Math.abs(w.daysLeft)} \u0E27\u0E31\u0E19` : `\u0E40\u0E2B\u0E25\u0E37\u0E2D ${w.daysLeft} \u0E27\u0E31\u0E19`)
               ))
             )
+      )
       )
     ),
     document.body
