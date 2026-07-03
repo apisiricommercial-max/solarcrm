@@ -1106,7 +1106,9 @@ function warrantyInfo(c) {
   const pct = totalDays > 0 ? Math.min(100, Math.round(passedDays / totalDays * 100)) : 0;
   const daysLeft = Math.round((end - today) / 864e5);
   const yearsLeft = daysLeft / 365;
-  return { start, end, years, pct, daysLeft, expired: daysLeft < 0, soon: daysLeft >= 0 && yearsLeft <= 1 };
+  // "ใกล้หมดประกัน" (soon) = เหลือเวลาไม่เกิน 1 เดือน (30 วัน) ก่อนหมดอายุ (เดิมตั้งไว้ 1 ปีกว้างเกินไป ทำให้แจ้งเตือนเร็วเกินจำเป็น)
+  const WARRANTY_SOON_DAYS = 30;
+  return { start, end, years, pct, daysLeft, expired: daysLeft < 0, soon: daysLeft >= 0 && daysLeft <= WARRANTY_SOON_DAYS };
 }
 function seed() {
   const base = [
