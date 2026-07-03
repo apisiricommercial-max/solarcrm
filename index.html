@@ -1944,6 +1944,26 @@ function BOQCatalogPicker({ catalog, onPick, onDeleteCatalogItem }) {
 }
 // งวดการชำระเงินเริ่มต้น/แม่แบบที่ใช้บ่อย — ผู้ใช้ปรับสัดส่วน/จำนวนงวดเองได้ทั้งหมด
 const scheduleDefault = () => [{ id: uid(), label: "ชำระเต็มจำนวน", percent: 100, paid: false, paidDate: null }];
+// เก็บงวดการชำระเงินแยกไว้ในเครื่องเท่านั้น (ไม่ผ่าน Supabase) เพื่อไม่ให้ไปพังการบันทึก BOQ หลัก
+// ถ้าตาราง boq_quotes ของผู้ใช้ยังไม่มีคอลัมน์นี้ — กันปัญหา "บันทึกไม่สำเร็จ" เพราะ column ไม่รู้จัก
+const BOQ_SCHEDULE_KEY = "solar_boq_payment_schedules_v1";
+function getAllSchedules() {
+  try { return JSON.parse(localStorage.getItem(BOQ_SCHEDULE_KEY) || "{}"); } catch (e) { return {}; }
+}
+function loadScheduleFor(quoteId) {
+  const all = getAllSchedules();
+  return all[quoteId];
+}
+function saveScheduleFor(quoteId, sched) {
+  const all = getAllSchedules();
+  all[quoteId] = sched;
+  try { localStorage.setItem(BOQ_SCHEDULE_KEY, JSON.stringify(all)); } catch (e) {}
+}
+function deleteScheduleFor(quoteId) {
+  const all = getAllSchedules();
+  delete all[quoteId];
+  try { localStorage.setItem(BOQ_SCHEDULE_KEY, JSON.stringify(all)); } catch (e) {}
+}
 const SCHEDULE_PRESETS = {
   full: () => [{ id: uid(), label: "ชำระเต็มจำนวน", percent: 100, paid: false, paidDate: null }],
   "2": () => [
@@ -2015,7 +2035,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     setItems(q.items || []); setDiscount(q.discount || 0); setVatEnabled(!!q.vatEnabled); setNote(q.note || ""); setProjectTitle(q.projectTitle || ""); setValidDays(q.validDays || 15); setEditingQuoteId(q.id);
     setQuoteNo(q.quoteNo || genQuoteNo(savedQuotes.length)); setQuoteDate((q.createdAt || todayISO()).slice(0, 10));
     setCustomerTaxId(q.customerTaxId || ""); setPaymentMethod(q.paymentMethod || "cash"); setPaymentBank(q.paymentBank || ""); setPaymentRef(q.paymentRef || ""); setPaymentTime(q.paymentTime || "");
-    setSchedule(q.paymentSchedule && q.paymentSchedule.length ? q.paymentSchedule : scheduleDefault());
+    setSchedule(loadScheduleFor(q.id) || (q.paymentSchedule && q.paymentSchedule.length ? q.paymentSchedule : scheduleDefault()));
   };
   const newBlankQuote = () => {
     setItems([]); setDiscount(0); setVatEnabled(false); setNote(""); setProjectTitle(""); setValidDays(15); setEditingQuoteId(null);
@@ -2027,6 +2047,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     if (!confirm("ลบใบเสนอราคานี้?")) return;
     const all = await boqDb.listQuotes();
     await boqDb.saveQuotes(all.filter((q) => q.id !== id));
+    deleteScheduleFor(id);
     if (editingQuoteId === id) newBlankQuote();
     refreshSavedQuotes();
   };
@@ -2057,11 +2078,12 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     try {
       const existing = await boqDb.listQuotes();
       const isEdit = !!editingQuoteId;
-      const quote = { id: isEdit ? editingQuoteId : uid(), quoteNo, customerId: customer ? customer.id : null, customerName: customer ? customer.name : "ไม่ระบุ", items, discount: discountAmt, vatEnabled, note, projectTitle, validDays, customerTaxId, paymentMethod, paymentBank, paymentRef, paymentTime, paymentSchedule: schedule, primary: isEdit ? (existing.find((q) => q.id === editingQuoteId) || {}).primary || false : false, createdAt: isEdit ? (existing.find((q) => q.id === editingQuoteId) || {}).createdAt || new Date().toISOString() : new Date().toISOString() };
+      const quote = { id: isEdit ? editingQuoteId : uid(), quoteNo, customerId: customer ? customer.id : null, customerName: customer ? customer.name : "ไม่ระบุ", items, discount: discountAmt, vatEnabled, note, projectTitle, validDays, customerTaxId, paymentMethod, paymentBank, paymentRef, paymentTime, primary: isEdit ? (existing.find((q) => q.id === editingQuoteId) || {}).primary || false : false, createdAt: isEdit ? (existing.find((q) => q.id === editingQuoteId) || {}).createdAt || new Date().toISOString() : new Date().toISOString() };
       const next = isEdit ? existing.map((q) => q.id === editingQuoteId ? quote : q) : [...existing, quote];
       let savedOk = true;
       try { await boqDb.saveQuotes(next); } catch (e) { savedOk = false; }
       setEditingQuoteId(quote.id);
+      saveScheduleFor(quote.id, schedule); // เก็บงวดการชำระเงินในเครื่อง แยกจากตาราง boq_quotes เสมอ
       refreshSavedQuotes();
       // ถ้าใบนี้เป็นใบหลักของลูกค้าอยู่แล้ว ให้ sync มูลค่าลูกค้า + Cash Flow ของทุกงวดที่ "จ่ายแล้ว" ใหม่ (เผื่อแก้ยอด BOQ ภายหลังทำให้ยอดต่องวดเปลี่ยน)
       if (quote.primary && customer) {
@@ -2084,28 +2106,21 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
     await boqDb.saveQuotes(next);
     refreshSavedQuotes();
     if (onUpdateCustomerValue) onUpdateCustomerValue(customer.id, boqQuoteGrandTotal(q));
-    if (editingQuoteId === q.id) setSchedule(q.paymentSchedule && q.paymentSchedule.length ? q.paymentSchedule : scheduleDefault());
+    if (editingQuoteId === q.id) setSchedule(loadScheduleFor(q.id) || scheduleDefault());
     alert(`ตั้ง "${q.quoteNo || "ใบนี้"}" เป็น BOQ หลักแล้ว — อัปเดตมูลค่าลูกค้าเป็น ${baht(boqQuoteGrandTotal(q))}\n\nหมายเหตุ: ระบบจะยังไม่บันทึกรายรับในบัญชีบริษัทจนกว่าจะติ๊ก "จ่ายแล้ว" ในแต่ละงวดการชำระเงินด้านล่าง — เพื่อให้บัญชีสะท้อนเงินที่เข้าจริง ไม่ใช่มูลค่าสัญญาทั้งหมด`);
   };
-  // ===== จัดการงวดการชำระเงิน =====
+  // ===== จัดการงวดการชำระเงิน (เก็บในเครื่องเท่านั้น แยกจาก Supabase) =====
   const currentQuoteForSchedule = editingQuoteId ? savedQuotes.find((q) => q.id === editingQuoteId) : null;
-  const persistSchedule = async (nextSchedule) => {
+  const persistSchedule = (nextSchedule) => {
     setSchedule(nextSchedule);
-    if (!editingQuoteId) return;
-    const all = await boqDb.listQuotes();
-    const updatedQuote = all.find((q) => q.id === editingQuoteId);
-    if (!updatedQuote) return;
-    const nextAll = all.map((q) => q.id === editingQuoteId ? { ...q, paymentSchedule: nextSchedule } : q);
-    await boqDb.saveQuotes(nextAll);
-    refreshSavedQuotes();
-    return { ...updatedQuote, paymentSchedule: nextSchedule };
+    if (editingQuoteId) saveScheduleFor(editingQuoteId, nextSchedule);
   };
   const toggleInstallmentPaid = async (instId) => {
     const nextSchedule = schedule.map((s) => s.id === instId ? { ...s, paid: !s.paid, paidDate: !s.paid ? todayISO() : null } : s);
-    const savedQuote = await persistSchedule(nextSchedule);
+    persistSchedule(nextSchedule);
     const toggled = nextSchedule.find((s) => s.id === instId);
-    if (savedQuote && savedQuote.primary && customer && toggled) {
-      await syncInstallmentCashflow(savedQuote, customer, toggled);
+    if (currentQuoteForSchedule && currentQuoteForSchedule.primary && customer && toggled) {
+      await syncInstallmentCashflow(currentQuoteForSchedule, customer, toggled);
     }
   };
   const updateInstallmentField = (instId, field, value) => {
@@ -2117,10 +2132,10 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
   const removeInstallmentRow = async (instId) => {
     const inst = schedule.find((s) => s.id === instId);
     const nextSchedule = schedule.filter((s) => s.id !== instId);
-    const savedQuote = await persistSchedule(nextSchedule);
+    persistSchedule(nextSchedule);
     // ถ้างวดที่ลบเคยจ่ายแล้วและ sync เข้าบัญชีไปแล้ว ต้องลบรายการบัญชีที่ผูกไว้ทิ้งด้วย กันข้อมูลค้าง
-    if (savedQuote && savedQuote.primary && customer && inst && inst.paid) {
-      await syncInstallmentCashflow(savedQuote, customer, { ...inst, paid: false });
+    if (currentQuoteForSchedule && currentQuoteForSchedule.primary && customer && inst && inst.paid) {
+      await syncInstallmentCashflow(currentQuoteForSchedule, customer, { ...inst, paid: false });
     }
   };
   const applyPreset = (key) => {
