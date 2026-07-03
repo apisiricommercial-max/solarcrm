@@ -4126,12 +4126,34 @@ function CashFlowForm({ open, initial, onClose, onSave }) {
 }
 function NotificationBell({ rows, onOpen }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [pos, setPos] = useState({ top: 0, right: 0 });
+  const btnRef = useRef(null);
+  const menuRef = useRef(null);
   useEffect(() => {
     if (!open) return;
-    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const close = (e) => {
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  // dropdown นี้ render ผ่าน portal ไปที่ document.body (ไม่ได้อยู่ใต้ header ที่เป็น sticky) ต้องคำนวณตำแหน่งเองด้วย getBoundingClientRect
+  // เพื่อเลี่ยงบั๊กของ Chrome ที่ absolute-positioned descendant ไปรบกวนความสูงของ sticky header เวลาเปิด/ปิด dropdown
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const update = () => {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
   }, [open]);
   const active = rows.filter((r) => r.nextFollowup && !["won", "warranty", "lost"].includes(r.status));
   const overdue = active.filter((r) => daysUntil(r.nextFollowup) < 0).sort((a, b) => a.nextFollowup < b.nextFollowup ? -1 : 1);
@@ -4143,8 +4165,9 @@ function NotificationBell({ rows, onOpen }) {
     .filter(({ w }) => w && (w.soon || w.expired))
     .sort((a, b) => a.w.daysLeft - b.w.daysLeft);
   const count = urgent.length + warrantyAlerts.length;
-  return h("div", { ref, className: "relative" },
+  return h("div", { className: "relative" },
     h("button", {
+      ref: btnRef,
       onClick: () => setOpen((v) => !v),
       className: `relative w-10 h-10 rounded-xl flex items-center justify-center transition ${count > 0 ? "bg-red-50 hover:bg-red-100" : "bg-ink-50 hover:bg-ink-100"}`,
       title: "\u0E01\u0E32\u0E23\u0E41\u0E08\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19"
@@ -4152,7 +4175,8 @@ function NotificationBell({ rows, onOpen }) {
       h(Icon, { d: I.bell, cls: `w-5 h-5 ${count > 0 ? "text-red-500" : "text-ink-400"}` }),
       count > 0 && h("span", { className: "absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center nav-leads-badge" }, count > 9 ? "9+" : count)
     ),
-    h("div", { className: `absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-xl ring-1 ring-ink-100 z-50 overflow-hidden ${open ? "block" : "hidden"}` },
+    open && ReactDOM.createPortal(
+      h("div", { ref: menuRef, className: "fixed w-80 bg-white rounded-2xl shadow-xl ring-1 ring-ink-100 z-50 overflow-hidden", style: { top: pos.top + "px", right: pos.right + "px" } },
       h("div", { className: "px-4 py-3 border-b border-ink-100 flex items-center justify-between" },
         h("span", { className: "text-sm font-semibold text-ink-800" }, "\u{1F514} \u0E01\u0E32\u0E23\u0E41\u0E08\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19"),
         count > 0 && h("span", { className: "text-[11px] font-bold text-red-500" }, count, " \u0E23\u0E32\u0E22\u0E01\u0E32\u0E23")
@@ -4190,7 +4214,9 @@ function NotificationBell({ rows, onOpen }) {
               ))
             )
       )
-    )
+    ),
+    document.body
+  )
   );
 }
 function App() {
