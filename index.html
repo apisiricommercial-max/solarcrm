@@ -4126,7 +4126,6 @@ function CashFlowForm({ open, initial, onClose, onSave }) {
 }
 function NotificationBell({ rows, onOpen }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, right: 0 });
   const btnRef = useRef(null);
   const menuRef = useRef(null);
   useEffect(() => {
@@ -4138,22 +4137,6 @@ function NotificationBell({ rows, onOpen }) {
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, [open]);
-  // dropdown นี้ render ผ่าน portal ไปที่ document.body (ไม่ได้อยู่ใต้ header ที่เป็น sticky) ต้องคำนวณตำแหน่งเองด้วย getBoundingClientRect
-  // เพื่อเลี่ยงบั๊กของ Chrome ที่ absolute-positioned descendant ไปรบกวนความสูงของ sticky header เวลาเปิด/ปิด dropdown
-  useEffect(() => {
-    if (!open || !btnRef.current) return;
-    const update = () => {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
-    };
-    update();
-    window.addEventListener("scroll", update, true);
-    window.addEventListener("resize", update);
-    return () => {
-      window.removeEventListener("scroll", update, true);
-      window.removeEventListener("resize", update);
-    };
   }, [open]);
   const active = rows.filter((r) => r.nextFollowup && !["won", "warranty", "lost"].includes(r.status));
   const overdue = active.filter((r) => daysUntil(r.nextFollowup) < 0).sort((a, b) => a.nextFollowup < b.nextFollowup ? -1 : 1);
@@ -4176,7 +4159,7 @@ function NotificationBell({ rows, onOpen }) {
       count > 0 && h("span", { className: "absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center nav-leads-badge" }, count > 9 ? "9+" : count)
     ),
     open && ReactDOM.createPortal(
-      h("div", { ref: menuRef, className: "fixed w-80 bg-white rounded-2xl shadow-xl ring-1 ring-ink-100 z-50 overflow-hidden", style: { top: pos.top + "px", right: pos.right + "px" } },
+      h("div", { ref: menuRef, className: "fixed top-16 right-4 sm:right-6 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl ring-1 ring-ink-100 z-50 overflow-hidden" },
       h("div", { className: "px-4 py-3 border-b border-ink-100 flex items-center justify-between" },
         h("span", { className: "text-sm font-semibold text-ink-800" }, "\u{1F514} \u0E01\u0E32\u0E23\u0E41\u0E08\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19"),
         count > 0 && h("span", { className: "text-[11px] font-bold text-red-500" }, count, " \u0E23\u0E32\u0E22\u0E01\u0E32\u0E23")
