@@ -4579,6 +4579,7 @@ function AdminAnalyticsPage({ session }) {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [onlyOnlineToday, setOnlyOnlineToday] = useState(false);
+  const [onlineCheckDate, setOnlineCheckDate] = useState(todayISO());
   const myEmail = (session && session.user && session.user.email || "").toLowerCase();
 
   const loadData = async (from, to) => {
@@ -4637,14 +4638,16 @@ function AdminAnalyticsPage({ session }) {
     );
   }
 
-  // เทียบว่า timestamp นี้อยู่ใน "วันนี้" ตามเวลาท้องถิ่นของเบราว์เซอร์หรือไม่ (ใช้กับ lastActive ของแต่ละบริษัท)
-  const isToday = (iso) => {
-    if (!iso) return false;
+  // เทียบว่า timestamp นี้ตรงกับ "วันที่เลือกไว้" (onlineCheckDate) หรือไม่ ตามเวลาท้องถิ่นของเบราว์เซอร์ — ใช้กับ lastActive ของแต่ละบริษัท
+  // หมายเหตุ: lastActive เก็บแค่ "ล่าสุดที่บริษัทนั้น active" จุดเดียว ไม่ใช่ log ทุกวัน ดังนั้นถ้าเลือกวันเก่าแต่บริษัทมีการเข้าใช้ใหม่กว่านั้นอีก จะไม่นับว่าออนไลน์วันที่เลือก
+  const isOnDate = (iso, dateStr) => {
+    if (!iso || !dateStr) return false;
     const d = new Date(iso);
-    const now = new Date();
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    const [y, mo, da] = dateStr.split("-").map(Number);
+    return d.getFullYear() === y && d.getMonth() + 1 === mo && d.getDate() === da;
   };
-  const displayRanking = onlyOnlineToday ? data.ranking.filter((r) => isToday(r.lastActive)) : data.ranking;
+  const isCheckDateToday = onlineCheckDate === todayISO();
+  const displayRanking = onlyOnlineToday ? data.ranking.filter((r) => isOnDate(r.lastActive, onlineCheckDate)) : data.ranking;
 
   const cards = [
     { icon: "\u{1F465}", label: "\u0E1C\u0E39\u0E49\u0E2A\u0E21\u0E31\u0E04\u0E23\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14", val: fmt(data.totalSignups), color: "bg-blue-50 ring-blue-100 text-blue-700" },
@@ -4691,8 +4694,10 @@ function AdminAnalyticsPage({ session }) {
           h("div", { className: "flex items-center gap-2 flex-wrap" },
             h("label", { className: "flex items-center gap-1.5 text-xs text-ink-600 bg-ink-50 rounded-lg px-2.5 py-1.5 cursor-pointer select-none" },
               h("input", { type: "checkbox", checked: onlyOnlineToday, onChange: (e) => setOnlyOnlineToday(e.target.checked), className: "accent-emerald-500" }),
-              "\u{1F7E2} \u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49"
+              "\u{1F7E2} \u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14\u0E43\u0E19\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48"
             ),
+            h("input", { type: "date", value: onlineCheckDate, max: todayISO(), onChange: (e) => setOnlineCheckDate(e.target.value), disabled: !onlyOnlineToday, className: "text-xs rounded-lg border border-ink-200 px-2.5 py-1.5 text-ink-600 disabled:opacity-40 disabled:cursor-not-allowed" }),
+            h("span", { className: "text-ink-200" }, "|"),
             h("input", { type: "date", value: fromDate, onChange: (e) => setFromDate(e.target.value), className: "text-xs rounded-lg border border-ink-200 px-2.5 py-1.5 text-ink-600" }),
             h("span", { className: "text-ink-300 text-xs" }, "\u2192"),
             h("input", { type: "date", value: toDate, onChange: (e) => setToDate(e.target.value), className: "text-xs rounded-lg border border-ink-200 px-2.5 py-1.5 text-ink-600" }),
@@ -4703,10 +4708,10 @@ function AdminAnalyticsPage({ session }) {
           )
         ),
         onlyOnlineToday && h("div", { className: "px-5 py-2 bg-emerald-50 border-b border-emerald-100 text-xs text-emerald-700" },
-          "\u{1F7E2} \u0E41\u0E2A\u0E14\u0E07\u0E40\u0E09\u0E1E\u0E32\u0E30\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E17\u0E35\u0E48\u0E21\u0E35\u0E04\u0E19\u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49 (", displayRanking.length, " \u0E08\u0E32\u0E01 ", data.ranking.length, " \u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17)"
+          "\u{1F7E2} \u0E41\u0E2A\u0E14\u0E07\u0E40\u0E09\u0E1E\u0E32\u0E30\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E17\u0E35\u0E48\u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48 ", thDateShort(onlineCheckDate), isCheckDateToday ? " (\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49)" : "", " (", displayRanking.length, " \u0E08\u0E32\u0E01 ", data.ranking.length, " \u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17)"
         ),
         displayRanking.length === 0
-          ? h("div", { className: "text-sm text-ink-400 text-center py-10" }, onlyOnlineToday ? "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E44\u0E2B\u0E19\u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A")
+          ? h("div", { className: "text-sm text-ink-400 text-center py-10" }, onlyOnlineToday ? `\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E44\u0E2B\u0E19\u0E2D\u0E2D\u0E19\u0E44\u0E25\u0E19\u0E4C\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48 ${thDateShort(onlineCheckDate)}` : "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A")
           : h(React.Fragment, null,
               // Desktop table
               h("div", { className: "hidden md:block overflow-x-auto" },
