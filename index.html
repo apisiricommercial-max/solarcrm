@@ -3407,6 +3407,107 @@ const marketplaceDb = {
     return data || null;
   }
 };
+/* ===================== ประกาศตัวช่างว่างงาน (reverse job board) + แมทคู่ ===================== */
+const availabilityDb = {
+  async listMine() {
+    if (!sb || !currentUser) return [];
+    const { data, error } = await sb.from("technician_availability_posts").select("*").eq("technician_user_id", currentUser.id).order("createdAt", { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async post(job) {
+    if (!sb || !currentUser) return;
+    const row = { id: uid(), technician_user_id: currentUser.id, active: true, ...job };
+    const { error } = await sb.from("technician_availability_posts").insert(row);
+    if (error) throw error;
+  },
+  async setActive(id, active) {
+    const { error } = await sb.from("technician_availability_posts").update({ active }).eq("id", id);
+    if (error) throw error;
+  },
+  async remove(id) {
+    const { error } = await sb.from("technician_availability_posts").delete().eq("id", id);
+    if (error) throw error;
+  },
+  async listOpen(province) {
+    if (!sb) return [];
+    let q = sb.from("technician_availability_posts").select("*").eq("active", true).order("createdAt", { ascending: false });
+    if (province) q = q.eq("province", province);
+    const { data, error } = await q;
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  // ---- ฝั่งบริษัท: กดสนใจประกาศของช่าง ----
+  async myInterests() {
+    if (!sb || !currentUser) return [];
+    const { data, error } = await sb.from("availability_interests").select("*, technician_availability_posts(*)").eq("company_user_id", currentUser.id).order("createdAt", { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async expressInterest(postId, message) {
+    if (!sb || !currentUser) return;
+    const row = { id: uid(), availability_post_id: postId, company_user_id: currentUser.id, message: message || "", status: "pending" };
+    const { error } = await sb.from("availability_interests").insert(row);
+    if (error) throw error;
+  },
+  // ---- ฝั่งช่าง: ดูว่าบริษัทไหนสนใจประกาศของตัวเองบ้าง ----
+  async listInterestsForPost(postId) {
+    if (!sb) return [];
+    const { data, error } = await sb.from("availability_interests").select("*").eq("availability_post_id", postId).order("createdAt", { ascending: true });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async listInterestsForMyPosts() {
+    const posts = await this.listMine();
+    if (posts.length === 0) return [];
+    const ids = posts.map((p) => p.id);
+    const { data, error } = await sb.from("availability_interests").select("*, technician_availability_posts(*)").in("availability_post_id", ids).order("createdAt", { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async setInterestStatus(id, status) {
+    const { error } = await sb.from("availability_interests").update({ status }).eq("id", id);
+    if (error) throw error;
+  }
+};
+/* ===================== แชทเรียลไทม์ระหว่างบริษัท-ช่าง (เปิดหลังแมทกันสำเร็จ) ===================== */
+const chatDb = {
+  async getOrCreateThread({ contextType, contextId, companyUserId, technicianUserId, contextTitle }) {
+    if (!sb) return null;
+    const { data: existing } = await sb.from("chat_threads").select("*").eq("context_type", contextType).eq("context_id", contextId).maybeSingle();
+    if (existing) return existing;
+    const row = { id: uid(), company_user_id: companyUserId, technician_user_id: technicianUserId, context_type: contextType, context_id: contextId, context_title: contextTitle || "" };
+    const { data, error } = await sb.from("chat_threads").insert(row).select().maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+  async listMyThreads() {
+    if (!sb || !currentUser) return [];
+    const uidNow = currentUser.id;
+    const { data, error } = await sb.from("chat_threads").select("*").or(`company_user_id.eq.${uidNow},technician_user_id.eq.${uidNow}`).order("createdAt", { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async listMessages(threadId) {
+    if (!sb) return [];
+    const { data, error } = await sb.from("chat_messages").select("*").eq("thread_id", threadId).order("createdAt", { ascending: true });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async sendMessage(threadId, message) {
+    if (!sb || !currentUser) return;
+    const row = { id: uid(), thread_id: threadId, sender_user_id: currentUser.id, message };
+    const { error } = await sb.from("chat_messages").insert(row);
+    if (error) throw error;
+  },
+  subscribeToThread(threadId, onInsert) {
+    if (!sb) return () => {};
+    const channel = sb.channel("chat_" + threadId)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `thread_id=eq.${threadId}` }, (payload) => onInsert(payload.new))
+      .subscribe();
+    return () => { try { sb.removeChannel(channel); } catch (e) {} };
+  }
+};
 
 // ---------- ฝั่งช่าง (สาธารณะ ไม่ต้องล็อกอิน — เรียกผ่าน RPC/Edge Function เท่านั้น) ----------
 async function techGetJob(token) {
@@ -5870,8 +5971,10 @@ function JobApplicantsModal({ job, onClose, onChanged }) {
     try {
       await marketplaceDb.setApplicationStatus(app.id, "accepted");
       await Promise.all(apps.filter((a) => a.id !== app.id && a.status === "pending").map((a) => marketplaceDb.setApplicationStatus(a.id, "rejected")));
+      await chatDb.getOrCreateThread({ contextType: "job", contextId: app.id, companyUserId: currentUser.id, technicianUserId: app.technician_user_id, contextTitle: job.title });
       refresh(); onChanged();
-    } catch (e) { alert("รับสมัครไม่สำเร็จ"); }
+      alert("รับช่างคนนี้เรียบร้อย! เปิดแชทคุยกันได้ที่แท็บ 💬 แชท เลยครับ");
+    } catch (e) { alert("รับสมัครไม่สำเร็จ: " + (e && e.message ? e.message : "")); }
   };
   const reject = async (app) => {
     try { await marketplaceDb.setApplicationStatus(app.id, "rejected"); refresh(); onChanged(); } catch (e) { alert("ปฏิเสธไม่สำเร็จ"); }
@@ -5924,7 +6027,182 @@ function JobApplicantsModal({ job, onClose, onChanged }) {
     )
   );
 }
-function CompanyJobBoardPage() {
+function PostAvailabilityModal({ onClose, onPosted }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [province, setProvince] = useState("");
+  const [jobType, setJobType] = useState("");
+  const [rate, setRate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async () => {
+    if (!title.trim()) { alert("กรอกหัวข้อประกาศก่อนนะครับ"); return; }
+    setSubmitting(true);
+    try {
+      await availabilityDb.post({ title: title.trim(), description: description.trim(), province, job_type: jobType.trim(), rate: rate ? Number(rate) : null });
+      onPosted();
+    } catch (e) { alert("ประกาศไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setSubmitting(false); }
+  };
+  const labelCls = "block text-xs font-medium text-ink-500 mb-1";
+  return h(Modal, { open: true, onClose },
+    h("div", { className: "p-6" },
+      h("h3", { className: "text-lg font-semibold text-ink-800 mb-1" }, "📣 ประกาศตัวว่างงาน"),
+      h("p", { className: "text-xs text-ink-400 mb-4" }, "บริษัทที่กำลังหาช่างจะเห็นประกาศนี้ในกระดาน"),
+      h("div", { className: "space-y-3" },
+        h("div", null, h("label", { className: labelCls }, "หัวข้อ *"), h("input", { value: title, onChange: (e) => setTitle(e.target.value), placeholder: "เช่น รับติดตั้งโซลาร์ On-Grid ทั่วภาคกลาง", className: "w-full px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" })),
+        h("div", { className: "grid grid-cols-2 gap-3" },
+          h("div", null, h("label", { className: labelCls }, "จังหวัด"), h("select", { value: province, onChange: (e) => setProvince(e.target.value), className: "w-full px-3 py-2 rounded-lg border border-ink-200 text-sm" }, h("option", { value: "" }, "เลือกจังหวัด"), PROVINCES.map((p) => h("option", { key: p, value: p }, p)))),
+          h("div", null, h("label", { className: labelCls }, "ความถนัด"), h("input", { value: jobType, onChange: (e) => setJobType(e.target.value), placeholder: "เช่น On-Grid, Hybrid", className: "w-full px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" }))
+        ),
+        h("div", null, h("label", { className: labelCls }, "ค่าแรงที่ต้องการ (บาท)"), h("input", { type: "number", value: rate, onChange: (e) => setRate(e.target.value), placeholder: "เช่น 15000", className: "w-full px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" })),
+        h("div", null, h("label", { className: labelCls }, "รายละเอียดเพิ่มเติม"), h("textarea", { value: description, onChange: (e) => setDescription(e.target.value), placeholder: "ประสบการณ์ พื้นที่รับงาน เงื่อนไข ฯลฯ", className: "w-full h-20 px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500 resize-none" }))
+      ),
+      h("div", { className: "flex justify-end gap-2 mt-5" },
+        h("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm text-ink-600 hover:bg-ink-100" }, "ยกเลิก"),
+        h("button", { onClick: submit, disabled: submitting, className: "px-5 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:opacity-50" }, submitting ? "กำลังประกาศ..." : "📣 ประกาศเลย")
+      )
+    )
+  );
+}
+function TechAvailabilityTab() {
+  const [posts, setPosts] = useState([]);
+  const [interests, setInterests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
+  const refresh = () => {
+    setLoading(true);
+    Promise.all([availabilityDb.listMine(), availabilityDb.listInterestsForMyPosts()])
+      .then(([p, ints]) => { setPosts(p); setInterests(ints); setLoading(false); });
+  };
+  useEffect(() => { refresh(); }, []);
+
+  const toggleActive = async (post) => {
+    try { await availabilityDb.setActive(post.id, !post.active); refresh(); } catch (e) { alert("เปลี่ยนสถานะไม่สำเร็จ"); }
+  };
+  const removePost = async (post) => {
+    if (!confirm(`ลบประกาศ "${post.title}"?`)) return;
+    try { await availabilityDb.remove(post.id); refresh(); } catch (e) { alert("ลบไม่สำเร็จ"); }
+  };
+  const acceptInterest = async (interest) => {
+    try {
+      await availabilityDb.setInterestStatus(interest.id, "matched");
+      const post = posts.find((p) => p.id === interest.availability_post_id);
+      await chatDb.getOrCreateThread({ contextType: "availability", contextId: interest.id, companyUserId: interest.company_user_id, technicianUserId: currentUser.id, contextTitle: (post && post.title) || "ประกาศตัวช่าง" });
+      refresh();
+      alert("แมทกันแล้ว! เปิดแชทคุยกับบริษัทได้ที่แท็บ 💬 แชท เลยครับ");
+    } catch (e) { alert("รับไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+  };
+  const declineInterest = async (interest) => {
+    try { await availabilityDb.setInterestStatus(interest.id, "declined"); refresh(); } catch (e) { alert("ปฏิเสธไม่สำเร็จ"); }
+  };
+
+  if (loading) return h("div", { className: "text-center text-ink-400 py-16" }, "กำลังโหลด...");
+
+  return h("div", { className: "space-y-4" },
+    h("div", { className: "flex items-center justify-between flex-wrap gap-2" },
+      h("p", { className: "text-sm text-ink-500" }, "ประกาศตัวว่างงาน ให้บริษัททักมาก่อนได้เลย ไม่ต้องรอสมัครทีละงาน"),
+      h("button", { onClick: () => setFormOpen(true), className: "px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm" }, "+ ประกาศตัว")
+    ),
+    posts.length === 0
+      ? h("div", { className: "text-center py-16 bg-white rounded-2xl ring-1 ring-ink-100" }, h("div", { className: "text-4xl mb-2" }, "📣"), h("div", { className: "text-ink-500" }, "ยังไม่เคยประกาศตัวเลย"))
+      : h("div", { className: "grid gap-3" }, posts.map((post) => {
+          const myInterests = interests.filter((i) => i.availability_post_id === post.id);
+          return h("div", { key: post.id, className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm" },
+            h("div", { className: "flex items-start justify-between gap-3" },
+              h("div", { className: "min-w-0" },
+                h("div", { className: "font-bold text-ink-800" }, post.title),
+                h("div", { className: "text-xs text-ink-400 mt-0.5" }, "📍 ", post.province || "ทุกจังหวัด", post.job_type ? " · " + post.job_type : "", post.rate ? " · ฿" + Number(post.rate).toLocaleString("th-TH") : "")
+              ),
+              h("span", { className: `text-[10px] px-2.5 py-1 rounded-full font-semibold shrink-0 ${post.active ? "bg-emerald-50 text-emerald-700" : "bg-ink-100 text-ink-400"}` }, post.active ? "กำลังแสดงอยู่" : "ปิดไว้ชั่วคราว")
+            ),
+            h("div", { className: "flex flex-wrap gap-2 mt-3 pt-3 border-t border-ink-50" },
+              h("button", { onClick: () => toggleActive(post), className: "text-xs px-3 py-1.5 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 font-semibold" }, post.active ? "ซ่อนชั่วคราว" : "แสดงอีกครั้ง"),
+              h("button", { onClick: () => removePost(post), className: "text-xs px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-semibold" }, "🗑️ ลบ")
+            ),
+            myInterests.length > 0 && h("div", { className: "mt-3 pt-3 border-t border-ink-50 space-y-2" },
+              h("div", { className: "text-xs font-semibold text-ink-500" }, "💌 บริษัทที่สนใจ (", myInterests.length, ")"),
+              myInterests.map((it) => h("div", { key: it.id, className: `rounded-lg p-2.5 flex items-center justify-between gap-2 ${it.status === "matched" ? "bg-emerald-50" : "bg-ink-50"}` },
+                h("div", { className: "min-w-0" },
+                  h("div", { className: "text-sm text-ink-700 truncate" }, it.message || "(ไม่มีข้อความ)"),
+                  it.status === "matched" && h("div", { className: "text-[10px] text-emerald-600 font-semibold" }, "✓ แมทแล้ว")
+                ),
+                it.status === "pending" && h("div", { className: "flex gap-1.5 shrink-0" },
+                  h("button", { onClick: () => acceptInterest(it), className: "text-[11px] px-2.5 py-1 rounded-lg bg-brand-600 text-white font-semibold hover:bg-brand-700" }, "✓ แมท"),
+                  h("button", { onClick: () => declineInterest(it), className: "text-[11px] px-2.5 py-1 rounded-lg bg-ink-100 text-ink-500 font-semibold hover:bg-ink-200" }, "ปฏิเสธ")
+                )
+              ))
+            )
+          );
+        })),
+    formOpen && h(PostAvailabilityModal, { onClose: () => setFormOpen(false), onPosted: () => { setFormOpen(false); refresh(); } })
+  );
+}
+function CompanyBrowseTechsTab() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [province, setProvince] = useState("");
+  const [myInterests, setMyInterests] = useState([]);
+  const [interestPost, setInterestPost] = useState(null);
+  const [msg, setMsg] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const refresh = () => {
+    setLoading(true);
+    Promise.all([availabilityDb.listOpen(province || undefined), availabilityDb.myInterests()])
+      .then(([p, ints]) => { setPosts(p); setMyInterests(ints); setLoading(false); });
+  };
+  useEffect(() => { refresh(); }, [province]);
+
+  const interestedPostIds = new Set(myInterests.map((i) => i.availability_post_id));
+
+  const submitInterest = async () => {
+    setSubmitting(true);
+    try {
+      await availabilityDb.expressInterest(interestPost.id, msg);
+      setInterestPost(null); setMsg("");
+      refresh();
+      alert("ส่งความสนใจแล้ว! รอช่างยืนยันแมทกลับ");
+    } catch (e) { alert("ส่งไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setSubmitting(false); }
+  };
+
+  if (loading) return h("div", { className: "text-center text-ink-400 py-16" }, "กำลังโหลด...");
+
+  return h("div", { className: "space-y-4" },
+    h("div", { className: "flex gap-2 items-center flex-wrap" },
+      h("select", { value: province, onChange: (e) => setProvince(e.target.value), className: "px-3 py-2 rounded-lg border border-ink-200 text-sm" }, h("option", { value: "" }, "ทุกจังหวัด"), PROVINCES.map((p) => h("option", { key: p, value: p }, p))),
+      h("button", { onClick: refresh, className: "text-xs px-3 py-2 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 font-medium" }, "↻ รีเฟรช")
+    ),
+    posts.length === 0
+      ? h("div", { className: "text-center py-16 bg-white rounded-2xl ring-1 ring-ink-100" }, h("div", { className: "text-4xl mb-2" }, "🔍"), h("div", { className: "text-ink-400" }, "ยังไม่มีช่างประกาศตัวตอนนี้"))
+      : h("div", { className: "grid gap-3" }, posts.map((post) => h("div", { key: post.id, className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm" },
+          h("div", { className: "flex items-start justify-between gap-3" },
+            h("div", { className: "min-w-0" },
+              h("div", { className: "font-bold text-ink-800" }, post.title),
+              h("div", { className: "text-xs text-ink-400 mt-0.5" }, "📍 ", post.province || "ทุกจังหวัด", post.job_type ? " · " + post.job_type : "")
+            ),
+            post.rate ? h("div", { className: "text-brand-600 font-bold text-sm shrink-0" }, "฿" + Number(post.rate).toLocaleString("th-TH")) : null
+          ),
+          post.description && h("div", { className: "text-sm text-ink-600 mt-2" }, post.description),
+          h("div", { className: "mt-3 pt-3 border-t border-ink-50 flex justify-end" },
+            interestedPostIds.has(post.id)
+              ? h("span", { className: "text-xs px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 font-semibold" }, "✓ ส่งความสนใจแล้ว")
+              : h("button", { onClick: () => setInterestPost(post), className: "text-xs px-4 py-1.5 rounded-lg bg-brand-600 text-white font-semibold hover:bg-brand-700" }, "💌 สนใจช่างคนนี้")
+          )
+        ))),
+    interestPost && h(Modal, { open: true, onClose: () => setInterestPost(null) },
+      h("div", { className: "p-6" },
+        h("h3", { className: "text-lg font-semibold text-ink-800 mb-1" }, "สนใจ: ", interestPost.title),
+        h("textarea", { value: msg, onChange: (e) => setMsg(e.target.value), placeholder: "ข้อความถึงช่าง (ไม่บังคับ)", className: "w-full h-24 mt-3 px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500 resize-none" }),
+        h("div", { className: "flex justify-end gap-2 mt-4" },
+          h("button", { onClick: () => setInterestPost(null), className: "px-4 py-2 rounded-lg text-sm text-ink-600 hover:bg-ink-100" }, "ยกเลิก"),
+          h("button", { onClick: submitInterest, disabled: submitting, className: "px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:opacity-50" }, submitting ? "กำลังส่ง..." : "ส่งความสนใจ")
+        )
+      )
+    )
+  );
+}
+function CompanyMyJobsTab() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -5987,6 +6265,87 @@ function CompanyJobBoardPage() {
     })),
     formOpen && h(PostJobModal, { onClose: () => setFormOpen(false), onPosted: () => { setFormOpen(false); refresh(); } }),
     openJob && h(JobApplicantsModal, { job: openJob, onClose: () => setOpenJobId(null), onChanged: refresh })
+  );
+}
+function CompanyJobBoardPage() {
+  const [tab, setTab] = useState("myjobs");
+  const tabs = [
+    { key: "myjobs", label: "📋 งานที่ประกาศ" },
+    { key: "browsetechs", label: "🔍 ช่างว่างงาน" },
+    { key: "chat", label: "💬 แชท" }
+  ];
+  return h("div", { className: "space-y-4 fade-in" },
+    h("div", { className: "flex gap-1 bg-white rounded-xl ring-1 ring-ink-100 p-1 overflow-x-auto w-fit" },
+      tabs.map((t) => h("button", {
+        key: t.key, onClick: () => setTab(t.key),
+        className: `px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition ${tab === t.key ? "bg-brand-600 text-white" : "text-ink-500 hover:bg-ink-50"}`
+      }, t.label))
+    ),
+    tab === "myjobs" && h(CompanyMyJobsTab, null),
+    tab === "browsetechs" && h(CompanyBrowseTechsTab, null),
+    tab === "chat" && h(ChatThreadList, null)
+  );
+}
+function ChatWindow({ threadId }) {
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    let unsub = () => {};
+    chatDb.listMessages(threadId).then(setMessages);
+    unsub = chatDb.subscribeToThread(threadId, (m) => setMessages((p) => (p.some((x) => x.id === m.id) ? p : [...p, m])));
+    return () => unsub();
+  }, [threadId]);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
+  const send = async () => {
+    const t = text.trim();
+    if (!t) return;
+    setSending(true);
+    setText("");
+    try { await chatDb.sendMessage(threadId, t); }
+    catch (e) { alert("ส่งข้อความไม่สำเร็จ: " + (e && e.message ? e.message : "")); setText(t); }
+    finally { setSending(false); }
+  };
+  return h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 flex flex-col h-[480px]" },
+    h("div", { ref: scrollRef, className: "flex-1 overflow-y-auto p-4 space-y-2" },
+      messages.length === 0 && h("div", { className: "text-center text-ink-400 text-sm py-10" }, "แมทกันแล้ว! เริ่มทักทายกันได้เลยครับ 👋"),
+      messages.map((m) => h("div", {
+        key: m.id,
+        className: `max-w-[75%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${m.sender_user_id === (currentUser && currentUser.id) ? "ml-auto bg-brand-600 text-white rounded-br-sm" : "bg-ink-100 text-ink-700 rounded-bl-sm"}`
+      }, m.message))
+    ),
+    h("div", { className: "p-3 border-t border-ink-100 flex gap-2" },
+      h("input", {
+        value: text, onChange: (e) => setText(e.target.value),
+        onKeyDown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } },
+        placeholder: "พิมพ์ข้อความ...", className: "flex-1 px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500"
+      }),
+      h("button", { onClick: send, disabled: sending, className: "px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:opacity-50" }, "ส่ง")
+    )
+  );
+}
+function ChatThreadList() {
+  const [threads, setThreads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeId, setActiveId] = useState(null);
+  const refresh = () => { chatDb.listMyThreads().then((d) => { setThreads(d); setLoading(false); if (!activeId && d.length > 0) setActiveId(d[0].id); }); };
+  useEffect(() => { refresh(); }, []);
+  if (loading) return h("div", { className: "text-center text-ink-400 py-16" }, "กำลังโหลด...");
+  if (threads.length === 0) return h("div", { className: "text-center py-16 bg-white rounded-2xl ring-1 ring-ink-100" },
+    h("div", { className: "text-4xl mb-2" }, "💬"),
+    h("div", { className: "text-ink-500 font-medium" }, "ยังไม่มีแชทเลย"),
+    h("div", { className: "text-ink-400 text-sm mt-1" }, "แชทจะเปิดขึ้นอัตโนมัติเมื่อแมทกันสำเร็จ")
+  );
+  return h("div", { className: "grid sm:grid-cols-3 gap-3" },
+    h("div", { className: "sm:col-span-1 space-y-2" }, threads.map((t) => h("button", {
+      key: t.id, onClick: () => setActiveId(t.id),
+      className: `w-full text-left p-3 rounded-xl ring-1 transition ${activeId === t.id ? "ring-brand-400 bg-brand-50" : "ring-ink-100 bg-white hover:bg-ink-50"}`
+    },
+      h("div", { className: "font-semibold text-sm text-ink-800 truncate" }, t.context_title || "แชท"),
+      h("div", { className: "text-xs text-ink-400 mt-0.5" }, t.context_type === "job" ? "📋 จากประกาศงาน" : "📣 จากประกาศตัวช่าง")
+    ))),
+    h("div", { className: "sm:col-span-2" }, activeId ? h(ChatWindow, { key: activeId, threadId: activeId }) : h("div", { className: "text-center text-ink-400 py-16" }, "เลือกแชทด้านซ้าย"))
   );
 }
 function Stars({ value }) {
@@ -6229,8 +6588,10 @@ function TechDashboard() {
   const tabs = [
     { key: "browse", label: "🔍 งานเปิดรับ" },
     { key: "apps", label: "📋 ใบสมัครของฉัน" },
+    { key: "availability", label: "📣 ประกาศตัวเอง" },
     { key: "profile", label: "👤 โปรไฟล์ + ผลงาน" },
-    { key: "reviews", label: "⭐ รีวิวของฉัน" }
+    { key: "reviews", label: "⭐ รีวิวของฉัน" },
+    { key: "chat", label: "💬 แชท" }
   ];
   const initial = ((myProfile && myProfile.name) || "?").trim().charAt(0).toUpperCase();
   return h("div", { className: "min-h-screen bg-ink-50" },
@@ -6258,7 +6619,9 @@ function TechDashboard() {
       ),
       tab === "browse" && h(TechJobBrowseTab, null),
       tab === "apps" && h(TechMyApplicationsTab, null),
+      tab === "availability" && h(TechAvailabilityTab, null),
       tab === "profile" && h(TechProfileTab, null),
+      tab === "chat" && h(ChatThreadList, null),
       tab === "reviews" && h(TechReviewsTab, null)
     )
   );
