@@ -108,6 +108,12 @@ tailwind.config = {
   .nav-leads-icon{animation:navLeadsIconWiggle 2.4s ease-in-out infinite}
   .nav-leads-badge{animation:navLeadsBadgeBounce 1.4s ease-in-out infinite;box-shadow:0 0 0 2px rgba(239,68,68,.25)}
 
+  /* ---- Onboarding Tour: จุดเรืองแสง + ลูกศรกระพริบชี้เมนู ---- */
+  @keyframes tourPulse{0%,100%{box-shadow:0 0 0 9999px rgba(15,23,42,.72),0 0 0 0 rgba(251,191,36,.6)}50%{box-shadow:0 0 0 9999px rgba(15,23,42,.72),0 0 0 8px rgba(251,191,36,0)}}
+  @keyframes tourBounceLeft{0%,100%{transform:translateX(0)}50%{transform:translateX(-8px)}}
+  @keyframes tourBounceDown{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+  @keyframes tourPopIn{0%{opacity:0;transform:scale(.9) translateY(6px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+
   /* ---- Header: glass เบลอ + เส้นไล่สีบาง ---- */
   header.sticky{backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);
     background:rgba(255,255,255,.78)!important;
@@ -1264,6 +1270,83 @@ function buildDemoCashflow() {
     mk({ type: "expense", category: "ค่าแรงช่าง", amount: 15000, date: dayOffset(-2), note: "ค่าแรงติดตั้งทีมช่าง (ตัวอย่าง)" }),
     mk({ type: "expense", category: "ภาษีขาย (VAT) รอนำส่ง", amount: 12600, date: dayOffset(-1), note: "VAT จากยอดขาย (ตัวอย่าง)" })
   ];
+}
+/* ===================== Onboarding Tour: พาไล่ดูทีละเมนู (ยกเว้นเครื่องคำนวณ 3 ตัว) ===================== */
+const TOUR_STEPS = [
+  { key: "dash", emoji: "📊", title: "แดชบอร์ด", desc: "ภาพรวมธุรกิจ งานที่ต้องทำวันนี้ และสรุปยอดลูกค้าทั้งหมดในหน้าเดียว" },
+  { key: "leads", emoji: "🌐", title: "ลูกค้าจากเว็บ", desc: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ จะมารออยู่ที่นี่ให้กดรับเข้าระบบ" },
+  { key: "cust", emoji: "👥", title: "ลูกค้า", desc: "รายชื่อลูกค้าทั้งหมด เพิ่ม แก้ไข ค้นหาข้อมูลลูกค้าได้ที่นี่" },
+  { key: "install", emoji: "🏗️", title: "ไปป์ไลน์งาน", desc: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ลากเปลี่ยนสถานะได้เลย" },
+  { key: "follow", emoji: "🔔", title: "ติดตาม", desc: "ลูกค้าที่ต้องติดตามด่วน เรียงลำดับความเร่งด่วนให้อัตโนมัติ ไม่พลาดดีล" },
+  { key: "cashflow", emoji: "💰", title: "บัญชีบริษัท", desc: "บันทึกรายรับ-รายจ่ายของบริษัท และดูยอด VAT ที่ต้องนำส่งสรรพากร" }
+];
+function TourGuide({ step, onSkip, menuOpen, setMenuOpen }) {
+  const [rect, setRect] = useState(null);
+  const info = TOUR_STEPS[step];
+  // เปิดเมนูมือถือให้อัตโนมัติระหว่างทัวร์ ถ้าจอเล็กและเมนูยังปิดอยู่ จะได้เห็นเมนูที่ต้องกด
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024 && !menuOpen) setMenuOpen(true);
+  }, [step]);
+  useEffect(() => {
+    let cancelled = false;
+    const update = () => {
+      if (cancelled) return;
+      const el = document.querySelector(`[data-tour="${info.key}"]`);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+      }
+    };
+    const t = setTimeout(update, 280); // รอ sidebar เปิด/เลื่อนตำแหน่งให้นิ่งก่อนวัดขนาด
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => { cancelled = true; clearTimeout(t); window.removeEventListener("resize", update); window.removeEventListener("scroll", update, true); };
+  }, [step, menuOpen]);
+  if (!rect) return null;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const tipW = 288;
+  const rawTipTop = isMobile ? rect.top + rect.height + 14 : rect.top - 4;
+  const rawTipLeft = isMobile ? rect.left : rect.left + rect.width + 18;
+  const tipTop = Math.min(Math.max(rawTipTop, 12), vh - 170);
+  const tipLeft = Math.min(Math.max(rawTipLeft, 12), vw - tipW - 12);
+  return h("div", { className: "fixed inset-0 z-[100] pointer-events-none" },
+    h("div", {
+      className: "absolute rounded-xl",
+      style: { top: rect.top - 6, left: rect.left - 6, width: rect.width + 12, height: rect.height + 12, animation: "tourPulse 1.6s ease-in-out infinite", transition: "top .4s ease,left .4s ease" }
+    }),
+    h("div", {
+      className: "absolute text-3xl select-none",
+      style: isMobile
+        ? { top: rect.top - 36, left: rect.left + rect.width / 2 - 16, animation: "tourBounceDown 1s ease-in-out infinite" }
+        : { top: rect.top + rect.height / 2 - 16, left: rect.left - 36, animation: "tourBounceLeft 1s ease-in-out infinite" }
+    }, isMobile ? "👇" : "👉"),
+    h("div", {
+      className: "absolute pointer-events-auto bg-white rounded-2xl shadow-2xl ring-1 ring-ink-100 p-4",
+      style: { top: tipTop, left: tipLeft, width: tipW, animation: "tourPopIn .35s ease-out" }
+    },
+      h("div", { className: "flex items-center justify-between mb-2" },
+        h("span", { className: "text-[10px] font-bold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5" }, "ขั้นตอน ", step + 1, "/", TOUR_STEPS.length),
+        h("button", { onClick: onSkip, className: "text-ink-300 hover:text-ink-600 text-xs font-medium" }, "ข้ามทัวร์นี้ ✕")
+      ),
+      h("div", { className: "text-sm font-bold text-ink-900 mb-1" }, info.emoji, " ", info.title),
+      h("div", { className: "text-xs text-ink-500 leading-relaxed mb-3" }, info.desc),
+      h("div", { className: "text-[11px] text-brand-600 font-semibold flex items-center gap-1" }, "👆 กดเมนูนี้เพื่อไปต่อ")
+    )
+  );
+}
+function TourFinishModal({ onDeleteNow, onLater }) {
+  return h("div", { className: "fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" },
+    h("div", { className: "bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center", style: { animation: "tourPopIn .35s ease-out" } },
+      h("div", { className: "text-4xl mb-2" }, "🎉"),
+      h("div", { className: "text-lg font-bold text-ink-900 mb-1" }, "เยี่ยมมาก! ดูครบทุกเมนูหลักแล้ว"),
+      h("div", { className: "text-sm text-ink-500 mb-5" }, "ตอนนี้คุณพร้อมใช้งานจริงแล้ว ต้องการลบข้อมูลตัวอย่างที่ใช้สาธิตออกตอนนี้เลยไหม?"),
+      h("div", { className: "flex flex-col gap-2" },
+        h("button", { onClick: onDeleteNow, className: "w-full py-2.5 rounded-xl bg-red-50 text-red-600 font-semibold ring-1 ring-red-200 hover:bg-red-100 transition" }, "🗑️ ลบข้อมูลตัวอย่างเลย"),
+        h("button", { onClick: onLater, className: "w-full py-2.5 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 shadow-sm transition" }, "ไว้ทีหลัง เริ่มใช้งานเลย")
+      )
+    )
+  );
 }
 function Badge({ children, cls = "" }) {
   return /* @__PURE__ */ React.createElement("span", { className: `inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}` }, children);
@@ -2753,6 +2836,7 @@ function EstimatorMenu({ onOpen, onCopy, onSetUrl, leadsCount, isLeadsView, onGo
       // แถวที่ 1: ลูกค้าจากเว็บ (ย้ายมาจากเมนูบนสุดเดิม)
       h("button", {
         onClick: onGoLeads,
+        "data-tour": "leads",
         className: `w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold transition ${isLeadsView ? "bg-white/25 text-white" : "text-white/95 hover:bg-white/15"}`
       },
         h(Icon, { d: I.inbox, cls: "w-5 h-5" }),
@@ -4597,14 +4681,15 @@ function App() {
     })();
   }, [loaded, currentUser, rows.length]);
   // ล้างข้อมูลตัวอย่างทั้งหมดทิ้ง (ลูกค้า + บัญชีบริษัท) — กดได้ครั้งเดียว หลังจากนี้จะไม่ seed ข้อมูลตัวอย่างให้อีก
-  const clearDemoData = async () => {
-    if (!confirm("ล้างข้อมูลตัวอย่างทั้งหมด (ลูกค้า + บัญชีบริษัท) ออกจากระบบ?\nกดครั้งเดียว ลบแล้วกู้คืนไม่ได้ และจะไม่มีข้อมูลตัวอย่างขึ้นให้อีก")) return;
+  // skipConfirm=true ใช้ตอนเรียกจากปุ่มในหน้าจบทัวร์ (ผู้ใช้ตัดสินใจชัดเจนแล้วในหน้านั้น ไม่ต้องถามซ้ำ)
+  const clearDemoData = async (skipConfirm) => {
+    if (!skipConfirm && !confirm("ล้างข้อมูลตัวอย่างทั้งหมด (ลูกค้า + บัญชีบริษัท) ออกจากระบบ?\nกดครั้งเดียว ลบแล้วกู้คืนไม่ได้ และจะไม่มีข้อมูลตัวอย่างขึ้นให้อีก")) return;
     try {
       if (sb && currentUser) {
         const uidNow = currentUser.id;
         await sb.from("customers").delete().eq("user_id", uidNow).eq("isDemo", true);
         await sb.from("cashflow").delete().eq("user_id", uidNow).eq("isDemo", true);
-        await sb.from("company_profiles").upsert({ user_id: uidNow, demo_dismissed: true }, { onConflict: "user_id" });
+        await sb.from("company_profiles").upsert({ user_id: uidNow, demo_dismissed: true, tour_completed: true }, { onConflict: "user_id" });
       }
       alert("ล้างข้อมูลตัวอย่างเรียบร้อยแล้ว!");
       window.location.reload();
@@ -4613,6 +4698,43 @@ function App() {
     }
   };
   const hasDemoData = rows.some((r) => r.isDemo);
+  // ===== Onboarding Tour: พาไล่กดดูทีละเมนูหลัก (ยกเว้นเครื่องคำนวณ 3 ตัว) =====
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const [tourDone, setTourDone] = useState(false);
+  const [tourCompleted, setTourCompleted] = useState(null); // null = ยังเช็คไม่เสร็จ, true/false = สถานะจาก Supabase
+  useEffect(() => {
+    if (!sb || !currentUser) { setTourCompleted(true); return; }
+    sb.from("company_profiles").select("tour_completed").eq("user_id", currentUser.id).maybeSingle()
+      .then(({ data }) => setTourCompleted(!!(data && data.tour_completed)))
+      .catch(() => setTourCompleted(true));
+  }, [currentUser]);
+  // เริ่มทัวร์อัตโนมัติเมื่อรู้สถานะครบแล้วว่า: มีข้อมูลตัวอย่างอยู่ + ยังไม่เคยดูทัวร์นี้จบมาก่อน
+  useEffect(() => {
+    if (tourCompleted === null || tourCompleted) return;
+    if (!hasDemoData) return;
+    if (tourActive || tourDone) return;
+    setTourStep(0);
+    setTourActive(true);
+  }, [tourCompleted, hasDemoData]);
+  // เดินหน้าทัวร์อัตโนมัติเมื่อผู้ใช้กดเมนูที่ทัวร์ชี้อยู่ถูกต้อง
+  useEffect(() => {
+    if (!tourActive) return;
+    const cur = TOUR_STEPS[tourStep];
+    if (!cur || view !== cur.key) return;
+    if (tourStep >= TOUR_STEPS.length - 1) {
+      setTourActive(false);
+      setTourDone(true);
+    } else {
+      setTourStep((s) => s + 1);
+    }
+  }, [view, tourActive, tourStep]);
+  const markTourCompleted = async () => {
+    if (sb && currentUser) { try { await sb.from("company_profiles").upsert({ user_id: currentUser.id, tour_completed: true }, { onConflict: "user_id" }); } catch (e) {} }
+  };
+  const skipTour = () => { setTourActive(false); setTourDone(false); markTourCompleted(); };
+  const finishTourLater = () => { setTourDone(false); markTourCompleted(); };
+  const finishTourDeleteNow = async () => { setTourDone(false); await markTourCompleted(); clearDemoData(true); };
   const upsert = (c) => {
     const isNew = !c.id || !rows.some((x) => x.id === c.id);
     const myEmail = (window.__userEmail || "").trim();
@@ -4758,7 +4880,7 @@ function App() {
     } catch (e) { console.error("Export cashflow sheet failed:", e); }
     XLSX.writeFile(wb, "รายงาน_SolarCRM_" + todayISO() + ".xlsx");
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.filter((n) => n.key !== "leads").map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: () => {
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.filter((n) => n.key !== "leads").map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, "data-tour": n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
   }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), hasDemoData && /* @__PURE__ */ React.createElement("button", { onClick: clearDemoData, className: "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100", title: "ข้อมูลตัวอย่างสำหรับสอนการใช้งาน — กดเพื่อลบออกทั้งหมด" }, "🧹", /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "ล้างข้อมูลตัวอย่าง")), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
@@ -4767,7 +4889,7 @@ function App() {
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
     setProfile(null);
     openForm(c);
-  }, onAddLog: addLog, onStatus: setStatus, onOpenBOQ: () => setBoqOpen(true), onUpdateWarranty: updateCustomerWarranty, onUpdateInstallStage: updateInstallStage, onUpdateDocuments: updateCustomerDocuments }), /* @__PURE__ */ React.createElement(BOQBuilder, { open: boqOpen, customer: liveProfile, onClose: () => setBoqOpen(false), onUpdateCustomerValue: updateCustomerValue }), /* @__PURE__ */ React.createElement("button", { id: "mobileAddFab", onClick: () => openForm(null), className: "sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-brand-600 text-white shadow-lg flex items-center justify-center" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus })));
+  }, onAddLog: addLog, onStatus: setStatus, onOpenBOQ: () => setBoqOpen(true), onUpdateWarranty: updateCustomerWarranty, onUpdateInstallStage: updateInstallStage, onUpdateDocuments: updateCustomerDocuments }), /* @__PURE__ */ React.createElement(BOQBuilder, { open: boqOpen, customer: liveProfile, onClose: () => setBoqOpen(false), onUpdateCustomerValue: updateCustomerValue }), /* @__PURE__ */ React.createElement("button", { id: "mobileAddFab", onClick: () => openForm(null), className: "sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-brand-600 text-white shadow-lg flex items-center justify-center" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus })), tourActive && /* @__PURE__ */ React.createElement(TourGuide, { step: tourStep, onSkip: skipTour, menuOpen, setMenuOpen }), tourDone && /* @__PURE__ */ React.createElement(TourFinishModal, { onDeleteNow: finishTourDeleteNow, onLater: finishTourLater }));
 }
 function LoginScreen() {
   const [busy, setBusy] = React.useState(false);
