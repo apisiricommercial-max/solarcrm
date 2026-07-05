@@ -1206,6 +1206,65 @@ function seed() {
     createdAt: dayOffset(-(20 - i) * 2)
   }));
 }
+/* ===================== Demo Data: ข้อมูลตัวอย่างสำหรับสอนผู้ใช้ใหม่ =====================
+   ทุกแถวจะติด isDemo:true ไว้เสมอ เพื่อให้แยกออกจากข้อมูลจริงของผู้ใช้ได้ชัดเจน
+   และลบทิ้งได้ทั้งหมดด้วยปุ่ม "ล้างข้อมูลตัวอย่าง" ที่หัวกระดาษ (ดูฟังก์ชัน clearDemoData ใน App())
+   หมายเหตุ: ต้องรัน SQL เพิ่มคอลัมน์ isDemo ในตาราง customers และ cashflow ใน Supabase ก่อนใช้งานฟีเจอร์นี้ (ดูคำอธิบายท้ายไฟล์) */
+function buildDemoCustomers() {
+  const mk = (over) => ({
+    id: "demo-" + uid(), name: "", phone: "", lineId: "", facebook: "", province: "", address: "",
+    type: TYPES[0], source: SOURCES[0], monthlyBill: "", systemSize: SIZES[0], budget: "", value: 0,
+    heat: "warm", status: "new", tags: [], note: "", lastContact: todayISO(), nextFollowup: "",
+    installDate: "", warrantyYears: "10", createdAt: todayISO(), timeline: [], installStage: "",
+    isDemo: true, ...over
+  });
+  return [
+    mk({ name: "คุณสมชาย ใจดี (ตัวอย่าง)", phone: "081-234-5671", province: "กรุงเทพมหานคร", type: "เจ้าของบ้าน", source: "Facebook",
+      monthlyBill: 4500, systemSize: "5kW", budget: 180000, value: 180000, heat: "warm", status: "new",
+      tags: ["สนใจติดตั้งเอง"], note: "ลูกค้าตัวอย่าง — ทักมาสอบถามราคาเบื้องต้นผ่าน Facebook",
+      createdAt: dayOffset(-1), lastContact: dayOffset(-1), nextFollowup: dayOffset(2),
+      timeline: [{ id: uid(), date: dayOffset(-1), topic: "ทักมาสอบถามผ่าน Facebook", interest: "ระบบ 5kW", sent: "", next: "โทรติดตามอีกครั้ง" }] }),
+    mk({ name: "คุณสมหญิง รักบ้าน (ตัวอย่าง)", phone: "082-345-6782", province: "นนทบุรี", type: "เจ้าของบ้าน", source: "TikTok",
+      monthlyBill: 6000, systemSize: "10kW", budget: 280000, value: 280000, heat: "hot", status: "talking",
+      tags: ["ต้องการประหยัดค่าไฟ"], note: "ลูกค้าตัวอย่าง — กำลังคุยรายละเอียด สนใจมาก",
+      createdAt: dayOffset(-4), lastContact: dayOffset(-1), nextFollowup: dayOffset(1),
+      timeline: [{ id: uid(), date: dayOffset(-4), topic: "โทรเข้ามาสอบถาม", interest: "ระบบ 10kW", sent: "", next: "" }, { id: uid(), date: dayOffset(-1), topic: "ส่งใบเสนอราคาให้ดูแล้ว", interest: "", sent: "ใบเสนอราคา 280,000 บาท", next: "รอคำตอบพรุ่งนี้" }] }),
+    mk({ name: "คุณวิชัย มั่งมี (ตัวอย่าง)", phone: "083-456-7893", province: "ชลบุรี", type: "โรงงาน", source: "แนะนำต่อ",
+      monthlyBill: 15000, systemSize: "10kW", budget: 450000, value: 450000, heat: "warm", status: "sent",
+      tags: ["มีใบเสนอราคาแล้ว"], note: "ลูกค้าตัวอย่าง — ส่งใบเสนอราคาแล้ว รอพิจารณา",
+      createdAt: dayOffset(-7), lastContact: dayOffset(-2), nextFollowup: dayOffset(3),
+      timeline: [{ id: uid(), date: dayOffset(-7), topic: "เข้าไปสำรวจหน้างานโรงงาน", interest: "ลดค่าไฟโรงงาน", sent: "", next: "" }] }),
+    mk({ name: "คุณประภา แสงทอง (ตัวอย่าง)", phone: "084-567-8904", province: "เชียงใหม่", type: "เจ้าของบ้าน", source: "Inbox",
+      monthlyBill: 3500, systemSize: "3kW", budget: 120000, value: 120000, heat: "cold", status: "waiting",
+      tags: ["ต้องติดตามด่วน"], note: "ลูกค้าตัวอย่าง — เงียบไปนาน ต้องติดตามด่วน (สาธิตแจ้งเตือนติดตาม)",
+      createdAt: dayOffset(-14), lastContact: dayOffset(-10), nextFollowup: dayOffset(-2),
+      timeline: [{ id: uid(), date: dayOffset(-10), topic: "รอโอนเงินมัดจำ", interest: "", sent: "", next: "โทรถามความคืบหน้า" }] }),
+    mk({ name: "คุณธนากร ติดตั้งดี (ตัวอย่าง)", phone: "085-678-9015", province: "ปทุมธานี", type: "เจ้าของบ้าน", source: "แนะนำต่อ",
+      monthlyBill: 5000, systemSize: "5kW", budget: 180000, value: 180000, heat: "hot", status: "won",
+      tags: ["มีใบเสนอราคาแล้ว"], note: "ลูกค้าตัวอย่าง — ปิดการขายแล้ว กำลังติดตั้ง",
+      createdAt: dayOffset(-20), lastContact: dayOffset(-3), wonAt: dayOffset(-8), installStage: "installing", installDates: {},
+      timeline: [{ id: uid(), date: dayOffset(-8), topic: "ปิดการขายสำเร็จ 🎉", interest: "", sent: "", next: "" }] }),
+    mk({ name: "คุณอรุณ ประกันภัย (ตัวอย่าง)", phone: "086-789-0126", province: "สมุทรปราการ", type: "เจ้าของบ้าน", source: "Facebook",
+      monthlyBill: 4000, systemSize: "5kW", budget: 180000, value: 180000, heat: "warm", status: "warranty",
+      note: "ลูกค้าตัวอย่าง — ติดตั้งเสร็จแล้ว อยู่ในช่วงประกัน",
+      createdAt: dayOffset(-45), lastContact: dayOffset(-30), wonAt: dayOffset(-40), installDate: dayOffset(-30), installStage: "done", installDates: {},
+      timeline: [{ id: uid(), date: dayOffset(-30), topic: "ติดตั้งเสร็จสมบูรณ์ ✅", interest: "", sent: "", next: "" }] }),
+    mk({ name: "คุณมานะ ยังไม่สนใจ (ตัวอย่าง)", phone: "087-890-1237", province: "นครราชสีมา", type: "สนใจติดตั้งเอง", source: "แนะนำต่อ",
+      monthlyBill: 2000, systemSize: "3kW", budget: 0, value: 0, heat: "cold", status: "lost",
+      note: "ลูกค้าตัวอย่าง — ตัดสินใจไม่ติดตั้งในตอนนี้",
+      createdAt: dayOffset(-25), lastContact: dayOffset(-15) })
+  ];
+}
+function buildDemoCashflow() {
+  const mk = (over) => ({ id: "demo-" + uid(), type: "income", category: "", amount: 0, date: todayISO(), note: "", isDemo: true, ...over });
+  return [
+    mk({ type: "income", category: "รับเงินมัดจำ", amount: 90000, date: dayOffset(-5), note: "มัดจำงานคุณธนากร (ตัวอย่าง)" }),
+    mk({ type: "income", category: "รับเงินปิดงาน", amount: 90000, date: dayOffset(-1), note: "ปิดงวดสุดท้ายคุณธนากร (ตัวอย่าง)" }),
+    mk({ type: "expense", category: "ค่าอุปกรณ์/วัสดุ", amount: 65000, date: dayOffset(-4), note: "ซื้อแผงโซลาร์ + อินเวอร์เตอร์ (ตัวอย่าง)" }),
+    mk({ type: "expense", category: "ค่าแรงช่าง", amount: 15000, date: dayOffset(-2), note: "ค่าแรงติดตั้งทีมช่าง (ตัวอย่าง)" }),
+    mk({ type: "expense", category: "ภาษีขาย (VAT) รอนำส่ง", amount: 12600, date: dayOffset(-1), note: "VAT จากยอดขาย (ตัวอย่าง)" })
+  ];
+}
 function Badge({ children, cls = "" }) {
   return /* @__PURE__ */ React.createElement("span", { className: `inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}` }, children);
 }
@@ -4508,6 +4567,42 @@ function App() {
       setLoaded(true);
     })();
   }, []);
+  // ===== Auto-seed ข้อมูลตัวอย่างสำหรับ user ใหม่ (สอนใช้งานก่อนเริ่มกรอกข้อมูลจริง) =====
+  // เงื่อนไข: ใช้ Supabase จริง + ยังไม่เคยมีข้อมูลลูกค้าเลย (ทั้งของจริงและ demo) + ยังไม่เคยกดปุ่ม "ล้างข้อมูลตัวอย่าง" มาก่อน (demo_dismissed)
+  useEffect(() => {
+    if (!loaded || !sb || !currentUser) return;
+    if (rows.length > 0) return; // มีข้อมูลอยู่แล้ว (จริงหรือ demo) ไม่ต้อง seed ซ้ำ
+    (async () => {
+      try {
+        const { data: prof } = await sb.from("company_profiles").select("demo_dismissed").eq("user_id", currentUser.id).maybeSingle();
+        if (prof && prof.demo_dismissed) return; // เคยกดล้างข้อมูลตัวอย่างไปแล้ว ไม่ seed ซ้ำให้อีก
+        const demoCustomers = buildDemoCustomers();
+        const demoCashflow = buildDemoCashflow();
+        const uidNow = currentUser.id;
+        const { error: e1 } = await sb.from("customers").upsert(demoCustomers.map((c) => ({ ...c, user_id: uidNow })));
+        const { error: e2 } = await sb.from("cashflow").upsert(demoCashflow.map((c) => ({ ...c, user_id: uidNow })));
+        if (e1 || e2) { console.error("Seed demo data failed:", e1 || e2); return; }
+        setRows(demoCustomers);
+      } catch (e) { console.error("Seed demo data failed:", e); }
+    })();
+  }, [loaded, currentUser, rows.length]);
+  // ล้างข้อมูลตัวอย่างทั้งหมดทิ้ง (ลูกค้า + บัญชีบริษัท) — กดได้ครั้งเดียว หลังจากนี้จะไม่ seed ข้อมูลตัวอย่างให้อีก
+  const clearDemoData = async () => {
+    if (!confirm("ล้างข้อมูลตัวอย่างทั้งหมด (ลูกค้า + บัญชีบริษัท) ออกจากระบบ?\nกดครั้งเดียว ลบแล้วกู้คืนไม่ได้ และจะไม่มีข้อมูลตัวอย่างขึ้นให้อีก")) return;
+    try {
+      if (sb && currentUser) {
+        const uidNow = currentUser.id;
+        await sb.from("customers").delete().eq("user_id", uidNow).eq("isDemo", true);
+        await sb.from("cashflow").delete().eq("user_id", uidNow).eq("isDemo", true);
+        await sb.from("company_profiles").upsert({ user_id: uidNow, demo_dismissed: true }, { onConflict: "user_id" });
+      }
+      alert("ล้างข้อมูลตัวอย่างเรียบร้อยแล้ว!");
+      window.location.reload();
+    } catch (e) {
+      alert("ล้างข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
+    }
+  };
+  const hasDemoData = rows.some((r) => r.isDemo);
   const upsert = (c) => {
     const isNew = !c.id || !rows.some((x) => x.id === c.id);
     const myEmail = (window.__userEmail || "").trim();
@@ -4656,7 +4751,7 @@ function App() {
   return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.filter((n) => n.key !== "leads").map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
-  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
+  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), hasDemoData && /* @__PURE__ */ React.createElement("button", { onClick: clearDemoData, className: "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100", title: "ข้อมูลตัวอย่างสำหรับสอนการใช้งาน — กดเพื่อลบออกทั้งหมด" }, "🧹", /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "ล้างข้อมูลตัวอย่าง")), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: () => openForm(null), className: "hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: () => openForm(null) }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
     upsert(c);
     setFormOpen(false);
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
