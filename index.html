@@ -639,6 +639,30 @@ if (USE_SUPABASE) {
   try { sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY); }
   catch (e) { console.error("Supabase init failed:", e); }
 }
+// เขียนข้อมูลลง company_profiles แบบไม่พึ่ง unique constraint / onConflict ของ Supabase
+// (ถ้าตารางไม่มี unique constraint บน user_id, .upsert({...},{onConflict:"user_id"}) จะ error เงียบๆ หรือสร้างแถวซ้ำ
+//  ทำให้เช็คสถานะ demo_dismissed/tour_completed ไม่เจอ วนลูป seed ข้อมูลตัวอย่างซ้ำไม่รู้จบ)
+// ฟังก์ชันนี้เช็คก่อนว่ามีแถวของ user นี้อยู่แล้วหรือยัง แล้วค่อยเลือก update หรือ insert แทน
+async function upsertCompanyProfile(uidNow, patch) {
+  if (!sb || !uidNow) return;
+  const { data: existing } = await sb.from("company_profiles").select("user_id").eq("user_id", uidNow).maybeSingle();
+  if (existing) {
+    const { error } = await sb.from("company_profiles").update(patch).eq("user_id", uidNow);
+    if (error) throw error;
+  } else {
+    const { error } = await sb.from("company_profiles").insert({ user_id: uidNow, ...patch });
+    if (error) throw error;
+  }
+}
+// กันสำรอง (fallback) ฝั่งเบราว์เซอร์: ถ้าฝั่ง Supabase (RLS/constraint) มีปัญหาจนอ่านสถานะ demo_dismissed กลับมาไม่ได้
+// อย่างน้อยเบราว์เซอร์เครื่องเดิมจะไม่ seed ข้อมูลตัวอย่างซ้ำให้อีก เพราะเช็คจาก localStorage ก่อนเสมอ
+function demoDismissedLocalKey(uidNow) { return "solar_demo_dismissed_" + uidNow; }
+function isDemoDismissedLocally(uidNow) {
+  try { return localStorage.getItem(demoDismissedLocalKey(uidNow)) === "1"; } catch (e) { return false; }
+}
+function markDemoDismissedLocally(uidNow) {
+  try { localStorage.setItem(demoDismissedLocalKey(uidNow), "1"); } catch (e) {}
+}
 /* ===== ลิงก์เครื่องมือใบเสนอราคา ===== */
 function getQuoteUrl() {
   let u = "";
@@ -1077,8 +1101,7 @@ function saveCompanyInfo(info) {
   // สำรองชื่อบริษัทขึ้น Supabase แบบไม่บล็อกอะไร (ใช้แค่ให้หน้า Admin Analytics อ่านชื่อได้)
   // localStorage ยังคงเป็นแหล่งข้อมูลหลักของระบบเหมือนเดิมทุกจุด ไม่กระทบการทำงานปกติ
   if (sb && currentUser) {
-    sb.from("company_profiles").upsert({ user_id: currentUser.id, company_name: info.name || null, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
-      .then(() => {}).catch(() => {});
+    upsertCompanyProfile(currentUser.id, { company_name: info.name || null, updated_at: new Date().toISOString() }).catch(() => {});
   }
 }
 const DEFAULT_APP_LOGO = "https://img2.pic.in.th/fe62e09e-51fe-49ec-abcf-e53fb6c0edb1656c7fc15474af67.png";
@@ -4688,10 +4711,11 @@ function App() {
   useEffect(() => {
     if (!loaded || !sb || !currentUser) return;
     if (rows.length > 0) return; // มีข้อมูลอยู่แล้ว (จริงหรือ demo) ไม่ต้อง seed ซ้ำ
+    if (isDemoDismissedLocally(currentUser.id)) return; // เครื่องนี้เคยกดลบข้อมูลตัวอย่างไปแล้ว (เช็คจาก localStorage ก่อน กันวนซ้ำแม้ Supabase อ่านสถานะไม่ได้)
     (async () => {
       try {
         const { data: prof } = await sb.from("company_profiles").select("demo_dismissed").eq("user_id", currentUser.id).maybeSingle();
-        if (prof && prof.demo_dismissed) return; // เคยกดล้างข้อมูลตัวอย่างไปแล้ว ไม่ seed ซ้ำให้อีก
+        if (prof && prof.demo_dismissed) { markDemoDismissedLocally(currentUser.id); return; } // เคยกดล้างข้อมูลตัวอย่างไปแล้ว ไม่ seed ซ้ำให้อีก
         const demoCustomers = buildDemoCustomers();
         const demoCashflow = buildDemoCashflow();
         const uidNow = currentUser.id;
@@ -4721,12 +4745,14 @@ function App() {
         const uidNow = currentUser.id;
         await sb.from("customers").delete().eq("user_id", uidNow).eq("isDemo", true);
         await sb.from("cashflow").delete().eq("user_id", uidNow).eq("isDemo", true);
-        await sb.from("company_profiles").upsert({ user_id: uidNow, demo_dismissed: true, tour_completed: true }, { onConflict: "user_id" });
+        markDemoDismissedLocally(uidNow); // ตั้ง flag ฝั่งเบราว์เซอร์ทันที กันวน seed ซ้ำแม้บันทึกลง Supabase ด้านล่างจะล้มเหลว
+        await upsertCompanyProfile(uidNow, { demo_dismissed: true, tour_completed: true });
       }
       alert("ล้างข้อมูลตัวอย่างเรียบร้อยแล้ว!");
       window.location.reload();
     } catch (e) {
-      alert("ล้างข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
+      alert("ล้างข้อมูลตัวอย่างในเครื่องนี้เรียบร้อยแล้ว (จะไม่ขึ้นซ้ำอีก) แต่บันทึกสถานะขึ้น Supabase ไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
+      window.location.reload();
     }
   };
   const hasDemoData = rows.some((r) => r.isDemo);
@@ -4762,7 +4788,7 @@ function App() {
     }
   }, [view, tourActive, tourStep]);
   const markTourCompleted = async () => {
-    if (sb && currentUser) { try { await sb.from("company_profiles").upsert({ user_id: currentUser.id, tour_completed: true }, { onConflict: "user_id" }); } catch (e) {} }
+    if (sb && currentUser) { try { await upsertCompanyProfile(currentUser.id, { tour_completed: true }); } catch (e) {} }
   };
   const skipTour = () => { setTourActive(false); markTourCompleted(); };
   // บังคับให้ลบข้อมูลตัวอย่างก่อน จึงจะเพิ่มลูกค้าจริงได้ (กันข้อมูลจริงปนกับข้อมูลตัวอย่าง)
