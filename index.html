@@ -1216,7 +1216,7 @@ function buildDemoCustomers() {
     type: TYPES[0], source: SOURCES[0], monthlyBill: "", systemSize: SIZES[0], budget: "", value: 0,
     heat: "warm", status: "new", tags: [], note: "", lastContact: todayISO(), nextFollowup: "",
     installDate: "", warrantyYears: "10", createdAt: todayISO(), timeline: [], installStage: "",
-    isDemo: true, ...over
+    wonAt: "", wonBy: "", installDates: {}, isDemo: true, ...over
   });
   return [
     mk({ name: "คุณสมชาย ใจดี (ตัวอย่าง)", phone: "081-234-5671", province: "กรุงเทพมหานคร", type: "เจ้าของบ้าน", source: "Facebook",
@@ -4579,10 +4579,20 @@ function App() {
         const demoCustomers = buildDemoCustomers();
         const demoCashflow = buildDemoCashflow();
         const uidNow = currentUser.id;
-        const { error: e1 } = await sb.from("customers").upsert(demoCustomers.map((c) => ({ ...c, user_id: uidNow })));
+        // ทำความสะอาดฟิลด์วันที่/ตัวเลขก่อนส่ง (เหมือน db.upsertOne) — คอลัมน์ type "date" ของ Postgres รับ "" ไม่ได้ ต้องเป็น null
+        const cleanCustomer = (row) => ({
+          ...row,
+          installDate: row.installDate ? row.installDate : null,
+          nextFollowup: row.nextFollowup ? row.nextFollowup : null,
+          lastContact: row.lastContact ? row.lastContact : null,
+          wonAt: row.wonAt ? row.wonAt : null,
+          value: row.value === "" || row.value === undefined ? 0 : Number(row.value) || 0,
+          user_id: uidNow
+        });
+        const { error: e1 } = await sb.from("customers").upsert(demoCustomers.map(cleanCustomer));
         const { error: e2 } = await sb.from("cashflow").upsert(demoCashflow.map((c) => ({ ...c, user_id: uidNow })));
         if (e1 || e2) { console.error("Seed demo data failed:", e1 || e2); return; }
-        setRows(demoCustomers);
+        setRows(demoCustomers.map(cleanCustomer));
       } catch (e) { console.error("Seed demo data failed:", e); }
     })();
   }, [loaded, currentUser, rows.length]);
