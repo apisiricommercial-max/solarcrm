@@ -202,6 +202,10 @@ tailwind.config = {
   /* ===== HOVER LIFT on cards ===== */
   [class~="rounded-2xl"][class~="shadow-sm"]{transition:transform .2s ease,box-shadow .2s ease}
   [class~="rounded-2xl"][class~="shadow-sm"]:hover{transform:translateY(-3px);box-shadow:0 14px 30px -12px rgba(15,23,42,.28)}
+  /* ตารางที่มีหัวตาราง sticky ห้ามโดนยกขึ้นตอน hover เด็ดขาด เพราะ transform บน ancestor จะทำให้ position:sticky
+     เพี้ยนไปอ้างอิงกับตัวเองแทนที่จะเป็น viewport/scroll container ทำให้หัวตารางขยับเลื่อนตามเวลาเลื่อนดูข้อมูล */
+  .no-hover-lift{transform:none!important}
+  .no-hover-lift:hover{transform:none!important;box-shadow:none!important}
   /* primary buttons get a press/scale */
   button[class*="bg-brand-600"]:hover{filter:brightness(1.05)}
   button[class*="bg-brand-600"]:active{transform:scale(.96)}
@@ -961,6 +965,24 @@ const inventoryDb = {
     const next = Math.max(0, (Number(current) || 0) + delta);
     const { error } = await sb.from("inventory_stock").update({ quantity_on_hand: next, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", id);
     if (error) throw error;
+  },
+  // ปรับสต๊อกแบบมืออาชีพ พร้อมบันทึกประวัติการเคลื่อนไหว — ระบุได้ว่าใช้กับงานลูกค้ารายไหน จำนวนเท่าไหร่ เหตุผลอะไร
+  async adjustStockWithLog(row, delta, { reason, note, customerId, customerName } = {}) {
+    if (!sb || !currentUser) return;
+    const next = Math.max(0, (Number(row.quantity_on_hand) || 0) + delta);
+    const { error } = await sb.from("inventory_stock").update({ quantity_on_hand: next, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", row.id);
+    if (error) throw error;
+    await sb.from("stock_movements").insert({
+      id: uid(), user_id: currentUser.id, item_name: row.item_name, delta,
+      reason: reason || (delta > 0 ? "เพิ่มเข้า" : "เบิกใช้"),
+      note: note || "", customer_id: customerId || null, customer_name: customerName || null
+    });
+  },
+  async listMovements(itemName, limit) {
+    if (!sb || !currentUser) return [];
+    const { data, error } = await sb.from("stock_movements").select("*").eq("user_id", currentUser.id).eq("item_name", itemName).order("createdAt", { ascending: false }).limit(limit || 8);
+    if (error) { console.error(error); return []; }
+    return data || [];
   },
   async setMinAlert(id, min) {
     const { error } = await sb.from("inventory_stock").update({ min_stock_alert: min }).eq("id", id);
@@ -3025,7 +3047,7 @@ function CustomerTable({ rows, onOpen, onEdit, onDelete }) {
     className: `font-semibold px-4 py-3 select-none ${className || "text-left"} ${sortField ? "cursor-pointer hover:text-ink-700" : ""}`,
     onClick: sortField ? () => toggleSort(sortField) : undefined
   }, h("span", { className: "inline-flex items-center gap-1" }, label, sortField && h("span", { className: `text-[9px] ${sortKey === sortField ? "text-brand-600" : "text-ink-300"}` }, sortKey === sortField ? (sortDir === "asc" ? "\u25B2" : "\u25BC") : "\u25B4\u25BE")));
-  return h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden" },
+  return h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden no-hover-lift" },
     h("div", { className: "hidden md:block overflow-x-auto" },
       h("table", { className: "w-full text-sm" },
         h("thead", { className: "bg-ink-50 text-ink-500 text-xs uppercase tracking-wide sticky top-0 z-10" },
@@ -5310,13 +5332,87 @@ function CreatePOModal({ onClose, onCreated }) {
     )
   );
 }
-function StockItemCard({ row, onAdjust, onSetMin, onSetImage, onSetPrice, onDelete }) {
+function AdjustStockModal({ row, customers, onClose, onSaved }) {
+  const [mode, setMode] = useState("out"); // "in" | "out"
+  const [amount, setAmount] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async () => {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) { alert("กรอกจำนวนให้ถูกต้องก่อนนะครับ"); return; }
+    const delta = mode === "in" ? amt : -amt;
+    const cust = (customers || []).find((c) => c.id === customerId);
+    setSubmitting(true);
+    try {
+      await inventoryDb.adjustStockWithLog(row, delta, {
+        reason: mode === "in" ? "เพิ่มเข้าด้วยตนเอง" : (cust ? "เบิกใช้งานลูกค้า" : "เบิกใช้/ตัดออก"),
+        note: note.trim(),
+        customerId: customerId || null,
+        customerName: cust ? cust.name : null
+      });
+      onSaved();
+    } catch (e) { alert("ปรับสต๊อกไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setSubmitting(false); }
+  };
+
+  const labelCls = "block text-xs font-medium text-ink-500 mb-1";
+  const inputCls = "w-full px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500";
+
+  return h(Modal, { open: true, onClose },
+    h("div", { className: "p-6" },
+      h("div", { className: "flex items-center gap-2 mb-1" },
+        h("span", { className: "w-9 h-9 rounded-xl bg-ink-100 text-ink-600 flex items-center justify-center text-base shrink-0" }, "\u2699\uFE0F"),
+        h("h3", { className: "text-lg font-semibold text-ink-800" }, "ปรับสต๊อก: ", row.item_name)
+      ),
+      h("p", { className: "text-xs text-ink-400 mb-4 ml-11" }, "คงเหลือปัจจุบัน ", h("strong", { className: "text-ink-600" }, row.quantity_on_hand), " ", row.unit || "หน่วย"),
+      h("div", { className: "grid grid-cols-2 gap-2 mb-4" },
+        h("button", { onClick: () => setMode("in"), className: `py-2.5 rounded-lg text-sm font-semibold ring-1 transition ${mode === "in" ? "bg-emerald-600 text-white ring-emerald-600" : "bg-white text-ink-600 ring-ink-200 hover:bg-ink-50"}` }, "\u2B06\uFE0F เพิ่มเข้า"),
+        h("button", { onClick: () => setMode("out"), className: `py-2.5 rounded-lg text-sm font-semibold ring-1 transition ${mode === "out" ? "bg-red-500 text-white ring-red-500" : "bg-white text-ink-600 ring-ink-200 hover:bg-ink-50"}` }, "\u2B07\uFE0F เบิกใช้/ตัดออก")
+      ),
+      h("div", { className: "mb-3" }, h("label", { className: labelCls }, "จำนวน"), h("input", { type: "number", autoFocus: true, value: amount, onChange: (e) => setAmount(e.target.value), placeholder: "0", className: inputCls })),
+      mode === "out" && h("div", { className: "mb-3" },
+        h("label", { className: labelCls }, "ใช้กับงานของลูกค้า (ไม่บังคับ)"),
+        h("select", { value: customerId, onChange: (e) => setCustomerId(e.target.value), className: inputCls },
+          h("option", { value: "" }, "\u2014 ไม่ระบุ / เบิกทั่วไป \u2014"),
+          (customers || []).map((c) => h("option", { key: c.id, value: c.id }, c.name))
+        )
+      ),
+      h("div", { className: "mb-4" }, h("label", { className: labelCls }, "หมายเหตุ (ไม่บังคับ)"), h("input", { value: note, onChange: (e) => setNote(e.target.value), placeholder: mode === "out" ? "เช่น ติดตั้งหน้างานวันที่ ..." : "เช่น รับของเพิ่มเติมจากร้าน...", className: inputCls })),
+      h("div", { className: "flex justify-end gap-2" },
+        h("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm text-ink-600 hover:bg-ink-100" }, "ยกเลิก"),
+        h("button", { onClick: submit, disabled: submitting, className: `px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 ${mode === "in" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"}` }, submitting ? "กำลังบันทึก..." : "บันทึกการปรับสต๊อก")
+      )
+    )
+  );
+}
+function StockMovementHistory({ itemName }) {
+  const [items, setItems] = useState(null);
+  useEffect(() => { inventoryDb.listMovements(itemName, 8).then(setItems); }, [itemName]);
+  if (items === null) return h("div", { className: "text-xs text-ink-400 px-3 py-3" }, "กำลังโหลดประวัติ...");
+  if (items.length === 0) return h("div", { className: "text-xs text-ink-400 px-3 py-3" }, "ยังไม่มีประวัติการเคลื่อนไหว");
+  return h("div", { className: "divide-y divide-ink-100 bg-ink-50/60 rounded-lg overflow-hidden" },
+    items.map((m) => h("div", { key: m.id, className: "flex items-center justify-between px-3 py-2 text-xs gap-3" },
+      h("div", { className: "min-w-0" },
+        h("span", { className: `font-bold ${Number(m.delta) > 0 ? "text-emerald-600" : "text-red-500"}` }, Number(m.delta) > 0 ? "+" : "", m.delta),
+        h("span", { className: "text-ink-400 ml-1.5" }, m.reason),
+        m.customer_name && h("span", { className: "text-brand-600 ml-1.5 font-medium" }, "\u00b7 ", m.customer_name),
+        m.note && h("div", { className: "text-ink-400 mt-0.5 truncate" }, m.note)
+      ),
+      h("span", { className: "text-ink-300 shrink-0" }, m.createdAt ? new Date(m.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "")
+    ))
+  );
+}
+function StockItemCard({ row, customers, onSetMin, onSetImage, onSetPrice, onDelete, onAdjusted }) {
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceDraft, setPriceDraft] = useState(row.last_unit_price || 0);
   const [editingMin, setEditingMin] = useState(false);
   const [minDraft, setMinDraft] = useState(row.min_stock_alert || 0);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const value = (Number(row.last_unit_price) || 0) * (Number(row.quantity_on_hand) || 0);
 
   const onPickImage = async (e) => {
@@ -5332,57 +5428,61 @@ function StockItemCard({ row, onAdjust, onSetMin, onSetImage, onSetPrice, onDele
   const savePrice = async () => { setEditingPrice(false); const p = Number(priceDraft) || 0; if (p !== (Number(row.last_unit_price) || 0)) await onSetPrice(row.id, p); };
   const saveMin = async () => { setEditingMin(false); const m = Number(minDraft) || 0; if (m !== (Number(row.min_stock_alert) || 0)) await onSetMin(row, m); };
 
-  return h("tr", { className: "border-t border-ink-50 hover:bg-ink-50/60 transition" },
-    h("td", { className: "px-3 py-3" },
-      h("div", { className: "flex items-center gap-3" },
-        h("div", { onClick: () => fileRef.current && fileRef.current.click(), className: "relative w-11 h-11 rounded-lg overflow-hidden bg-ink-50 ring-1 ring-ink-100 shrink-0 cursor-pointer group flex items-center justify-center" },
-          row.image_url ? h("img", { src: row.image_url, className: "w-full h-full object-cover" }) : h("span", { className: "text-lg text-ink-300" }, "\uD83D\uDCE6"),
-          h("div", { className: "absolute inset-0 bg-black/0 group-hover:bg-black/50 transition flex items-center justify-center" },
-            h("span", { className: "text-[8px] text-white opacity-0 group-hover:opacity-100 font-semibold text-center leading-tight" }, uploading ? "..." : "\uD83D\uDCF7")
+  const low = Number(row.min_stock_alert) > 0 && Number(row.quantity_on_hand) <= Number(row.min_stock_alert);
+
+  return h(React.Fragment, null,
+    h("tr", { className: "border-t border-ink-50 hover:bg-ink-50/60 transition" },
+      h("td", { className: "px-3 py-3" },
+        h("div", { className: "flex items-center gap-3" },
+          h("div", { onClick: () => fileRef.current && fileRef.current.click(), className: "relative w-11 h-11 rounded-lg overflow-hidden bg-ink-50 ring-1 ring-ink-100 shrink-0 cursor-pointer group flex items-center justify-center" },
+            row.image_url ? h("img", { src: row.image_url, className: "w-full h-full object-cover" }) : h("span", { className: "text-lg text-ink-300" }, "\uD83D\uDCE6"),
+            h("div", { className: "absolute inset-0 bg-black/0 group-hover:bg-black/50 transition flex items-center justify-center" },
+              h("span", { className: "text-[8px] text-white opacity-0 group-hover:opacity-100 font-semibold text-center leading-tight" }, uploading ? "..." : "\uD83D\uDCF7")
+            )
+          ),
+          h("input", { ref: fileRef, type: "file", accept: "image/*", className: "hidden", onChange: onPickImage }),
+          h("div", { className: "min-w-0" },
+            h("div", { className: "font-medium text-ink-800 truncate max-w-[180px]" }, row.item_name),
+            h("div", { className: "text-[11px] text-ink-400" }, row.unit || "หน่วย")
           )
+        )
+      ),
+      h("td", { className: "px-3 py-3" },
+        h("div", { className: "flex items-center gap-2.5" },
+          h("span", { className: "num font-bold text-ink-800 text-base tabular-nums" }, row.quantity_on_hand),
+          h(StockLevelBar, { qty: row.quantity_on_hand, minAlert: row.min_stock_alert })
         ),
-        h("input", { ref: fileRef, type: "file", accept: "image/*", className: "hidden", onChange: onPickImage }),
-        h("div", { className: "min-w-0" },
-          h("div", { className: "font-medium text-ink-800 truncate max-w-[180px]" }, row.item_name),
-          h("div", { className: "text-[11px] text-ink-400" }, row.unit || "หน่วย")
+        Number(row.reserved_quantity) > 0 && h("div", { className: "text-[10px] text-amber-600 mt-1" }, "\uD83D\uDD16 จองแล้ว ", row.reserved_quantity, " \u00b7 พร้อมใช้ ", Math.max(0, (Number(row.quantity_on_hand) || 0) - (Number(row.reserved_quantity) || 0)))
+      ),
+      h("td", { className: "px-3 py-3 text-center" },
+        editingMin
+          ? h("input", { type: "number", autoFocus: true, value: minDraft, onChange: (e) => setMinDraft(e.target.value), onBlur: saveMin, onKeyDown: (e) => { if (e.key === "Enter") saveMin(); }, className: "w-14 px-1.5 py-1 rounded-lg border border-brand-300 text-center text-xs outline-none" })
+          : h("button", { onClick: () => { setMinDraft(row.min_stock_alert || 0); setEditingMin(true); }, className: "text-xs text-ink-500 underline decoration-dotted hover:text-brand-600" }, row.min_stock_alert || 0)
+      ),
+      h("td", { className: "px-3 py-3 text-center" },
+        editingPrice
+          ? h("input", { type: "number", autoFocus: true, value: priceDraft, onChange: (e) => setPriceDraft(e.target.value), onBlur: savePrice, onKeyDown: (e) => { if (e.key === "Enter") savePrice(); }, className: "w-20 px-1.5 py-1 rounded-lg border border-brand-300 text-center text-xs outline-none" })
+          : h("button", { onClick: () => { setPriceDraft(row.last_unit_price || 0); setEditingPrice(true); }, className: "text-xs text-ink-600 font-medium underline decoration-dotted hover:text-brand-600" }, "\u0e3f" + (Number(row.last_unit_price) || 0).toLocaleString("th-TH"))
+      ),
+      h("td", { className: "px-3 py-3 text-center font-bold text-brand-600 text-sm" }, "\u0e3f" + value.toLocaleString("th-TH")),
+      h("td", { className: "px-3 py-3 text-center" },
+        low
+          ? h("span", { className: "inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap bg-red-50 text-red-600" }, h("span", { className: "w-1.5 h-1.5 rounded-full bg-red-500" }), "ใกล้หมด")
+          : h("span", { className: "inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap bg-emerald-50 text-emerald-700" }, h("span", { className: "w-1.5 h-1.5 rounded-full bg-emerald-500" }), "ปกติ")
+      ),
+      h("td", { className: "px-3 py-3" },
+        h("div", { className: "flex items-center justify-center gap-1.5" },
+          h("button", { onClick: () => setAdjustOpen(true), title: "ปรับสต๊อก", className: "text-[11px] px-2.5 py-1.5 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 font-semibold whitespace-nowrap" }, "\u2699\uFE0F ปรับสต๊อก"),
+          h("button", { onClick: () => setHistoryOpen((v) => !v), title: "ประวัติการเคลื่อนไหว", className: `text-[11px] px-2 py-1.5 rounded-lg font-semibold ${historyOpen ? "bg-brand-100 text-brand-700" : "bg-ink-100 hover:bg-ink-200 text-ink-500"}` }, "\uD83D\uDD52"),
+          h("button", { onClick: () => { if (confirm(`ลบ "${row.item_name}" ออกจากสต๊อก?\n(ลบแล้วกู้คืนไม่ได้ ไม่กระทบประวัติใบสั่งซื้อเดิม)`)) onDelete(row.id); }, title: "ลบสินค้านี้ออกจากสต๊อก", className: "text-[11px] px-2 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100" }, "\uD83D\uDDD1\uFE0F")
         )
       )
     ),
-    h("td", { className: "px-3 py-3" },
-      h("div", { className: "flex items-center gap-2" },
-        h("button", { onClick: () => onAdjust(row, -1), className: "w-6 h-6 rounded-md bg-ink-100 hover:bg-ink-200 text-ink-600 font-bold text-xs shrink-0" }, "\u2212"),
-        h("span", { className: "num font-semibold w-8 text-center text-sm" }, row.quantity_on_hand),
-        h("button", { onClick: () => onAdjust(row, 1), className: "w-6 h-6 rounded-md bg-ink-100 hover:bg-ink-200 text-ink-600 font-bold text-xs shrink-0" }, "+"),
-        h(StockLevelBar, { qty: row.quantity_on_hand, minAlert: row.min_stock_alert })
-      ),
-      Number(row.reserved_quantity) > 0 && h("div", { className: "text-[10px] text-amber-600 mt-1" }, "\uD83D\uDD16 จองแล้ว ", row.reserved_quantity, " \u00b7 พร้อมใช้ ", Math.max(0, (Number(row.quantity_on_hand) || 0) - (Number(row.reserved_quantity) || 0)))
-    ),
-    h("td", { className: "px-3 py-3 text-center" },
-      editingMin
-        ? h("input", { type: "number", autoFocus: true, value: minDraft, onChange: (e) => setMinDraft(e.target.value), onBlur: saveMin, onKeyDown: (e) => { if (e.key === "Enter") saveMin(); }, className: "w-14 px-1.5 py-1 rounded-lg border border-brand-300 text-center text-xs outline-none" })
-        : h("button", { onClick: () => { setMinDraft(row.min_stock_alert || 0); setEditingMin(true); }, className: "text-xs text-ink-500 underline decoration-dotted hover:text-brand-600" }, row.min_stock_alert || 0)
-    ),
-    h("td", { className: "px-3 py-3 text-center" },
-      editingPrice
-        ? h("input", { type: "number", autoFocus: true, value: priceDraft, onChange: (e) => setPriceDraft(e.target.value), onBlur: savePrice, onKeyDown: (e) => { if (e.key === "Enter") savePrice(); }, className: "w-20 px-1.5 py-1 rounded-lg border border-brand-300 text-center text-xs outline-none" })
-        : h("button", { onClick: () => { setPriceDraft(row.last_unit_price || 0); setEditingPrice(true); }, className: "text-xs text-ink-600 font-medium underline decoration-dotted hover:text-brand-600" }, "\u0e3f" + (Number(row.last_unit_price) || 0).toLocaleString("th-TH"))
-    ),
-    h("td", { className: "px-3 py-3 text-center font-bold text-brand-600 text-sm" }, "\u0e3f" + value.toLocaleString("th-TH")),
-    h("td", { className: "px-3 py-3 text-center" },
-      (Number(row.min_stock_alert) > 0 && Number(row.quantity_on_hand) <= Number(row.min_stock_alert))
-        ? h("span", { className: "inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap bg-red-50 text-red-600" }, h("span", { className: "w-1.5 h-1.5 rounded-full bg-red-500" }), "ใกล้หมด")
-        : h("span", { className: "inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap bg-emerald-50 text-emerald-700" }, h("span", { className: "w-1.5 h-1.5 rounded-full bg-emerald-500" }), "ปกติ")
-    ),
-    h("td", { className: "px-3 py-3 text-center" },
-      h("button", {
-        onClick: () => { if (confirm(`ลบ "${row.item_name}" ออกจากสต๊อก?\n(ลบแล้วกู้คืนไม่ได้ ไม่กระทบประวัติใบสั่งซื้อเดิม)`)) onDelete(row.id); },
-        title: "ลบสินค้านี้ออกจากสต๊อก",
-        className: "text-xs px-2 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100"
-      }, "\uD83D\uDDD1\uFE0F")
-    )
+    historyOpen && h("tr", { className: "bg-ink-50/30" }, h("td", { colSpan: 6, className: "px-3 pb-3 pt-0" }, h(StockMovementHistory, { itemName: row.item_name }))),
+    adjustOpen && h(AdjustStockModal, { row, customers, onClose: () => setAdjustOpen(false), onSaved: () => { setAdjustOpen(false); onAdjusted(); } })
   );
 }
-function StockTab() {
+function StockTab({ customers }) {
   const [stock, setStock] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -5394,7 +5494,6 @@ function StockTab() {
   const totalValue = stock.reduce((s, row) => s + (Number(row.last_unit_price) || 0) * (Number(row.quantity_on_hand) || 0), 0);
   const lowStockCount = stock.filter((row) => Number(row.min_stock_alert) > 0 && Number(row.quantity_on_hand) <= Number(row.min_stock_alert)).length;
 
-  const adjust = async (row, delta) => { try { await inventoryDb.adjustStock(row.id, row.quantity_on_hand, delta); refresh(); } catch (e) { alert("ปรับสต๊อกไม่สำเร็จ"); } };
   const setMin = async (row, val) => { try { await inventoryDb.setMinAlert(row.id, val === "" ? 0 : Number(val)); refresh(); } catch (e) { alert("ตั้งค่าไม่สำเร็จ"); } };
   const setImage = async (id, dataUrl) => { try { await inventoryDb.setImage(id, dataUrl); refresh(); } catch (e) { alert("บันทึกรูปไม่สำเร็จ"); } };
   const setPrice = async (id, price) => { try { await inventoryDb.setPrice(id, price); refresh(); } catch (e) { alert("บันทึกราคาไม่สำเร็จ"); } };
@@ -5438,218 +5537,25 @@ function StockTab() {
       ? h("div", { className: "text-center py-16 bg-white rounded-2xl ring-1 ring-ink-100" }, h("div", { className: "text-4xl mb-2" }, "\uD83D\uDCE6"), h("div", { className: "text-ink-500" }, "ยังไม่มีสินค้าในคลัง"), h("div", { className: "text-ink-400 text-sm mt-1" }, "สต๊อกจะเพิ่มอัตโนมัติเมื่อกด \"รับของแล้ว\" ในใบสั่งซื้อ"))
       : visible.length === 0
         ? h("div", { className: "text-center py-16 bg-white rounded-2xl ring-1 ring-ink-100 text-ink-400" }, "ไม่พบสินค้าที่ตรงกับเงื่อนไข")
-        : h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 overflow-hidden overflow-x-auto" },
-            h("table", { className: "w-full text-sm min-w-[720px]" },
-              h("thead", { className: "bg-ink-50 text-ink-500 text-[11px] uppercase tracking-wide" }, h("tr", null,
-                h("th", { className: "text-left px-3 py-2.5 font-semibold" }, "สินค้า"),
-                h("th", { className: "text-left px-3 py-2.5 font-semibold" }, "คงเหลือ"),
-                h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "แจ้งเตือนต่ำกว่า"),
-                h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "ราคา/หน่วย"),
-                h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "มูลค่ารวม"),
-                h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "สถานะ"),
-                h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "")
-              )),
-              h("tbody", null, visible.map((row) => h(StockItemCard, { key: row.id, row, onAdjust: adjust, onSetMin: setMin, onSetImage: setImage, onSetPrice: setPrice, onDelete: removeStock })))
+        : h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 overflow-hidden no-hover-lift" },
+            h("div", { className: "overflow-x-auto" },
+              h("table", { className: "w-full text-sm min-w-[760px]" },
+                h("thead", { className: "bg-ink-50 text-ink-500 text-[11px] uppercase tracking-wide" }, h("tr", null,
+                  h("th", { className: "text-left px-3 py-2.5 font-semibold" }, "สินค้า"),
+                  h("th", { className: "text-left px-3 py-2.5 font-semibold" }, "คงเหลือ"),
+                  h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "แจ้งเตือนต่ำกว่า"),
+                  h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "ราคา/หน่วย"),
+                  h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "มูลค่ารวม"),
+                  h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "สถานะ"),
+                  h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "จัดการ")
+                )),
+                h("tbody", null, visible.map((row) => h(StockItemCard, { key: row.id, row, customers, onSetMin: setMin, onSetImage: setImage, onSetPrice: setPrice, onDelete: removeStock, onAdjusted: refresh })))
+              )
             )
           )
   );
 }
-function PODetailExtras({ po, onChanged }) {
-  const fileRef = useRef(null);
-  const [uploadingReceipt, setUploadingReceipt] = useState(false);
-  const [trackingInput, setTrackingInput] = useState(po.tracking_number || "");
-  const [carrierInput, setCarrierInput] = useState("");
-  const [registering, setRegistering] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const CARRIER_OPTIONS = ["", "Flash Express", "Kerry Express (TH)", "J&T Express (TH)", "Thailand Post", "Ninja Van (TH)", "Shopee Xpress (TH)", "DHL", "Best Express (TH)"];
-
-  const onPickReceipt = async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    setUploadingReceipt(true);
-    try {
-      const dataUrl = await resizeImageFile(file, 1400, 0.75);
-      await inventoryDb.setReceiptImage(po.id, dataUrl);
-      onChanged();
-    } catch (err) { alert("แนบรูปไม่สำเร็จ: " + (err && err.message ? err.message : "ไม่ทราบสาเหตุ")); }
-    finally { setUploadingReceipt(false); if (fileRef.current) fileRef.current.value = ""; }
-  };
-
-  const startTracking = async () => {
-    if (!trackingInput.trim()) { alert("กรอกเลขพัสดุก่อนนะครับ"); return; }
-    setRegistering(true);
-    try {
-      await inventoryDb.registerTracking(po.id, trackingInput.trim(), carrierInput);
-      await onChanged();
-      alert("เริ่มติดตามพัสดุแล้ว! ระบบจะอัปเดตสถานะให้อัตโนมัติผ่าน 17TRACK\n\nกดปุ่ม \"🔄 เช็คสถานะตอนนี้เลย\" ที่โผล่ขึ้นมาด้านล่างได้เลยครับ");
-    } catch (e) { alert("เริ่มติดตามไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
-    finally { setRegistering(false); }
-  };
-  const checkNow = async () => {
-    setChecking(true);
-    try {
-      const res = await inventoryDb.checkTrackingNow(po.id, po.tracking_number);
-      await onChanged();
-      if (!res.status) alert("17TRACK ยังไม่มีข้อมูลสถานะให้ตอนนี้ ลองใหม่อีกสักครู่ครับ (ปกติเริ่มมีผลภายในไม่กี่นาทีหลังลงทะเบียน)");
-    } catch (e) { alert("เช็คสถานะไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
-    finally { setChecking(false); }
-  };
-
-  return h("div", { className: "grid sm:grid-cols-2 gap-3 mt-4", onClick: (e) => e.stopPropagation() },
-    h("div", { className: "bg-white rounded-xl ring-1 ring-ink-100 p-3" },
-      h("div", { className: "text-xs font-semibold text-ink-600 mb-2" }, "\uD83D\uDCCE ใบเสร็จ/สลิป"),
-      po.receipt_image_url
-        ? h("img", { src: po.receipt_image_url, className: "w-full max-h-36 object-contain rounded-lg ring-1 ring-ink-100 mb-2 bg-ink-50" })
-        : h("div", { className: "text-xs text-ink-400 mb-2" }, "ยังไม่ได้แนบรูป"),
-      h("input", { ref: fileRef, type: "file", accept: "image/*", className: "hidden", onChange: onPickReceipt }),
-      h("button", { onClick: () => fileRef.current && fileRef.current.click(), disabled: uploadingReceipt, className: "text-xs px-3 py-1.5 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 font-semibold" }, uploadingReceipt ? "กำลังอัปโหลด..." : (po.receipt_image_url ? "เปลี่ยนรูป" : "+ แนบรูป"))
-    ),
-    h("div", { className: "bg-white rounded-xl ring-1 ring-ink-100 p-3" },
-      h("div", { className: "text-xs font-semibold text-ink-600 mb-2" }, "\uD83D\uDCE6 ติดตามพัสดุ (17TRACK)"),
-      po.tracking_number
-        ? h("div", { className: "space-y-1.5" },
-            h("div", { className: "text-xs text-ink-500" }, "เลขพัสดุ: ", h("span", { className: "font-mono" }, po.tracking_number), po.tracking_carrier && h("span", { className: "text-ink-400" }, " \xB7 ", po.tracking_carrier)),
-            h("div", { className: "text-xs font-medium text-brand-600" }, po.tracking_status_detail || "รอผลอัปเดต"),
-            po.tracking_updated_at && h("div", { className: "text-[10px] text-ink-300" }, "อัปเดตล่าสุด: ", new Date(po.tracking_updated_at).toLocaleString("th-TH")),
-            h("button", { onClick: checkNow, disabled: checking, className: "text-[11px] px-2.5 py-1 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 font-semibold disabled:opacity-50" }, checking ? "กำลังเช็ค..." : "\uD83D\uDD04 เช็คสถานะตอนนี้เลย")
-          )
-        : h("div", { className: "space-y-1.5" },
-            h("input", { value: trackingInput, onChange: (e) => setTrackingInput(e.target.value), placeholder: "กรอกเลขพัสดุ", className: "w-full px-2 py-1.5 rounded-lg border border-ink-200 text-xs outline-none focus:border-brand-500" }),
-            h("div", { className: "flex gap-2" },
-              h("select", { value: carrierInput, onChange: (e) => setCarrierInput(e.target.value), className: "flex-1 px-2 py-1.5 rounded-lg border border-ink-200 text-xs" },
-                h("option", { value: "" }, "ให้ระบบตรวจจับเอง"),
-                CARRIER_OPTIONS.filter(Boolean).map((c) => h("option", { key: c, value: c }, c))
-              ),
-              h("button", { onClick: startTracking, disabled: registering, className: "text-xs px-3 py-1.5 rounded-lg bg-brand-600 text-white font-semibold hover:bg-brand-700 disabled:opacity-50 shrink-0" }, registering ? "..." : "เริ่มติดตาม")
-            ),
-            h("div", { className: "text-[10px] text-ink-400" }, "ถ้าระบบหาบริษัทขนส่งไม่เจอ ลองเลือกเองในดรอปดาวน์ดูครับ")
-          )
-    )
-  );
-}
-function PurchaseOrdersTab() {
-  const [pos, setPos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [formOpen, setFormOpen] = useState(false);
-  const [expandedId, setExpandedId] = useState(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const refresh = () => { setLoading(true); return inventoryDb.listPOs().then((d) => { setPos(d); setLoading(false); }); };
-  useEffect(() => { refresh(); }, []);
-
-  const poTotal = (po) => (po.purchase_order_items || []).reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unit_price) || 0), 0);
-
-  const confirmOrdered = async (po) => { try { await inventoryDb.setPOStatus(po.id, "ordered"); refresh(); } catch (e) { alert("ไม่สำเร็จ"); } };
-  const receive = async (po) => {
-    if (!confirm(`ยืนยันว่าของมาส่งครบแล้ว?\nระบบจะเพิ่มสต๊อกและบันทึกรายจ่าย \u0e3f${poTotal(po).toLocaleString("th-TH")} ลงบัญชีอัตโนมัติ`)) return;
-    try { await inventoryDb.markReceived(po); refresh(); alert("รับของเรียบร้อย! อัปเดตสต๊อกและบัญชีให้แล้วครับ"); } catch (e) { alert("ไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
-  };
-  const cancelPO = async (po) => { if (!confirm("ยกเลิกใบสั่งซื้อนี้?")) return; try { await inventoryDb.setPOStatus(po.id, "cancelled"); refresh(); } catch (e) { alert("ไม่สำเร็จ"); } };
-  const removePO = async (po) => { if (!confirm("ลบใบสั่งซื้อนี้ถาวร?")) return; try { await inventoryDb.deletePO(po.id); refresh(); } catch (e) { alert("ไม่สำเร็จ"); } };
-
-  const stats = {
-    pending: pos.filter((p) => p.status === "pending").length,
-    ordered: pos.filter((p) => p.status === "ordered").length,
-    received: pos.filter((p) => p.status === "received").length,
-    pendingValue: pos.filter((p) => p.status === "pending" || p.status === "ordered").reduce((s, p) => s + poTotal(p), 0)
-  };
-
-  const filterTabs = [
-    { key: "all", label: "ทั้งหมด" },
-    { key: "pending", label: "รอสั่งซื้อ" },
-    { key: "ordered", label: "รอของเข้า" },
-    { key: "received", label: "รับของแล้ว" },
-    { key: "cancelled", label: "ยกเลิก" }
-  ];
-  let visible = pos.filter((po) => statusFilter === "all" || po.status === statusFilter);
-  if (search.trim()) {
-    const q = search.toLowerCase();
-    visible = visible.filter((po) => (po.supplier_name || "").toLowerCase().includes(q) || poNumberOf(po).toLowerCase().includes(q));
-  }
-
-  if (loading) return h("div", { className: "text-center text-ink-400 py-16" }, "กำลังโหลด...");
-
-  return h("div", { className: "space-y-4" },
-    h("div", { className: "flex items-center justify-between flex-wrap gap-2" },
-      h("p", { className: "text-sm text-ink-500" }, "สร้างและติดตามใบสั่งซื้ออุปกรณ์ทั้งหมด"),
-      h("button", { onClick: () => setFormOpen(true), className: "px-4 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm inline-flex items-center gap-1.5" }, h(Icon, { d: I.plus, cls: "w-4 h-4" }), "สร้างใบสั่งซื้อ")
-    ),
-    h("div", { className: "grid grid-cols-2 sm:grid-cols-4 gap-3" },
-      h(StatCard, { icon: "\u23F3", iconBg: "bg-amber-50 text-amber-600", value: stats.pending, label: "รอสั่งซื้อ" }),
-      h(StatCard, { icon: "\uD83D\uDE9A", iconBg: "bg-blue-50 text-blue-600", value: stats.ordered, label: "รอของเข้า" }),
-      h(StatCard, { icon: "\u2705", iconBg: "bg-emerald-50 text-emerald-600", value: stats.received, label: "รับของแล้ว" }),
-      h(StatCard, { icon: "\uD83D\uDCB5", iconBg: "bg-ink-100 text-ink-600", value: "\u0e3f" + stats.pendingValue.toLocaleString("th-TH"), label: "มูลค่าที่ยังไม่รับของ" })
-    ),
-    h("div", { className: "flex flex-wrap items-center gap-2" },
-      h("input", { value: search, onChange: (e) => setSearch(e.target.value), placeholder: "\uD83D\uDD0D ค้นหาเลขที่ PO หรือผู้ขาย...", className: "flex-1 min-w-[200px] px-3 py-2 rounded-xl border border-ink-200 bg-white text-sm outline-none focus:border-brand-500" }),
-      h("div", { className: "flex gap-1 bg-white rounded-xl ring-1 ring-ink-100 p-1 overflow-x-auto" },
-        filterTabs.map((t) => h("button", {
-          key: t.key, onClick: () => setStatusFilter(t.key),
-          className: `px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${statusFilter === t.key ? "bg-brand-600 text-white" : "text-ink-500 hover:bg-ink-50"}`
-        }, t.label))
-      )
-    ),
-    visible.length === 0
-      ? h("div", { className: "text-center py-16 bg-white rounded-2xl ring-1 ring-ink-100" }, h("div", { className: "text-4xl mb-2" }, "\uD83D\uDED2"), h("div", { className: "text-ink-500" }, pos.length === 0 ? "ยังไม่เคยสร้างใบสั่งซื้อเลย" : "ไม่พบใบสั่งซื้อที่ตรงกับเงื่อนไข"))
-      : h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 overflow-hidden" },
-          h("div", { className: "overflow-x-auto" },
-            h("table", { className: "w-full text-sm min-w-[760px]" },
-              h("thead", { className: "bg-ink-50 text-ink-500 text-[11px] uppercase tracking-wide" }, h("tr", null,
-                h("th", { className: "text-left px-4 py-2.5 font-semibold" }, "เลขที่ PO / ผู้ขาย"),
-                h("th", { className: "text-left px-3 py-2.5 font-semibold" }, "วันที่สั่ง / คาดว่าถึง"),
-                h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "รายการ"),
-                h("th", { className: "text-right px-3 py-2.5 font-semibold" }, "ยอดรวม"),
-                h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "สถานะ"),
-                h("th", { className: "text-center px-4 py-2.5 font-semibold" }, "จัดการ")
-              )),
-              h("tbody", null, visible.map((po) => {
-                const total = poTotal(po);
-                const expanded = expandedId === po.id;
-                return h(React.Fragment, { key: po.id },
-                  h("tr", { className: "border-t border-ink-50 hover:bg-ink-50/60 cursor-pointer transition", onClick: () => setExpandedId(expanded ? null : po.id) },
-                    h("td", { className: "px-4 py-3" },
-                      h("div", { className: "font-mono text-xs text-ink-400" }, poNumberOf(po)),
-                      h("div", { className: "font-semibold text-ink-800" }, po.supplier_name || "(ไม่ระบุผู้ขาย)"),
-                      po.tracking_number && h("div", { className: "text-[11px] text-brand-600 mt-0.5" }, "\uD83D\uDE9A ", po.tracking_status_detail || "กำลังติดตามพัสดุ...")
-                    ),
-                    h("td", { className: "px-3 py-3 text-xs text-ink-500" },
-                      h("div", null, po.order_date ? thDate(po.order_date) : "\u2014"),
-                      po.expected_date && h("div", { className: "text-ink-400" }, "\u2192 ", thDate(po.expected_date))
-                    ),
-                    h("td", { className: "px-3 py-3 text-center text-ink-600" }, (po.purchase_order_items || []).length),
-                    h("td", { className: "px-3 py-3 text-right font-bold text-brand-600" }, "\u0e3f" + total.toLocaleString("th-TH")),
-                    h("td", { className: "px-3 py-3 text-center" }, h(POStatusBadge, { status: po.status })),
-                    h("td", { className: "px-4 py-3", onClick: (e) => e.stopPropagation() },
-                      h("div", { className: "flex items-center justify-center gap-1.5 flex-wrap" },
-                        po.status === "pending" && h("button", { onClick: () => confirmOrdered(po), className: "text-[11px] px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold hover:bg-blue-100" }, "ยืนยันสั่งซื้อ"),
-                        po.status === "ordered" && h("button", { onClick: () => receive(po), className: "text-[11px] px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700" }, "รับของแล้ว"),
-                        (po.status === "pending" || po.status === "ordered") && h("button", { onClick: () => cancelPO(po), className: "text-[11px] px-2.5 py-1 rounded-lg bg-ink-100 text-ink-500 font-semibold hover:bg-ink-200" }, "ยกเลิก"),
-                        h("button", { onClick: () => removePO(po), className: "text-[11px] px-2 py-1 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100" }, "\uD83D\uDDD1\uFE0F")
-                      )
-                    )
-                  ),
-                  expanded && h("tr", { className: "bg-ink-50/40 border-t border-ink-100" },
-                    h("td", { colSpan: 6, className: "px-4 py-4" },
-                      h("div", { className: "flex justify-center mb-4" }, h(StatusPipeline, { status: po.status })),
-                      h("div", { className: "bg-white rounded-xl ring-1 ring-ink-100 divide-y divide-ink-50" },
-                        (po.purchase_order_items || []).map((it) => h("div", { key: it.id, className: "flex justify-between items-center px-4 py-2.5 text-sm" },
-                          h("span", { className: "text-ink-700" }, it.item_name, h("span", { className: "text-ink-400" }, " \u00d7 ", it.quantity, " ", it.unit || "")),
-                          h("span", { className: "text-ink-500 font-medium" }, "\u0e3f", (Number(it.quantity) * Number(it.unit_price)).toLocaleString("th-TH"))
-                        ))
-                      ),
-                      po.note && h("div", { className: "text-xs text-ink-400 mt-3" }, "\uD83D\uDCDD หมายเหตุ: ", po.note),
-                      h(PODetailExtras, { po, onChanged: refresh })
-                    )
-                  )
-                );
-              }))
-            )
-          )
-        ),
-    formOpen && h(CreatePOModal, { onClose: () => setFormOpen(false), onCreated: () => { setFormOpen(false); refresh(); } })
-  );
-}
-function WarehousePage() {
+function WarehousePage({ customers }) {
   const [tab, setTab] = useState("stock");
   const tabs = [
     { key: "stock", label: "\uD83D\uDCE6 สต๊อกสินค้า" },
@@ -5662,7 +5568,7 @@ function WarehousePage() {
         className: `px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition ${tab === t.key ? "bg-brand-600 text-white" : "text-ink-500 hover:bg-ink-50"}`
       }, t.label))
     ),
-    tab === "stock" && h(StockTab, null),
+    tab === "stock" && h(StockTab, { customers: customers || [] }),
     tab === "po" && h(PurchaseOrdersTab, null)
   );
 }
@@ -6113,7 +6019,7 @@ function App() {
   return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.filter((n) => n.key !== "leads").map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, "data-tour": n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
-  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", techteam: "จัดการรายชื่อช่าง เชื่อมต่อ LINE เพื่อรับแจ้งเตือนงานประจำวันอัตโนมัติ", jobboard: "ประกาศงานหาช่างอิสระ ดูโปรไฟล์ผู้สมัครพร้อมรีวิวและผลงาน", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", warehouse: "ติดตามสต๊อกสินค้าและใบสั่งซื้ออุปกรณ์ เชื่อมกับบัญชีบริษัทอัตโนมัติ", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), hasDemoData && /* @__PURE__ */ React.createElement("button", { onClick: () => clearDemoData(), "data-tour": "clearDemo", className: "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100", style: { animation: "tourBounceLeft 1.8s ease-in-out infinite" }, title: "ข้อมูลตัวอย่างสำหรับสอนการใช้งาน — กดเพื่อลบออกทั้งหมด" }, "🧹", /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "ล้างข้อมูลตัวอย่าง")), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: guardedOpenForm, title: hasDemoData ? "ลบข้อมูลตัวอย่างก่อน (ปุ่ม 🧹 มุมขวาบน) จึงจะเพิ่มลูกค้าจริงได้" : "", className: `hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition ${hasDemoData ? "bg-ink-100 text-ink-400 hover:bg-ink-200" : "bg-brand-600 text-white hover:bg-brand-700"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: guardedOpenForm, locked: hasDemoData }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "techteam" && /* @__PURE__ */ React.createElement(TechTeamPage, null), view === "jobboard" && /* @__PURE__ */ React.createElement(CompanyJobBoardPage, null), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null), view === "warehouse" && /* @__PURE__ */ React.createElement(WarehousePage, null)))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
+  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", techteam: "จัดการรายชื่อช่าง เชื่อมต่อ LINE เพื่อรับแจ้งเตือนงานประจำวันอัตโนมัติ", jobboard: "ประกาศงานหาช่างอิสระ ดูโปรไฟล์ผู้สมัครพร้อมรีวิวและผลงาน", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", warehouse: "ติดตามสต๊อกสินค้าและใบสั่งซื้ออุปกรณ์ เชื่อมกับบัญชีบริษัทอัตโนมัติ", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), hasDemoData && /* @__PURE__ */ React.createElement("button", { onClick: () => clearDemoData(), "data-tour": "clearDemo", className: "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100", style: { animation: "tourBounceLeft 1.8s ease-in-out infinite" }, title: "ข้อมูลตัวอย่างสำหรับสอนการใช้งาน — กดเพื่อลบออกทั้งหมด" }, "🧹", /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "ล้างข้อมูลตัวอย่าง")), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: guardedOpenForm, title: hasDemoData ? "ลบข้อมูลตัวอย่างก่อน (ปุ่ม 🧹 มุมขวาบน) จึงจะเพิ่มลูกค้าจริงได้" : "", className: `hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition ${hasDemoData ? "bg-ink-100 text-ink-400 hover:bg-ink-200" : "bg-brand-600 text-white hover:bg-brand-700"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: guardedOpenForm, locked: hasDemoData }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "techteam" && /* @__PURE__ */ React.createElement(TechTeamPage, null), view === "jobboard" && /* @__PURE__ */ React.createElement(CompanyJobBoardPage, null), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null), view === "warehouse" && /* @__PURE__ */ React.createElement(WarehousePage, { customers: rows })))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
     upsert(c);
     setFormOpen(false);
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
