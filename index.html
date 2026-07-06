@@ -1005,6 +1005,66 @@ const inventoryDb = {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "เช็คสถานะไม่สำเร็จ");
     return data;
+  },
+  // ---- จองสต๊อกจากใบเสนอราคาลูกค้า (ไม่กระทบ quantity_on_hand จนกว่าจะยืนยันตัดสต๊อกจริง) ----
+  async listReservationsForQuote(quoteId) {
+    if (!sb || !currentUser) return [];
+    const { data, error } = await sb.from("stock_reservations").select("*").eq("quote_id", quoteId).eq("user_id", currentUser.id).neq("status", "cancelled");
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async listReservationsForCustomer(customerId) {
+    if (!sb || !currentUser) return [];
+    const { data, error } = await sb.from("stock_reservations").select("*").eq("customer_id", customerId).eq("user_id", currentUser.id).neq("status", "cancelled");
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  // จองสต๊อกจากรายการในใบเสนอราคา — จับคู่ด้วยชื่อสินค้ากับที่มีอยู่ในคลังเท่านั้น (ข้ามรายการที่ไม่พบในคลังไปเงียบๆ)
+  // คืนค่า { reserved: [...], skipped: [...] } ให้ฝั่งหน้าเว็บสรุปผลให้ผู้ใช้เห็น
+  async reserveFromQuote(customerId, quoteId, quoteItems) {
+    if (!sb || !currentUser) return { reserved: [], skipped: [] };
+    const uidNow = currentUser.id;
+    const { data: stockRows } = await sb.from("inventory_stock").select("*").eq("user_id", uidNow);
+    const stockByName = {};
+    (stockRows || []).forEach((s) => { stockByName[s.item_name] = s; });
+    const reserved = [];
+    const skipped = [];
+    for (const it of quoteItems) {
+      const stock = stockByName[it.name];
+      const qty = Number(it.qty) || 0;
+      if (!stock || qty <= 0) { skipped.push(it.name); continue; }
+      const row = { id: uid(), user_id: uidNow, customer_id: customerId, quote_id: quoteId, item_name: it.name, quantity: qty, status: "reserved" };
+      const { error } = await sb.from("stock_reservations").insert(row);
+      if (error) { skipped.push(it.name); continue; }
+      await sb.from("inventory_stock").update({ reserved_quantity: (Number(stock.reserved_quantity) || 0) + qty }).eq("id", stock.id);
+      reserved.push(it.name);
+    }
+    return { reserved, skipped };
+  },
+  // ยกเลิกการจองทั้งหมดของใบเสนอราคานี้ คืนจำนวนที่จองไว้กลับเป็น "พร้อมใช้" ตามเดิม
+  async cancelReservationsForQuote(quoteId) {
+    if (!sb || !currentUser) return;
+    const rows = await this.listReservationsForQuote(quoteId);
+    for (const r of rows.filter((x) => x.status === "reserved")) {
+      const { data: stock } = await sb.from("inventory_stock").select("*").eq("user_id", currentUser.id).eq("item_name", r.item_name).maybeSingle();
+      if (stock) await sb.from("inventory_stock").update({ reserved_quantity: Math.max(0, (Number(stock.reserved_quantity) || 0) - Number(r.quantity)) }).eq("id", stock.id);
+      await sb.from("stock_reservations").update({ status: "cancelled" }).eq("id", r.id);
+    }
+  },
+  // ยืนยันตัดสต๊อกจริง (เช่นตอนติดตั้งเสร็จแล้ว) — ลด quantity_on_hand จริง และลด reserved_quantity ลงเท่ากัน
+  async confirmUsageForQuote(quoteId) {
+    if (!sb || !currentUser) return;
+    const rows = await this.listReservationsForQuote(quoteId);
+    for (const r of rows.filter((x) => x.status === "reserved")) {
+      const { data: stock } = await sb.from("inventory_stock").select("*").eq("user_id", currentUser.id).eq("item_name", r.item_name).maybeSingle();
+      if (stock) {
+        await sb.from("inventory_stock").update({
+          quantity_on_hand: Math.max(0, (Number(stock.quantity_on_hand) || 0) - Number(r.quantity)),
+          reserved_quantity: Math.max(0, (Number(stock.reserved_quantity) || 0) - Number(r.quantity))
+        }).eq("id", stock.id);
+      }
+      await sb.from("stock_reservations").update({ status: "used" }).eq("id", r.id);
+    }
   }
 };
 function boqLineTotal(it) { return (Number(it.qty) || 0) * (Number(it.price) || 0); }
@@ -2385,6 +2445,43 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
   const [companySettingsOpen, setCompanySettingsOpen] = useState(false);
   const [profileLogo, setProfileLogo] = useState(getProfileLogo());
   const [schedule, setSchedule] = useState([]); // งวดการชำระเงินของใบที่กำลังแก้ไข [{id,label,percent,paid,paidDate}]
+  const [reservations, setReservations] = useState({}); // quoteId -> 'reserved' | 'used' | undefined(ยังไม่จอง)
+  const [reserving, setReserving] = useState(null); // quoteId ที่กำลังประมวลผลอยู่ (กันกดซ้ำ)
+  const refreshReservations = async () => {
+    if (!customer) { setReservations({}); return; }
+    const rows = await inventoryDb.listReservationsForCustomer(customer.id);
+    const map = {};
+    rows.forEach((r) => {
+      if (map[r.quote_id] === "used") return; // used มีสิทธิ์เหนือกว่า reserved เสมอ
+      if (r.status === "used") map[r.quote_id] = "used";
+      else if (!map[r.quote_id]) map[r.quote_id] = "reserved";
+    });
+    setReservations(map);
+  };
+  const doReserve = async (q) => {
+    setReserving(q.id);
+    try {
+      const res = await inventoryDb.reserveFromQuote(customer.id, q.id, q.items || []);
+      await refreshReservations();
+      if (res.reserved.length === 0) alert("ไม่พบรายการในใบเสนอราคานี้ที่มีอยู่ในคลังสินค้าเลยครับ (ต้องมีชื่อตรงกับสินค้าในคลังพอดี)");
+      else alert(`จองสต๊อกแล้ว ${res.reserved.length} รายการ` + (res.skipped.length > 0 ? `\n(ข้าม ${res.skipped.length} รายการที่ไม่พบในคลัง: ${res.skipped.join(", ")})` : ""));
+    } catch (e) { alert("จองสต๊อกไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setReserving(null); }
+  };
+  const doCancelReserve = async (q) => {
+    if (!confirm("ยกเลิกการจองสต๊อกของใบเสนอราคานี้? (จำนวนที่จองไว้จะกลับมาพร้อมใช้ตามเดิม)")) return;
+    setReserving(q.id);
+    try { await inventoryDb.cancelReservationsForQuote(q.id); await refreshReservations(); }
+    catch (e) { alert("ยกเลิกไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setReserving(null); }
+  };
+  const doConfirmUsage = async (q) => {
+    if (!confirm("ยืนยันตัดสต๊อกจริงสำหรับใบเสนอราคานี้?\n(จะลดจำนวนคงเหลือจริงในคลังสินค้า ใช้เมื่อติดตั้ง/ใช้อุปกรณ์ไปแล้วจริงๆ)")) return;
+    setReserving(q.id);
+    try { await inventoryDb.confirmUsageForQuote(q.id); await refreshReservations(); alert("ตัดสต๊อกเรียบร้อยแล้วครับ"); }
+    catch (e) { alert("ตัดสต๊อกไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setReserving(null); }
+  };
   const refreshSavedQuotes = () => {
     boqDb.listQuotes().then((all) => setSavedQuotes(customer ? all.filter((q) => q.customerId === customer.id) : []));
   };
@@ -2399,6 +2496,7 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
       setDocType("quote"); setCustomerTaxId(""); setCustomerTaxAddress("");
       setPaymentMethod("cash"); setPaymentBank(""); setPaymentRef(""); setPaymentTime("");
       refreshSavedQuotes();
+      refreshReservations();
     }
     // eslint-disable-next-line
   }, [open, customer && customer.id]);
@@ -2749,6 +2847,17 @@ function BOQBuilder({ open, customer, onClose, onUpdateCustomerValue }) {
                   h("button", { onClick: () => loadQuote(q), className: "text-xs font-semibold text-brand-600 px-2 py-1 rounded-md hover:bg-brand-100" }, "ดู/แก้ไข"),
                   h("button", { onClick: () => deleteSavedQuote(q.id), className: "text-ink-300 hover:text-red-500 px-1" }, "✕")
                 )
+              ),
+              h("div", { className: "flex items-center gap-1.5 mt-1.5 pt-1.5 border-t border-ink-50/80 flex-wrap" },
+                reservations[q.id] === "used"
+                  ? h("span", { className: "text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold" }, "✅ ตัดสต๊อกแล้ว")
+                  : reservations[q.id] === "reserved"
+                    ? h(React.Fragment, null,
+                        h("span", { className: "text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold" }, "🔖 จองสต๊อกแล้ว"),
+                        h("button", { onClick: () => doConfirmUsage(q), disabled: reserving === q.id, className: "text-[10px] px-2 py-1 rounded-md bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50" }, "✅ ตัดสต๊อกจริง"),
+                        h("button", { onClick: () => doCancelReserve(q), disabled: reserving === q.id, className: "text-[10px] px-2 py-1 rounded-md bg-ink-100 text-ink-500 font-semibold hover:bg-ink-200 disabled:opacity-50" }, "ยกเลิกจอง")
+                      )
+                    : h("button", { onClick: () => doReserve(q), disabled: reserving === q.id, className: "text-[10px] px-2 py-1 rounded-md bg-brand-50 text-brand-700 font-semibold hover:bg-brand-100 disabled:opacity-50" }, reserving === q.id ? "กำลังจอง..." : "📦 จองสต๊อกจากใบนี้")
               )
             ))
           )
@@ -5201,7 +5310,8 @@ function StockItemCard({ row, onAdjust, onSetMin, onSetImage, onSetPrice, onDele
         h("span", { className: "num font-semibold w-8 text-center text-sm" }, row.quantity_on_hand),
         h("button", { onClick: () => onAdjust(row, 1), className: "w-6 h-6 rounded-md bg-ink-100 hover:bg-ink-200 text-ink-600 font-bold text-xs shrink-0" }, "+"),
         h(StockLevelBar, { qty: row.quantity_on_hand, minAlert: row.min_stock_alert })
-      )
+      ),
+      Number(row.reserved_quantity) > 0 && h("div", { className: "text-[10px] text-amber-600 mt-1" }, "\uD83D\uDD16 จองแล้ว ", row.reserved_quantity, " \u00b7 พร้อมใช้ ", Math.max(0, (Number(row.quantity_on_hand) || 0) - (Number(row.reserved_quantity) || 0)))
     ),
     h("td", { className: "px-3 py-3 text-center" },
       editingMin
