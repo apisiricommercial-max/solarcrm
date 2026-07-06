@@ -1669,9 +1669,14 @@ function Modal({ open, onClose, children, wide }) {
     return () => window.removeEventListener("keydown", h);
   }, [open]);
   if (!open) return null;
-  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 bg-slate-900/50 backdrop-blur-sm overflow-y-auto no-print", onMouseDown: (e) => {
-    if (e.target === e.currentTarget) onClose();
-  } }, /* @__PURE__ */ React.createElement("div", { "data-modal": true, className: `bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-4xl" : "max-w-2xl"} my-4` }, children));
+  // ใช้ Portal render ตรงไปที่ document.body เสมอ — กัน modal ไปอิงตำแหน่ง/ขนาดผิดพลาดเมื่อถูกเรียกใช้จากภายใน
+  // โครงสร้างที่ซับซ้อน เช่น ตาราง (table/tr/td) ซึ่งบางเบราว์เซอร์จะทำให้ position:fixed คำนวณตำแหน่งผิดไป
+  return ReactDOM.createPortal(
+    /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 bg-slate-900/50 backdrop-blur-sm overflow-y-auto no-print", onMouseDown: (e) => {
+      if (e.target === e.currentTarget) onClose();
+    } }, /* @__PURE__ */ React.createElement("div", { "data-modal": true, className: `bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-4xl" : "max-w-2xl"} my-4` }, children)),
+    document.body
+  );
 }
 const EMPTY = { name: "", phone: "", lineId: "", facebook: "", province: "", address: "", type: TYPES[0], source: SOURCES[0], monthlyBill: "", systemSize: SIZES[0], budget: "", value: "", heat: "warm", status: "new", tags: [], note: "", lastContact: todayISO(), nextFollowup: "", installDate: "", warrantyYears: "10" };
 function Field({ label, children, full }) {
