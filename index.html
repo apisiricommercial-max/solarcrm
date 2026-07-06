@@ -906,6 +906,12 @@ const inventoryDb = {
     if (error) { console.error(error); return []; }
     return data || [];
   },
+  async getStockByNames(names) {
+    if (!sb || !currentUser || !names || names.length === 0) return [];
+    const { data, error } = await sb.from("inventory_stock").select("item_name, image_url").eq("user_id", currentUser.id).in("item_name", names);
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
   async listPOs() {
     if (!sb || !currentUser) return [];
     const { data, error } = await sb.from("purchase_orders").select("*, purchase_order_items(*)").eq("user_id", currentUser.id).order("createdAt", { ascending: false });
@@ -926,7 +932,9 @@ const inventoryDb = {
     return poRow;
   },
   async setPOStatus(poId, status) {
-    const { error } = await sb.from("purchase_orders").update({ status }).eq("id", poId);
+    const patch = { status };
+    if (status === "ordered") patch.ordered_at = (/* @__PURE__ */ new Date()).toISOString();
+    const { error } = await sb.from("purchase_orders").update(patch).eq("id", poId);
     if (error) throw error;
   },
   async deletePO(poId) {
@@ -940,7 +948,7 @@ const inventoryDb = {
       await sb.from("purchase_order_items").update({ received_quantity: item.quantity }).eq("id", item.id);
       await this.addStock(item.item_name, item.unit, Number(item.quantity) || 0, item.catalog_item_id, Number(item.unit_price) || 0);
     }
-    await sb.from("purchase_orders").update({ status: "received", received_date: todayISO() }).eq("id", po.id);
+    await sb.from("purchase_orders").update({ status: "received", received_date: todayISO(), received_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", po.id);
     const total = items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unit_price) || 0), 0);
     if (total > 0) {
       await cashflowDb.upsertOne({
@@ -5633,11 +5641,229 @@ function PODetailExtras({ po, onChanged }) {
     )
   );
 }
+function TrackingActionModal({ po, onClose, onChanged }) {
+  const [trackingInput, setTrackingInput] = useState(po.tracking_number || "");
+  const [carrierInput, setCarrierInput] = useState("");
+  const [registering, setRegistering] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const CARRIER_OPTIONS = ["Flash Express", "Kerry Express (TH)", "J&T Express (TH)", "Thailand Post", "Ninja Van (TH)", "Shopee Xpress (TH)", "DHL", "Best Express (TH)"];
+
+  const startTracking = async () => {
+    if (!trackingInput.trim()) { alert("กรอกเลขพัสดุก่อนนะครับ"); return; }
+    setRegistering(true);
+    try {
+      await inventoryDb.registerTracking(po.id, trackingInput.trim(), carrierInput);
+      await onChanged();
+      alert("เริ่มติดตามพัสดุแล้ว! ระบบจะอัปเดตสถานะให้อัตโนมัติ");
+    } catch (e) { alert("เริ่มติดตามไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setRegistering(false); }
+  };
+  const checkNow = async () => {
+    setChecking(true);
+    try {
+      const res = await inventoryDb.checkTrackingNow(po.id, po.tracking_number);
+      await onChanged();
+      if (!res.status) alert("ยังไม่มีข้อมูลสถานะให้ตอนนี้ ลองใหม่อีกสักครู่ครับ");
+    } catch (e) { alert("เช็คสถานะไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setChecking(false); }
+  };
+
+  return h(Modal, { open: true, onClose },
+    h("div", { className: "p-6" },
+      h("h3", { className: "text-lg font-semibold text-ink-800 mb-1" }, "\uD83D\uDCE6 ติดตามพัสดุ"),
+      h("p", { className: "text-xs text-ink-400 mb-4" }, po.tracking_number ? "อัปเดตสถานะพัสดุของใบสั่งซื้อนี้" : "กรอกเลขพัสดุเพื่อเริ่มติดตาม"),
+      po.tracking_number
+        ? h("div", { className: "space-y-2" },
+            h("div", { className: "bg-ink-50 rounded-xl p-3 text-sm" },
+              h("div", { className: "text-ink-500 text-xs" }, "เลขพัสดุ"),
+              h("div", { className: "font-mono font-semibold text-ink-800" }, po.tracking_number),
+              po.tracking_carrier && h("div", { className: "text-xs text-ink-400 mt-1" }, po.tracking_carrier)
+            ),
+            h("div", { className: "text-sm font-medium text-brand-600" }, po.tracking_status_detail || "รอผลอัปเดต"),
+            po.tracking_updated_at && h("div", { className: "text-xs text-ink-300" }, "อัปเดตล่าสุด: ", new Date(po.tracking_updated_at).toLocaleString("th-TH")),
+            h("button", { onClick: checkNow, disabled: checking, className: "w-full mt-2 py-2 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 text-sm font-semibold disabled:opacity-50" }, checking ? "กำลังเช็ค..." : "\uD83D\uDD04 เช็คสถานะตอนนี้เลย")
+          )
+        : h("div", { className: "space-y-3" },
+            h("input", { value: trackingInput, onChange: (e) => setTrackingInput(e.target.value), placeholder: "กรอกเลขพัสดุ", className: "w-full px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" }),
+            h("select", { value: carrierInput, onChange: (e) => setCarrierInput(e.target.value), className: "w-full px-3 py-2 rounded-lg border border-ink-200 text-sm" },
+              h("option", { value: "" }, "ให้ระบบตรวจจับบริษัทขนส่งเอง"),
+              CARRIER_OPTIONS.map((c) => h("option", { key: c, value: c }, c))
+            ),
+            h("button", { onClick: startTracking, disabled: registering, className: "w-full py-2.5 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:opacity-50" }, registering ? "กำลังเริ่มติดตาม..." : "เริ่มติดตามพัสดุ")
+          ),
+      h("button", { onClick: onClose, className: "w-full mt-4 py-2 rounded-lg text-sm text-ink-500 hover:bg-ink-100" }, "ปิด")
+    )
+  );
+}
+function ReceiptModal({ po, onClose, onChanged }) {
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const onPick = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const dataUrl = await resizeImageFile(file, 1400, 0.75);
+      await inventoryDb.setReceiptImage(po.id, dataUrl);
+      await onChanged();
+    } catch (err) { alert("แนบรูปไม่สำเร็จ: " + (err && err.message ? err.message : "ไม่ทราบสาเหตุ")); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
+  };
+  return h(Modal, { open: true, onClose },
+    h("div", { className: "p-6" },
+      h("h3", { className: "text-lg font-semibold text-ink-800 mb-4" }, "\uD83E\uDDFE ใบเสร็จ/สลิป"),
+      po.receipt_image_url
+        ? h("img", { src: po.receipt_image_url, className: "w-full max-h-80 object-contain rounded-xl ring-1 ring-ink-100 bg-ink-50 mb-4" })
+        : h("div", { className: "text-sm text-ink-400 mb-4 text-center py-10 bg-ink-50 rounded-xl" }, "ยังไม่ได้แนบรูป"),
+      h("input", { ref: fileRef, type: "file", accept: "image/*", className: "hidden", onChange: onPick }),
+      h("button", { onClick: () => fileRef.current && fileRef.current.click(), disabled: uploading, className: "w-full py-2.5 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:opacity-50" }, uploading ? "กำลังอัปโหลด..." : (po.receipt_image_url ? "เปลี่ยนรูป" : "+ แนบรูป")),
+      h("button", { onClick: onClose, className: "w-full mt-2 py-2 rounded-lg text-sm text-ink-500 hover:bg-ink-100" }, "ปิด")
+    )
+  );
+}
+function TimelineStage({ icon, label, time, done, isLast }) {
+  return h("div", { className: "flex items-center flex-1 min-w-[90px]" },
+    h("div", { className: "flex flex-col items-center gap-2 text-center flex-1" },
+      h("div", { className: `w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-lg sm:text-xl shrink-0 transition-colors ${done ? "bg-emerald-500 text-white shadow-sm" : "bg-ink-100 text-ink-400"}` }, done ? "\u2713" : icon),
+      h("div", null,
+        h("div", { className: `text-[11px] sm:text-xs font-semibold ${done ? "text-ink-700" : "text-ink-400"}` }, label),
+        h("div", { className: "text-[10px] text-ink-400 mt-0.5" }, time || "\u2014")
+      )
+    ),
+    !isLast && h("div", { className: `flex-1 h-0.5 mx-1 sm:mx-2 mb-7 ${done ? "bg-emerald-400" : "bg-ink-200"}` })
+  );
+}
+function PODetailPage({ po, onBack, onChanged }) {
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [previewImg, setPreviewImg] = useState(null);
+  const [trackingModalOpen, setTrackingModalOpen] = useState(false);
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const items = po.purchase_order_items || [];
+  const total = items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unit_price) || 0), 0);
+
+  useEffect(() => {
+    const names = items.map((it) => it.item_name);
+    if (names.length === 0) { setGalleryImages([]); return; }
+    inventoryDb.getStockByNames(names).then((rows) => setGalleryImages(rows.filter((r) => r.image_url).map((r) => r.image_url)));
+    // eslint-disable-next-line
+  }, [po.id]);
+
+  const fmtTime = (iso) => iso ? new Date(iso).toLocaleString("th-TH", { day: "numeric", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : null;
+  const trackInTransit = ["InTransit", "OutForDelivery", "AvailableForPickup", "Delivered"].includes(po.tracking_status);
+  const deliveredNotYetConfirmed = po.tracking_status === "Delivered" && po.status !== "received";
+
+  const stages = [
+    { icon: "\uD83D\uDCE6", label: "รอสั่งซื้อ", time: fmtTime(po.createdAt), done: true },
+    { icon: "\u2705", label: "สั่งซื้อแล้ว", time: fmtTime(po.ordered_at), done: !!po.ordered_at || po.status === "received" },
+    { icon: "\uD83D\uDE9A", label: "ระหว่างจัดส่ง", time: fmtTime(po.tracking_updated_at), done: trackInTransit || po.status === "received" },
+    { icon: "\uD83C\uDF89", label: "รับของแล้ว", time: fmtTime(po.received_at) || (po.received_date ? thDate(po.received_date) : null), done: po.status === "received" }
+  ];
+
+  return h("div", { className: "space-y-4 fade-in" },
+    h("div", { className: "flex items-center gap-2 text-sm text-ink-500" },
+      h("button", { onClick: onBack, className: "hover:text-brand-600 font-medium inline-flex items-center gap-1" }, "\u2190 ใบสั่งซื้อ"),
+      h("span", { className: "text-ink-300" }, "/"),
+      h("span", { className: "font-mono text-ink-700 font-semibold" }, poNumberOf(po))
+    ),
+
+    h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+      h("div", { className: "flex flex-col lg:flex-row gap-6" },
+        h("div", { className: "flex-1 min-w-0" },
+          h("div", { className: "flex items-start justify-between gap-3 flex-wrap" },
+            h("div", null,
+              h("div", { className: "font-mono text-xs text-ink-400" }, poNumberOf(po)),
+              h("h2", { className: "text-xl font-bold text-ink-900" }, po.supplier_name || "(ไม่ระบุผู้ขาย)")
+            ),
+            h(POStatusBadge, { status: po.status })
+          ),
+          deliveredNotYetConfirmed && h("div", { className: "mt-3 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-xl px-4 py-2.5 inline-flex items-center gap-2" }, "\u2705", " พัสดุถึงแล้ว! กดยืนยัน \"รับของแล้ว\" ด้านล่างได้เลยครับ"),
+          h("div", { className: "grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4" },
+            h("div", null, h("div", { className: "text-xs text-ink-400" }, "วันที่สั่งซื้อ"), h("div", { className: "text-sm font-semibold text-ink-700" }, po.order_date ? thDate(po.order_date) : "\u2014")),
+            h("div", null, h("div", { className: "text-xs text-ink-400" }, "ผู้ขาย"), h("div", { className: "text-sm font-semibold text-ink-700" }, po.supplier_name || "\u2014")),
+            h("div", null, h("div", { className: "text-xs text-ink-400" }, "ยอดรวม"), h("div", { className: "text-sm font-bold text-brand-600" }, "\u0e3f" + total.toLocaleString("th-TH"))),
+            h("div", null, h("div", { className: "text-xs text-ink-400" }, "เลขพัสดุ"), h("div", { className: "text-sm font-semibold text-ink-700 font-mono" }, po.tracking_number || "\u2014"))
+          ),
+          h("div", { className: "flex flex-wrap gap-2 mt-4" },
+            h("button", { onClick: () => setTrackingModalOpen(true), className: "text-xs px-3.5 py-2 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 font-semibold" }, "\uD83D\uDCE6 ดูพัสดุ"),
+            h("button", { onClick: () => setReceiptModalOpen(true), className: "text-xs px-3.5 py-2 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 font-semibold" }, "\uD83E\uDDFE ใบเสร็จ/สลิป")
+          )
+        ),
+        h("div", { className: "lg:w-64 shrink-0 flex items-center justify-center" }, h(StatusPipeline, { status: po.status }))
+      )
+    ),
+
+    h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden no-hover-lift" },
+      h("div", { className: "px-5 py-3 border-b border-ink-50 font-semibold text-sm text-ink-700" }, "รายการสินค้า ", h("span", { className: "text-ink-400 font-normal" }, "(", items.length, " รายการ)")),
+      h("div", { className: "overflow-x-auto" },
+        h("table", { className: "w-full text-sm" },
+          h("thead", { className: "bg-ink-50 text-ink-500 text-[11px] uppercase tracking-wide" }, h("tr", null,
+            h("th", { className: "text-left px-5 py-2.5 font-semibold" }, "สินค้า"),
+            h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "ราคา/หน่วย"),
+            h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "จำนวน"),
+            h("th", { className: "text-right px-3 py-2.5 font-semibold" }, "ยอดรวม"),
+            h("th", { className: "text-center px-5 py-2.5 font-semibold" }, "สถานะ")
+          )),
+          h("tbody", null, items.map((it) => {
+            const img = galleryImages[0]; // เผื่อไว้ แต่ต่อไปอาจ map เป็นรายชิ้นถ้ามีข้อมูลมากกว่านี้
+            const itDone = Number(it.received_quantity) >= Number(it.quantity) && Number(it.quantity) > 0;
+            return h("tr", { key: it.id, className: "border-t border-ink-50" },
+              h("td", { className: "px-5 py-3" },
+                h("div", { className: "flex items-center gap-3" },
+                  h("div", { className: "w-10 h-10 rounded-lg bg-ink-50 ring-1 ring-ink-100 flex items-center justify-center text-base shrink-0 overflow-hidden" }, img ? h("img", { src: img, className: "w-full h-full object-cover" }) : "\uD83D\uDCE6"),
+                  h("div", null,
+                    h("div", { className: "font-medium text-ink-800" }, it.item_name),
+                    h("div", { className: "text-xs text-ink-400" }, "จำนวน ", it.quantity, " ", it.unit || "")
+                  )
+                )
+              ),
+              h("td", { className: "px-3 py-3 text-center text-ink-600" }, "\u0e3f" + Number(it.unit_price).toLocaleString("th-TH")),
+              h("td", { className: "px-3 py-3 text-center text-ink-600" }, it.quantity),
+              h("td", { className: "px-3 py-3 text-right font-semibold text-ink-800" }, "\u0e3f" + (Number(it.quantity) * Number(it.unit_price)).toLocaleString("th-TH")),
+              h("td", { className: "px-5 py-3 text-center" },
+                itDone
+                  ? h("span", { className: "text-[11px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold" }, "รับของแล้ว")
+                  : h("span", { className: "text-[11px] px-2.5 py-1 rounded-full bg-ink-100 text-ink-400 font-semibold" }, "รอรับของ")
+              )
+            );
+          }))
+        )
+      )
+    ),
+
+    h("div", { className: "grid sm:grid-cols-2 gap-4" },
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("div", { className: "font-semibold text-sm text-ink-700 mb-3" }, "\uD83D\uDDBC\uFE0F รูปภาพสินค้า"),
+        galleryImages.length === 0
+          ? h("div", { className: "text-xs text-ink-400 text-center py-8 bg-ink-50 rounded-xl" }, "ยังไม่มีรูปสินค้า (เพิ่มได้ที่หน้าสต๊อกสินค้า)")
+          : h("div", { className: "grid grid-cols-4 gap-2" }, galleryImages.map((src, i) => h("button", { key: i, onClick: () => setPreviewImg(src), className: "aspect-square rounded-lg overflow-hidden ring-1 ring-ink-100 hover:ring-brand-300 transition" }, h("img", { src, className: "w-full h-full object-cover" }))))
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("div", { className: "font-semibold text-sm text-ink-700 mb-3" }, "\uD83D\uDCCE เอกสารแนบ"),
+        po.receipt_image_url
+          ? h("button", { onClick: () => setReceiptModalOpen(true), className: "w-full flex items-center gap-3 p-3 rounded-xl bg-ink-50 hover:bg-ink-100 transition text-left" },
+              h("span", { className: "w-10 h-10 rounded-lg bg-red-50 text-red-500 flex items-center justify-center text-lg shrink-0" }, "\uD83D\uDCC4"),
+              h("div", { className: "min-w-0 flex-1" }, h("div", { className: "text-sm font-medium text-ink-700 truncate" }, "ใบเสร็จ/สลิป"), h("div", { className: "text-xs text-ink-400" }, "แตะเพื่อดูรูป")),
+              h("span", { className: "text-ink-400" }, "\u2193")
+            )
+          : h("button", { onClick: () => setReceiptModalOpen(true), className: "w-full text-xs text-ink-400 text-center py-8 bg-ink-50 rounded-xl hover:bg-ink-100 transition" }, "ยังไม่มีเอกสารแนบ \u00b7 แตะเพื่อเพิ่ม")
+      )
+    ),
+
+    h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+      h("div", { className: "font-semibold text-sm text-ink-700 mb-5" }, "สถานะการติดตามสินค้า"),
+      h("div", { className: "flex items-start" }, stages.map((s, i) => h(TimelineStage, { key: i, ...s, isLast: i === stages.length - 1 })))
+    ),
+
+    previewImg && h(Modal, { open: true, onClose: () => setPreviewImg(null) }, h("div", { className: "p-4" }, h("img", { src: previewImg, className: "max-h-[75vh] w-full object-contain rounded-lg" }))),
+    trackingModalOpen && h(TrackingActionModal, { po, onClose: () => setTrackingModalOpen(false), onChanged }),
+    receiptModalOpen && h(ReceiptModal, { po, onClose: () => setReceiptModalOpen(false), onChanged })
+  );
+}
 function PurchaseOrdersTab() {
   const [pos, setPos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
-  const [expandedId, setExpandedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const refresh = () => { setLoading(true); return inventoryDb.listPOs().then((d) => { setPos(d); setLoading(false); }); };
@@ -5671,6 +5897,11 @@ function PurchaseOrdersTab() {
   if (search.trim()) {
     const q = search.toLowerCase();
     visible = visible.filter((po) => (po.supplier_name || "").toLowerCase().includes(q) || poNumberOf(po).toLowerCase().includes(q));
+  }
+
+  const selected = pos.find((p) => p.id === selectedId);
+  if (selected) {
+    return h(PODetailPage, { po: selected, onBack: () => setSelectedId(null), onChanged: refresh });
   }
 
   if (loading) return h("div", { className: "text-center text-ink-400 py-16" }, "กำลังโหลด...");
@@ -5710,41 +5941,25 @@ function PurchaseOrdersTab() {
               )),
               h("tbody", null, visible.map((po) => {
                 const total = poTotal(po);
-                const expanded = expandedId === po.id;
-                return h(React.Fragment, { key: po.id },
-                  h("tr", { className: "border-t border-ink-50 hover:bg-ink-50/60 cursor-pointer transition", onClick: () => setExpandedId(expanded ? null : po.id) },
-                    h("td", { className: "px-4 py-3" },
-                      h("div", { className: "font-mono text-xs text-ink-400" }, poNumberOf(po)),
-                      h("div", { className: "font-semibold text-ink-800" }, po.supplier_name || "(ไม่ระบุผู้ขาย)"),
-                      po.tracking_number && h("div", { className: "text-[11px] text-brand-600 mt-0.5" }, "\uD83D\uDE9A ", po.tracking_status_detail || "กำลังติดตามพัสดุ...")
-                    ),
-                    h("td", { className: "px-3 py-3 text-xs text-ink-500" },
-                      h("div", null, po.order_date ? thDate(po.order_date) : "\u2014"),
-                      po.expected_date && h("div", { className: "text-ink-400" }, "\u2192 ", thDate(po.expected_date))
-                    ),
-                    h("td", { className: "px-3 py-3 text-center text-ink-600" }, (po.purchase_order_items || []).length),
-                    h("td", { className: "px-3 py-3 text-right font-bold text-brand-600" }, "\u0e3f" + total.toLocaleString("th-TH")),
-                    h("td", { className: "px-3 py-3 text-center" }, h(POStatusBadge, { status: po.status })),
-                    h("td", { className: "px-4 py-3", onClick: (e) => e.stopPropagation() },
-                      h("div", { className: "flex items-center justify-center gap-1.5 flex-wrap" },
-                        po.status === "pending" && h("button", { onClick: () => confirmOrdered(po), className: "text-[11px] px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold hover:bg-blue-100" }, "ยืนยันสั่งซื้อ"),
-                        po.status === "ordered" && h("button", { onClick: () => receive(po), className: "text-[11px] px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700" }, "รับของแล้ว"),
-                        (po.status === "pending" || po.status === "ordered") && h("button", { onClick: () => cancelPO(po), className: "text-[11px] px-2.5 py-1 rounded-lg bg-ink-100 text-ink-500 font-semibold hover:bg-ink-200" }, "ยกเลิก"),
-                        h("button", { onClick: () => removePO(po), className: "text-[11px] px-2 py-1 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100" }, "\uD83D\uDDD1\uFE0F")
-                      )
-                    )
+                return h("tr", { key: po.id, className: "border-t border-ink-50 hover:bg-ink-50/60 cursor-pointer transition", onClick: () => setSelectedId(po.id) },
+                  h("td", { className: "px-4 py-3" },
+                    h("div", { className: "font-mono text-xs text-ink-400" }, poNumberOf(po)),
+                    h("div", { className: "font-semibold text-ink-800" }, po.supplier_name || "(ไม่ระบุผู้ขาย)"),
+                    po.tracking_number && h("div", { className: "text-[11px] text-brand-600 mt-0.5" }, "\uD83D\uDE9A ", po.tracking_status_detail || "กำลังติดตามพัสดุ...")
                   ),
-                  expanded && h("tr", { className: "bg-ink-50/40 border-t border-ink-100" },
-                    h("td", { colSpan: 6, className: "px-4 py-4" },
-                      h("div", { className: "flex justify-center mb-4" }, h(StatusPipeline, { status: po.status })),
-                      h("div", { className: "bg-white rounded-xl ring-1 ring-ink-100 divide-y divide-ink-50" },
-                        (po.purchase_order_items || []).map((it) => h("div", { key: it.id, className: "flex justify-between items-center px-4 py-2.5 text-sm" },
-                          h("span", { className: "text-ink-700" }, it.item_name, h("span", { className: "text-ink-400" }, " \u00d7 ", it.quantity, " ", it.unit || "")),
-                          h("span", { className: "text-ink-500 font-medium" }, "\u0e3f", (Number(it.quantity) * Number(it.unit_price)).toLocaleString("th-TH"))
-                        ))
-                      ),
-                      po.note && h("div", { className: "text-xs text-ink-400 mt-3" }, "\uD83D\uDCDD หมายเหตุ: ", po.note),
-                      h(PODetailExtras, { po, onChanged: refresh })
+                  h("td", { className: "px-3 py-3 text-xs text-ink-500" },
+                    h("div", null, po.order_date ? thDate(po.order_date) : "\u2014"),
+                    po.expected_date && h("div", { className: "text-ink-400" }, "\u2192 ", thDate(po.expected_date))
+                  ),
+                  h("td", { className: "px-3 py-3 text-center text-ink-600" }, (po.purchase_order_items || []).length),
+                  h("td", { className: "px-3 py-3 text-right font-bold text-brand-600" }, "\u0e3f" + total.toLocaleString("th-TH")),
+                  h("td", { className: "px-3 py-3 text-center" }, h(POStatusBadge, { status: po.status })),
+                  h("td", { className: "px-4 py-3", onClick: (e) => e.stopPropagation() },
+                    h("div", { className: "flex items-center justify-center gap-1.5 flex-wrap" },
+                      po.status === "pending" && h("button", { onClick: () => confirmOrdered(po), className: "text-[11px] px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold hover:bg-blue-100" }, "ยืนยันสั่งซื้อ"),
+                      po.status === "ordered" && h("button", { onClick: () => receive(po), className: "text-[11px] px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700" }, "รับของแล้ว"),
+                      (po.status === "pending" || po.status === "ordered") && h("button", { onClick: () => cancelPO(po), className: "text-[11px] px-2.5 py-1 rounded-lg bg-ink-100 text-ink-500 font-semibold hover:bg-ink-200" }, "ยกเลิก"),
+                      h("button", { onClick: () => removePO(po), className: "text-[11px] px-2 py-1 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100" }, "\uD83D\uDDD1\uFE0F")
                     )
                   )
                 );
