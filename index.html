@@ -1798,23 +1798,56 @@ function JobScheduleAssign({ customer, onSave }) {
   const [techId, setTechId] = useState(customer.assignedTechnicianId || "");
   const [date, setDate] = useState(customer.scheduledVisitDate || "");
   const [saved, setSaved] = useState(false);
-  useEffect(() => { technicianTeamDb.list().then((d) => setTechs(d.filter((t) => t.active))); }, []);
+  const [addingNew, setAddingNew] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [creating, setCreating] = useState(false);
+  const refreshTechs = () => technicianTeamDb.list().then((d) => setTechs(d.filter((t) => t.active)));
+  useEffect(() => { refreshTechs(); }, []);
   useEffect(() => { setTechId(customer.assignedTechnicianId || ""); setDate(customer.scheduledVisitDate || ""); }, [customer.id]);
   const save = () => {
     onSave(customer.id, { assignedTechnicianId: techId || null, scheduledVisitDate: date || null });
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
   };
+  const handleSelectChange = (e) => {
+    if (e.target.value === "__new__") { setAddingNew(true); return; }
+    setTechId(e.target.value);
+  };
+  const createTech = async () => {
+    if (!newName.trim()) { alert("กรอกชื่อช่างก่อนนะครับ"); return; }
+    setCreating(true);
+    try {
+      const created = await technicianTeamDb.add(newName.trim(), newPhone.trim());
+      await refreshTechs();
+      if (created && created.id) setTechId(created.id);
+      setAddingNew(false); setNewName(""); setNewPhone("");
+    } catch (e) { alert("เพิ่มช่างไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setCreating(false); }
+  };
   return h("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" },
     h("div", { className: "text-xs font-medium text-ink-500 mb-2" }, "📅 มอบหมายช่าง + วันนัดหมาย"),
-    h("div", { className: "grid grid-cols-2 gap-2" },
-      h("select", { value: techId, onChange: (e) => setTechId(e.target.value), className: "px-2.5 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" },
+    !addingNew && h("div", { className: "grid grid-cols-2 gap-2" },
+      h("select", { value: techId, onChange: handleSelectChange, className: "px-2.5 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" },
         h("option", { value: "" }, "— ยังไม่มอบหมาย —"),
-        techs.map((t) => h("option", { key: t.id, value: t.id }, t.name))
+        techs.map((t) => h("option", { key: t.id, value: t.id }, t.name)),
+        h("option", { value: "__new__" }, "+ เพิ่มช่างใหม่...")
       ),
       h("input", { type: "date", value: date, onChange: (e) => setDate(e.target.value), className: "px-2.5 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" })
     ),
-    h("button", { onClick: save, className: "mt-2 w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, saved ? "✓ บันทึกแล้ว" : "บันทึกการมอบหมาย")
+    addingNew && h("div", { className: "space-y-2 bg-ink-50 rounded-lg p-3" },
+      h("div", { className: "text-xs font-semibold text-ink-600" }, "👷 เพิ่มช่างใหม่เข้าทีม"),
+      h("div", { className: "grid grid-cols-2 gap-2" },
+        h("input", { value: newName, onChange: (e) => setNewName(e.target.value), placeholder: "ชื่อช่าง", className: "px-2.5 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" }),
+        h("input", { value: newPhone, onChange: (e) => setNewPhone(e.target.value), placeholder: "เบอร์โทร (ไม่บังคับ)", className: "px-2.5 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" })
+      ),
+      h("div", { className: "flex gap-2" },
+        h("button", { onClick: () => { setAddingNew(false); setNewName(""); setNewPhone(""); }, className: "flex-1 py-1.5 rounded-lg text-xs text-ink-500 hover:bg-ink-100" }, "ยกเลิก"),
+        h("button", { onClick: createTech, disabled: creating, className: "flex-1 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 disabled:opacity-50" }, creating ? "กำลังเพิ่ม..." : "+ เพิ่มเข้าทีม")
+      ),
+      h("div", { className: "text-[10px] text-ink-400" }, "เพิ่มแล้วช่างคนนี้จะไปโผล่ในเมนู \"🔧 ทีมช่าง\" ให้อัตโนมัติ")
+    ),
+    !addingNew && h("button", { onClick: save, className: "mt-2 w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, saved ? "✓ บันทึกแล้ว" : "บันทึกการมอบหมาย")
   );
 }
 function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus, onOpenBOQ, onUpdateWarranty, onUpdateInstallStage, onUpdateDocuments, onAssignTechnician }) {
@@ -2928,14 +2961,6 @@ function TechTeamPage() {
 
   return h("div", { className: "space-y-4 fade-in" },
     h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-      h("h3", { className: "text-sm font-semibold text-ink-800 mb-1" }, "🔗 ตั้งค่าลิงก์แอดไลน์ร้าน (LINE OA)"),
-      h("p", { className: "text-xs text-ink-400 mb-3" }, "ตั้งครั้งเดียว ใช้แสดงให้ช่างกดเพิ่มเพื่อนตอนเชื่อมต่อรับแจ้งเตือนงานประจำวัน"),
-      h("div", { className: "flex gap-2" },
-        h("input", { value: oaUrl, onChange: (e) => setOaUrlState(e.target.value), placeholder: "https://lin.ee/xxxxxxx", className: "flex-1 px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" }),
-        h("button", { onClick: saveOaUrl, className: "px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "บันทึก")
-      )
-    ),
-    h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
       h("h3", { className: "text-sm font-semibold text-ink-800 mb-3" }, "➕ เพิ่มช่างเข้าทีม"),
       h("div", { className: "flex flex-col sm:flex-row gap-2" },
         h("input", { value: name, onChange: (e) => setName(e.target.value), placeholder: "ชื่อช่าง", className: "flex-1 px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500" }),
@@ -2950,25 +2975,11 @@ function TechTeamPage() {
             h("div", { className: "min-w-0" },
               h("div", { className: "font-semibold text-ink-800" }, t.name, !t.active && h("span", { className: "ml-2 text-[10px] px-2 py-0.5 rounded-full bg-ink-100 text-ink-400 font-semibold" }, "ปิดใช้งาน")),
               h("div", { className: "text-xs text-ink-400" }, t.phone || "—")
-            ),
-            t.line_user_id
-              ? h("span", { className: "text-[11px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold" }, "✅ เชื่อมต่อ LINE แล้ว")
-              : h("span", { className: "text-[11px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 font-semibold" }, "⚠️ ยังไม่เชื่อมต่อ")
+            )
           ),
           h("div", { className: "flex flex-wrap gap-2 mt-3 pt-3 border-t border-ink-50" },
-            !t.line_user_id && h("button", { onClick: () => setShowHelp(showHelp === t.id ? null : t.id), className: "text-xs px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 font-semibold hover:bg-brand-100" }, showHelp === t.id ? "ซ่อนวิธีเชื่อมต่อ" : "📲 วิธีเชื่อมต่อ LINE"),
-            t.line_user_id && h("button", { onClick: () => regenCode(t), className: "text-xs px-3 py-1.5 rounded-lg bg-ink-100 text-ink-600 font-semibold hover:bg-ink-200" }, "🔄 เชื่อมต่อเครื่องใหม่"),
             h("button", { onClick: () => toggleActive(t), className: "text-xs px-3 py-1.5 rounded-lg bg-ink-100 text-ink-600 font-semibold hover:bg-ink-200" }, t.active ? "ปิดใช้งานชั่วคราว" : "เปิดใช้งานอีกครั้ง"),
             h("button", { onClick: () => remove(t), className: "text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100 ml-auto" }, "🗑️ ลบ")
-          ),
-          showHelp === t.id && h("div", { className: "mt-3 pt-3 border-t border-ink-50 text-xs text-ink-600 space-y-2 bg-ink-50/60 rounded-xl p-3" },
-            h("div", null, "1) ให้ช่างกดลิงก์เพิ่มเพื่อน LINE ร้าน: ", oaUrl ? h("a", { href: oaUrl, target: "_blank", className: "text-brand-600 underline font-semibold" }, oaUrl) : h("span", { className: "text-red-500" }, "(ยังไม่ได้ตั้งลิงก์ LINE OA ด้านบน)")),
-            h("div", null, "2) พิมพ์รหัสนี้ส่งในแชท LINE เพื่อเชื่อมต่อ:"),
-            h("div", { className: "flex items-center gap-2" },
-              h("span", { className: "font-mono text-lg font-bold tracking-widest bg-white px-3 py-1.5 rounded-lg ring-1 ring-ink-200" }, t.link_code),
-              h("button", { onClick: () => copyText(t.link_code), className: "text-[11px] px-2.5 py-1 rounded-lg bg-white ring-1 ring-ink-200 hover:bg-ink-50" }, "คัดลอก")
-            ),
-            h("div", { className: "text-ink-400" }, "3) ระบบจะเชื่อมให้อัตโนมัติ แล้วช่างจะได้รับแจ้งเตือนงานที่นัดหมายทุกเช้า")
           )
         )))
   );
@@ -5336,30 +5347,146 @@ function App() {
     openForm(c);
   }, onAddLog: addLog, onStatus: setStatus, onOpenBOQ: () => setBoqOpen(true), onUpdateWarranty: updateCustomerWarranty, onUpdateInstallStage: updateInstallStage, onUpdateDocuments: updateCustomerDocuments, onAssignTechnician: assignTechnician }), /* @__PURE__ */ React.createElement(BOQBuilder, { open: boqOpen, customer: liveProfile, onClose: () => setBoqOpen(false), onUpdateCustomerValue: updateCustomerValue }), /* @__PURE__ */ React.createElement("button", { id: "mobileAddFab", onClick: guardedOpenForm, className: `sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-xl ${hasDemoData ? "bg-ink-300 text-white" : "bg-brand-600 text-white"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus })), tourActive && /* @__PURE__ */ React.createElement(TourGuide, { step: tourStep, onSkip: skipTour, menuOpen, setMenuOpen }), !tourActive && hasDemoData && /* @__PURE__ */ React.createElement(ClearDemoArrow, null), !tourActive && hasDemoData && !reminderDismissed && /* @__PURE__ */ React.createElement(DemoReminderBanner, { onDismiss: () => setReminderDismissed(true) }));
 }
+const guestBoardDb = {
+  async listOpenCombined(limit) {
+    if (!sb) return [];
+    const lim = limit || 10;
+    const [realRes, guestRes] = await Promise.all([
+      sb.from("marketplace_jobs").select("id, title, description, province, job_type, budget, \"createdAt\"").eq("status", "open").order("createdAt", { ascending: false }).limit(lim),
+      sb.from("guest_job_posts").select("id, title, description, province, job_type, budget, \"createdAt\"").order("createdAt", { ascending: false }).limit(lim)
+    ]);
+    const merged = [
+      ...((realRes.data) || []).map((j) => ({ ...j, _kind: "marketplace_job" })),
+      ...((guestRes.data) || []).map((j) => ({ ...j, _kind: "guest_job_post" }))
+    ];
+    merged.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return merged.slice(0, lim);
+  },
+  async postGuestJob(data) {
+    if (!sb) return;
+    const row = { id: uid(), ...data };
+    const { error } = await sb.from("guest_job_posts").insert(row);
+    if (error) throw error;
+  },
+  async replyLead(refType, refId, data) {
+    if (!sb) return;
+    const row = { id: uid(), ref_type: refType, ref_id: refId, ...data };
+    const { error } = await sb.from("guest_leads").insert(row);
+    if (error) throw error;
+  }
+};
+function GuestPostJobForm({ onClose, onPosted }) {
+  const [guestName, setGuestName] = React.useState("");
+  const [guestPhone, setGuestPhone] = React.useState("");
+  const [title, setTitle] = React.useState("");
+  const [province, setProvince] = React.useState("");
+  const [jobType, setJobType] = React.useState("");
+  const [budget, setBudget] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const inputCls = "w-full px-3 py-2 rounded-lg text-sm outline-none bg-white/10 border border-white/20 text-white placeholder-white/40 focus:border-emerald-400";
+  const labelCls = "block text-xs font-medium text-white/60 mb-1";
+  const submit = async () => {
+    if (!guestName.trim() || !title.trim()) { alert("กรอกชื่อและหัวข้องานก่อนนะครับ"); return; }
+    setSubmitting(true);
+    try {
+      await guestBoardDb.postGuestJob({ guest_name: guestName.trim(), guest_phone: guestPhone.trim(), title: title.trim(), description: description.trim(), province, job_type: jobType.trim(), budget: budget ? Number(budget) : null });
+      onPosted();
+    } catch (e) { alert("ประกาศไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setSubmitting(false); }
+  };
+  return React.createElement("div", { style: { padding: "18px" } },
+    React.createElement("div", { style: { fontSize: "14px", fontWeight: 700, color: "#fff", marginBottom: "2px" } }, "📢 ประกาศหางาน"),
+    React.createElement("div", { style: { fontSize: "11px", color: "rgba(255,255,255,.5)", marginBottom: "12px" } }, "ไม่ต้องล็อกอิน กรอกแล้วขึ้นบนกระดานทันที"),
+    React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" } },
+      React.createElement("div", null, React.createElement("label", { className: labelCls }, "ชื่อคุณ *"), React.createElement("input", { value: guestName, onChange: (e) => setGuestName(e.target.value), className: inputCls })),
+      React.createElement("div", null, React.createElement("label", { className: labelCls }, "เบอร์โทร"), React.createElement("input", { value: guestPhone, onChange: (e) => setGuestPhone(e.target.value), className: inputCls }))
+    ),
+    React.createElement("div", { style: { marginBottom: "8px" } }, React.createElement("label", { className: labelCls }, "หัวข้องาน *"), React.createElement("input", { value: title, onChange: (e) => setTitle(e.target.value), placeholder: "เช่น หาช่างติดตั้งโซลาร์ 10kW", className: inputCls })),
+    React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" } },
+      React.createElement("div", null, React.createElement("label", { className: labelCls }, "จังหวัด"), React.createElement("select", { value: province, onChange: (e) => setProvince(e.target.value), className: inputCls }, React.createElement("option", { value: "", style: { color: "#000" } }, "เลือกจังหวัด"), PROVINCES.map((p) => React.createElement("option", { key: p, value: p, style: { color: "#000" } }, p)))),
+      React.createElement("div", null, React.createElement("label", { className: labelCls }, "งบ/ค่าแรง (บาท)"), React.createElement("input", { type: "number", value: budget, onChange: (e) => setBudget(e.target.value), className: inputCls }))
+    ),
+    React.createElement("div", { style: { marginBottom: "12px" } }, React.createElement("label", { className: labelCls }, "รายละเอียด"), React.createElement("textarea", { value: description, onChange: (e) => setDescription(e.target.value), className: inputCls, style: { height: "60px", resize: "none" } })),
+    React.createElement("div", { style: { display: "flex", gap: "8px" } },
+      React.createElement("button", { onClick: onClose, style: { flex: 1, padding: "10px", borderRadius: "10px", fontSize: "13px", color: "rgba(255,255,255,.7)", background: "rgba(255,255,255,.06)" } }, "ยกเลิก"),
+      React.createElement("button", { onClick: submit, disabled: submitting, style: { flex: 1, padding: "10px", borderRadius: "10px", fontSize: "13px", fontWeight: 700, color: "#fff", background: "#059669", opacity: submitting ? .6 : 1 } }, submitting ? "กำลังประกาศ..." : "📢 ประกาศเลย")
+    )
+  );
+}
+function GuestReplyForm({ job, onClose, onSent }) {
+  const [name, setName] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [message, setMessage] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const inputCls = "w-full px-3 py-2 rounded-lg text-sm outline-none bg-white/10 border border-white/20 text-white placeholder-white/40 focus:border-emerald-400";
+  const labelCls = "block text-xs font-medium text-white/60 mb-1";
+  const submit = async () => {
+    if (!name.trim() || !phone.trim()) { alert("กรอกชื่อและเบอร์โทรก่อนนะครับ"); return; }
+    setSubmitting(true);
+    try {
+      await guestBoardDb.replyLead(job._kind, job.id, { name: name.trim(), phone: phone.trim(), message: message.trim() });
+      onSent();
+    } catch (e) { alert("ส่งไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setSubmitting(false); }
+  };
+  return React.createElement("div", { style: { padding: "18px" } },
+    React.createElement("div", { style: { fontSize: "14px", fontWeight: 700, color: "#fff", marginBottom: "2px" } }, "💬 สนใจ: ", job.title),
+    React.createElement("div", { style: { fontSize: "11px", color: "rgba(255,255,255,.5)", marginBottom: "12px" } }, "ฝากชื่อ-เบอร์ไว้ก่อนได้เลย ไม่ต้องสมัครสมาชิก"),
+    React.createElement("div", { style: { marginBottom: "8px" } }, React.createElement("label", { className: labelCls }, "ชื่อคุณ *"), React.createElement("input", { value: name, onChange: (e) => setName(e.target.value), className: inputCls })),
+    React.createElement("div", { style: { marginBottom: "8px" } }, React.createElement("label", { className: labelCls }, "เบอร์โทร *"), React.createElement("input", { value: phone, onChange: (e) => setPhone(e.target.value), className: inputCls })),
+    React.createElement("div", { style: { marginBottom: "12px" } }, React.createElement("label", { className: labelCls }, "ข้อความ (ไม่บังคับ)"), React.createElement("textarea", { value: message, onChange: (e) => setMessage(e.target.value), className: inputCls, style: { height: "50px", resize: "none" } })),
+    React.createElement("div", { style: { display: "flex", gap: "8px" } },
+      React.createElement("button", { onClick: onClose, style: { flex: 1, padding: "10px", borderRadius: "10px", fontSize: "13px", color: "rgba(255,255,255,.7)", background: "rgba(255,255,255,.06)" } }, "ยกเลิก"),
+      React.createElement("button", { onClick: submit, disabled: submitting, style: { flex: 1, padding: "10px", borderRadius: "10px", fontSize: "13px", fontWeight: 700, color: "#fff", background: "#2563eb", opacity: submitting ? .6 : 1 } }, submitting ? "กำลังส่ง..." : "ส่งความสนใจ")
+    )
+  );
+}
 function LoginJobBoardPreview() {
   const [jobs, setJobs] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
-  React.useEffect(() => {
+  const [mode, setMode] = React.useState("list"); // "list" | "post" | "reply"
+  const [replyJob, setReplyJob] = React.useState(null);
+  const [justSent, setJustSent] = React.useState(false);
+  const refresh = () => {
     if (!sb) { setLoading(false); return; }
-    sb.from("marketplace_jobs").select("title, province, job_type, budget, \"createdAt\"").eq("status", "open").order("createdAt", { ascending: false }).limit(4)
-      .then(({ data }) => { setJobs(data || []); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
-  return React.createElement("div", {
-    className: "hidden lg:block", style: {
-      position: "relative", zIndex: 5, width: "320px", padding: "26px 22px",
-      borderRadius: "24px", background: "linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.03))",
-      backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
-      border: "1px solid rgba(255,255,255,.14)", boxShadow: "0 24px 60px -18px rgba(0,0,0,.6)"
-    }
-  },
-    React.createElement("div", { style: { fontSize: "14px", fontWeight: 700, color: "#fff", marginBottom: "14px" } }, "📢 งานเปิดรับสมัครล่าสุด"),
+    guestBoardDb.listOpenCombined(8).then((d) => { setJobs(d); setLoading(false); }).catch(() => setLoading(false));
+  };
+  React.useEffect(() => { refresh(); }, []);
+
+  const boxStyle = {
+    position: "relative", zIndex: 5, width: "340px", maxHeight: "560px", overflowY: "auto",
+    borderRadius: "24px", background: "linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.03))",
+    backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+    border: "1px solid rgba(255,255,255,.14)", boxShadow: "0 24px 60px -18px rgba(0,0,0,.6)"
+  };
+
+  if (mode === "post") {
+    return React.createElement("div", { className: "hidden lg:block", style: boxStyle },
+      React.createElement(GuestPostJobForm, { onClose: () => setMode("list"), onPosted: () => { setMode("list"); refresh(); } })
+    );
+  }
+  if (mode === "reply" && replyJob) {
+    return React.createElement("div", { className: "hidden lg:block", style: boxStyle },
+      React.createElement(GuestReplyForm, { job: replyJob, onClose: () => setMode("list"), onSent: () => { setMode("list"); setJustSent(true); setTimeout(() => setJustSent(false), 4000); } })
+    );
+  }
+
+  return React.createElement("div", { className: "hidden lg:block", style: { ...boxStyle, padding: "22px 20px" } },
+    React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" } },
+      React.createElement("div", { style: { fontSize: "14px", fontWeight: 700, color: "#fff" } }, "📢 กระดานงานโซลาร์"),
+      React.createElement("button", {
+        onClick: () => setMode("post"),
+        style: { fontSize: "11px", fontWeight: 700, color: "#fff", background: "#059669", padding: "6px 10px", borderRadius: "8px" }
+      }, "+ ประกาศงาน")
+    ),
+    justSent && React.createElement("div", { style: { fontSize: "12px", color: "#6ee7b7", background: "rgba(52,211,153,.12)", borderRadius: "10px", padding: "8px 10px", marginBottom: "10px" } }, "✓ ฝากข้อมูลไว้แล้ว! สร้างบัญชีฟรีเพื่อคุยกับบริษัทในระบบได้ทันที"),
     loading
       ? React.createElement("div", { style: { fontSize: "12px", color: "rgba(255,255,255,.45)" } }, "กำลังโหลด...")
       : jobs.length === 0
         ? React.createElement("div", { style: { fontSize: "12px", color: "rgba(255,255,255,.45)", lineHeight: 1.6 } }, "ยังไม่มีงานเปิดรับตอนนี้ เป็นคนแรกที่ประกาศงานได้เลย!")
         : jobs.map((j, i) => React.createElement("div", {
-            key: i, style: {
+            key: j._kind + "_" + j.id, style: {
               padding: "10px 12px", borderRadius: "12px", background: "rgba(255,255,255,.05)",
               marginBottom: i === jobs.length - 1 ? 0 : "8px", border: "1px solid rgba(255,255,255,.08)"
             }
@@ -5367,7 +5494,11 @@ function LoginJobBoardPreview() {
             React.createElement("div", { style: { fontSize: "13px", fontWeight: 600, color: "#fff" } }, j.title),
             React.createElement("div", { style: { fontSize: "11px", color: "rgba(255,255,255,.5)", marginTop: "2px" } },
               (j.province || "-") + (j.job_type ? " · " + j.job_type : "") + (j.budget ? " · ฿" + Number(j.budget).toLocaleString("th-TH") : "")
-            )
+            ),
+            React.createElement("button", {
+              onClick: () => { setReplyJob(j); setMode("reply"); },
+              style: { marginTop: "8px", fontSize: "11px", fontWeight: 700, color: "#93c5fd", background: "rgba(96,165,250,.12)", padding: "5px 10px", borderRadius: "8px" }
+            }, "💬 สนใจงานนี้")
           ))
   );
 }
@@ -5459,7 +5590,7 @@ function LoginScreen() {
             background: role === "technician" ? "rgba(96,165,250,.16)" : "rgba(255,255,255,.05)",
             color: role === "technician" ? "#93c5fd" : "rgba(255,255,255,.65)"
           }
-        }, "🔧 ช่างรับงานอิสระ")
+        }, "🔧 ช่างติดตั้งโซล่าเซลล์")
       ),
       React.createElement("div", { className: "lgn-chips" },
         React.createElement("span", { className: "lgn-chip" }, "\u26A1 \u0E40\u0E23\u0E35\u0E22\u0E25\u0E44\u0E17\u0E21\u0E4C"),
@@ -5509,7 +5640,7 @@ function RoleSelectScreen({ onSelect }) {
           style: { flexDirection: "column", height: "150px", gap: "8px", justifyContent: "center" }
         },
           React.createElement("span", { style: { fontSize: "34px" } }, "🔧"),
-          React.createElement("span", { style: { fontWeight: 700 } }, "ช่างรับงานอิสระ"),
+          React.createElement("span", { style: { fontWeight: 700 } }, "ช่างติดตั้งโซล่าเซลล์"),
           React.createElement("span", { style: { fontSize: "11px", opacity: .6, fontWeight: 400 } }, "สร้างโปรไฟล์ หางาน อัปโหลดผลงาน")
         )
       ),
