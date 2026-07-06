@@ -5130,6 +5130,40 @@ table{width:100%;border-collapse:collapse;margin-bottom:18px}
         )
   );
 }
+function ComboBarLineChart({ data }) {
+  // data: [{ month, income, expense, net }] -> แท่งรายรับ(เขียว)/รายจ่าย(แดง) + เส้นคงเหลือสุทธิ(น้ำเงิน) ทับกัน
+  const W = 700, H_ = 240, PAD = 28;
+  const maxBar = Math.max(1, ...data.map((d) => Math.max(d.income, d.expense)));
+  const netVals = data.map((d) => d.net);
+  const minNet = Math.min(0, ...netVals), maxNet = Math.max(1, ...netVals);
+  const netRange = maxNet - minNet || 1;
+  const n = Math.max(1, data.length);
+  const groupW = (W - PAD * 2) / n;
+  const barW = Math.min(22, groupW * 0.3);
+  const yOfBar = (v) => H_ - PAD - (v / maxBar) * (H_ - PAD * 2);
+  const yOfNet = (v) => H_ - PAD - ((v - minNet) / netRange) * (H_ - PAD * 2);
+  const points = data.map((d, i) => [PAD + groupW * i + groupW / 2, yOfNet(d.net)]);
+  const linePath = points.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  return h("div", { className: "w-full" },
+    h("svg", { viewBox: `0 0 ${W} ${H_}`, className: "w-full h-56", preserveAspectRatio: "none" },
+      data.map((d, i) => {
+        const cx = PAD + groupW * i + groupW / 2;
+        return h(React.Fragment, { key: i },
+          h("rect", { x: cx - barW - 2, y: yOfBar(d.income), width: barW, height: Math.max(0, H_ - PAD - yOfBar(d.income)), rx: 3, fill: "#10b981" }),
+          h("rect", { x: cx + 2, y: yOfBar(d.expense), width: barW, height: Math.max(0, H_ - PAD - yOfBar(d.expense)), rx: 3, fill: "#ef4444" })
+        );
+      }),
+      h("path", { d: linePath, fill: "none", stroke: "#3b82f6", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }),
+      points.map((p, i) => h("circle", { key: i, cx: p[0], cy: p[1], r: 3.5, fill: "#fff", stroke: "#3b82f6", strokeWidth: 2 }))
+    ),
+    h("div", { className: "flex justify-between mt-1 px-1" }, data.map((d, i) => h("span", { key: i, className: "text-[10px] text-ink-400" }, d.month))),
+    h("div", { className: "flex items-center gap-4 mt-3 text-[11px] text-ink-500" },
+      h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" }), "รายรับ"),
+      h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" }), "รายจ่าย"),
+      h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-2.5 h-2.5 rounded-full bg-brand-500 inline-block" }), "คงเหลือสุทธิ")
+    )
+  );
+}
 function CashFlow() {
   const [rows, setRows] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -5207,6 +5241,35 @@ function CashFlow() {
   // Top 5 รายจ่ายเดี่ยวสูงสุด (รายการเดี่ยว ไม่รวมหมวด)
   const topExpenses = rows.filter((r) => r.type === "expense").slice().sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0)).slice(0, 5);
   const maxTopExpense = Math.max(1, ...topExpenses.map((r) => Number(r.amount) || 0));
+
+  // ===== เทรนด์จริงเทียบเดือนก่อนหน้า (ไม่ใช่ตัวเลขปลอม) =====
+  const prevMonthKey = (() => { const d = new Date(filterMonth + "-01"); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
+  const prevMonthRows = rows.filter((r) => (r.date || "").slice(0, 7) === prevMonthKey);
+  const prevIncome = prevMonthRows.filter((r) => r.type === "income").reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const prevExpense = prevMonthRows.filter((r) => r.type === "expense").reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const prevNet = prevIncome - prevExpense;
+  const pctTrend = (cur, prev) => prev > 0 ? Math.round((cur - prev) / prev * 100) : (cur > 0 ? 100 : 0);
+  const incomeTrend = pctTrend(income, prevIncome);
+  const expenseTrend = pctTrend(expense, prevExpense);
+  const netTrend = prevNet !== 0 ? Math.round((net - prevNet) / Math.abs(prevNet) * 100) : (net > 0 ? 100 : 0);
+
+  // ===== เฉลี่ยต่อเดือน เทียบกับ 6 เดือนก่อนหน้าช่วงนี้ (real comparison) =====
+  const prevPeriodMonths = Array.from({ length: 6 }, (_, i) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (11 - i)); return d.toISOString().slice(0, 7); });
+  const prevPeriodRows = rows.filter((r) => prevPeriodMonths.includes((r.date || "").slice(0, 7)));
+  const prevAvgIncome = prevPeriodRows.filter((r) => r.type === "income").reduce((s, r) => s + (Number(r.amount) || 0), 0) / 6;
+  const prevAvgExpense = prevPeriodRows.filter((r) => r.type === "expense").reduce((s, r) => s + (Number(r.amount) || 0), 0) / 6;
+  const prevAvgNet = prevAvgIncome - prevAvgExpense;
+  const curAvgIncome = monthlyData.reduce((s, m) => s + m.income, 0) / 6;
+  const curAvgExpense = monthlyData.reduce((s, m) => s + m.expense, 0) / 6;
+  const curAvgNet = curAvgIncome - curAvgExpense;
+  const avgIncomeTrend = pctTrend(curAvgIncome, prevAvgIncome);
+  const avgExpenseTrend = pctTrend(curAvgExpense, prevAvgExpense);
+  const avgNetTrend = prevAvgNet !== 0 ? Math.round((curAvgNet - prevAvgNet) / Math.abs(prevAvgNet) * 100) : (curAvgNet > 0 ? 100 : 0);
+  const comboData = monthlyData.map((m) => ({ month: monthLabel(m.month), income: m.income, expense: m.expense, net: m.income - m.expense }));
+  const TrendTag = ({ v, invert }) => {
+    const good = invert ? v <= 0 : v >= 0;
+    return h("span", { className: `text-[11px] font-semibold inline-flex items-center gap-0.5 ${good ? "text-emerald-600" : "text-red-500"}` }, v > 0 ? "\u2191" : v < 0 ? "\u2193" : "", Math.abs(v), "% จากเดือนที่แล้ว");
+  };
   return h("div", { className: "space-y-5 fade-in" },
     syncError && h("div", { className: "rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-xs text-amber-700 flex items-center gap-2" },
       "⚠️ บันทึกลง Supabase ไม่สำเร็จ (อาจยังไม่ได้รัน setup_cashflow.sql) — ข้อมูลเก็บไว้ในเครื่องนี้ชั่วคราว จะไม่ sync ไปเครื่องอื่นจนกว่าจะตั้งค่าฐานข้อมูล"
@@ -5223,17 +5286,23 @@ function CashFlow() {
       )
     ),
     h("div", { className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" },
-      h("div", { className: "rounded-2xl p-5 text-white shadow-sm bg-gradient-to-br from-emerald-500 to-emerald-600" },
+      h("div", { className: "rounded-2xl p-5 text-white shadow-sm bg-gradient-to-br from-emerald-500 to-emerald-600 relative overflow-hidden" },
         h("div", { className: "text-sm text-white/85" }, "รายรับเดือนนี้"),
-        h("div", { className: "num text-2xl font-extrabold mt-1", style: { WebkitTextFillColor: "#fff" } }, baht(income))
+        h("div", { className: "num text-2xl font-extrabold mt-1", style: { WebkitTextFillColor: "#fff" } }, baht(income)),
+        h("div", { className: "text-white/90 mt-0.5" }, h(TrendTag, { v: incomeTrend })),
+        h("div", { className: "mt-1 text-white/80" }, h(Sparkline, { data: monthlyData.map((m) => m.income), stroke: "#fff", fill: "rgba(255,255,255,.2)" }))
       ),
-      h("div", { className: "rounded-2xl p-5 text-white shadow-sm bg-gradient-to-br from-red-500 to-rose-600" },
+      h("div", { className: "rounded-2xl p-5 text-white shadow-sm bg-gradient-to-br from-red-500 to-rose-600 relative overflow-hidden" },
         h("div", { className: "text-sm text-white/85" }, "รายจ่ายเดือนนี้"),
-        h("div", { className: "num text-2xl font-extrabold mt-1", style: { WebkitTextFillColor: "#fff" } }, baht(expense))
+        h("div", { className: "num text-2xl font-extrabold mt-1", style: { WebkitTextFillColor: "#fff" } }, baht(expense)),
+        h("div", { className: "text-white/90 mt-0.5" }, h(TrendTag, { v: expenseTrend, invert: true })),
+        h("div", { className: "mt-1 text-white/80" }, h(Sparkline, { data: monthlyData.map((m) => m.expense), stroke: "#fff", fill: "rgba(255,255,255,.2)" }))
       ),
       h("div", { className: "rounded-2xl p-5 shadow-sm ring-1 ring-ink-100 " + (net >= 0 ? "bg-white" : "bg-red-50") },
         h("div", { className: "text-sm text-ink-500" }, "คงเหลือสุทธิ"),
-        h("div", { className: "num text-2xl font-extrabold mt-1", style: { WebkitTextFillColor: "currentColor", color: net >= 0 ? "#059669" : "#dc2626" } }, baht(net))
+        h("div", { className: "num text-2xl font-extrabold mt-1", style: { WebkitTextFillColor: "currentColor", color: net >= 0 ? "#059669" : "#dc2626" } }, baht(net)),
+        h("div", { className: "mt-0.5" }, h(TrendTag, { v: netTrend })),
+        h("div", { className: "mt-1 text-brand-400" }, h(Sparkline, { data: monthlyData.map((m) => m.income - m.expense), stroke: "currentColor" }))
       ),
       h("div", { className: "rounded-2xl p-5 shadow-sm ring-1 ring-amber-200 bg-amber-50" },
         h("div", { className: "flex items-center gap-1.5 text-sm text-amber-700" }, "🧾 ภาษี VAT รอนำส่ง"),
@@ -5241,70 +5310,35 @@ function CashFlow() {
         h("div", { className: "text-[11px] text-amber-600 mt-0.5" }, "แยกจากกำไร · เตรียมนำส่งสรรพากร")
       )
     ),
-    h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden" },
-      h("div", { className: "px-5 py-4 border-b border-ink-100" },
-        h("h4", { className: "text-sm font-semibold text-ink-700" }, "สรุปแยกรายเดือน (6 เดือนล่าสุด)")
+    h("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-4" },
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm" }, h("div", { className: "text-xs text-ink-500" }, "รายรับเฉลี่ยต่อเดือน"), h("div", { className: "num text-xl font-bold text-emerald-600 mt-1" }, baht(Math.round(curAvgIncome))), h(TrendTag, { v: avgIncomeTrend }), h("div", { className: "text-[10px] text-ink-400 mt-0.5" }, "จาก 6 เดือนก่อน")),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm" }, h("div", { className: "text-xs text-ink-500" }, "รายจ่ายเฉลี่ยต่อเดือน"), h("div", { className: "num text-xl font-bold text-red-600 mt-1" }, baht(Math.round(curAvgExpense))), h(TrendTag, { v: avgExpenseTrend, invert: true }), h("div", { className: "text-[10px] text-ink-400 mt-0.5" }, "จาก 6 เดือนก่อน")),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm" }, h("div", { className: "text-xs text-ink-500" }, "คงเหลือเฉลี่ยต่อเดือน"), h("div", { className: `num text-xl font-bold mt-1 ${curAvgNet >= 0 ? "text-ink-800" : "text-red-600"}` }, baht(Math.round(curAvgNet))), h(TrendTag, { v: avgNetTrend }), h("div", { className: "text-[10px] text-ink-400 mt-0.5" }, "จาก 6 เดือนก่อน"))
+    ),
+    h("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-4" },
+      h("div", { className: "lg:col-span-2 bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "ภาพรวมกระแสเงินสด 6 เดือนล่าสุด"),
+        h(ComboBarLineChart, { data: comboData })
       ),
-      h("div", null,
-        h("div", { className: "grid-cashflow-row bg-ink-50 text-ink-500 text-xs" },
-          h("div", { className: "text-left py-2.5 px-1.5 sm:px-4 font-medium" }, "เดือน"),
-          h("div", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium" }, "รายรับ"),
-          h("div", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium" }, "รายจ่าย"),
-          h("div", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium" }, h("span", { className: "hidden sm:inline" }, "🧾 "), "VAT"),
-          h("div", { className: "text-right py-2.5 px-1.5 sm:px-4 font-medium" }, "คงเหลือ")
-        ),
-        h("div", { className: "divide-y divide-ink-50" },
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden flex flex-col" },
+        h("div", { className: "px-4 py-3 border-b border-ink-100 font-semibold text-sm text-ink-700" }, "สรุปรายการ 6 เดือนล่าสุด"),
+        h("div", { className: "divide-y divide-ink-50 overflow-y-auto flex-1" },
           monthlyData.slice().reverse().map((m) => {
             const mNet = m.income - m.expense;
             const isCurrent = m.month === filterMonth;
-            return h("div", { key: m.month, onClick: () => setFilterMonth(m.month), className: `grid-cashflow-row cursor-pointer hover:bg-brand-50/40 ${isCurrent ? "bg-brand-50/70" : ""}` },
-              h("div", { className: "py-2.5 px-1.5 sm:px-4 font-medium text-ink-700 truncate flex items-center" }, monthLabel(m.month), isCurrent && h("span", { className: "ml-1.5 text-[10px] text-brand-600 font-bold hidden sm:inline" }, "● กำลังดู")),
-              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-emerald-600 font-medium flex items-center justify-end" }, baht(m.income)),
-              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-red-600 font-medium flex items-center justify-end" }, baht(m.expense)),
-              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-amber-700 font-medium flex items-center justify-end" }, m.vat > 0 ? baht(m.vat) : "—"),
-              h("div", { className: `py-2.5 px-1.5 sm:px-4 text-right num font-bold flex items-center justify-end ${mNet >= 0 ? "text-ink-800" : "text-red-600"}` }, baht(mNet))
+            return h("button", { key: m.month, onClick: () => setFilterMonth(m.month), className: `w-full text-left px-4 py-2.5 hover:bg-brand-50/40 transition ${isCurrent ? "bg-brand-50/70" : ""}` },
+              h("div", { className: "flex items-center justify-between" }, h("span", { className: "text-xs font-semibold text-ink-700" }, monthLabel(m.month), isCurrent && h("span", { className: "ml-1.5 text-[9px] text-brand-600 font-bold" }, "\u25CF กำลังดู")), h("span", { className: `num text-xs font-bold ${mNet >= 0 ? "text-ink-800" : "text-red-600"}` }, baht(mNet))),
+              h("div", { className: "flex items-center gap-2 text-[10px] text-ink-400 mt-0.5" }, h("span", { className: "text-emerald-600" }, "+", baht(m.income)), h("span", { className: "text-red-500" }, "-", baht(m.expense)))
             );
-          }),
-          (() => {
-            const sumIncome = monthlyData.reduce((s, m) => s + m.income, 0);
-            const sumExpense = monthlyData.reduce((s, m) => s + m.expense, 0);
-            const sumVat = monthlyData.reduce((s, m) => s + m.vat, 0);
-            return h("div", { className: "grid-cashflow-row bg-ink-50/70 font-bold" },
-              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-ink-800 flex items-center" }, "รวม 6 เดือน"),
-              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-emerald-700 flex items-center justify-end" }, baht(sumIncome)),
-              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-red-700 flex items-center justify-end" }, baht(sumExpense)),
-              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-amber-800 flex items-center justify-end" }, baht(sumVat)),
-              h("div", { className: "py-2.5 px-1.5 sm:px-4 text-right num text-ink-900 flex items-center justify-end" }, baht(sumIncome - sumExpense))
-            );
-          })()
+          })
+        ),
+        h("div", { className: "px-4 py-2.5 border-t border-ink-100 flex items-center justify-between bg-ink-50/50" },
+          h("span", { className: "text-xs font-bold text-ink-700" }, "รวม 6 เดือน"),
+          h("span", { className: "num text-sm font-extrabold text-ink-900" }, baht(monthlyData.reduce((s, m) => s + m.income, 0) - monthlyData.reduce((s, m) => s + m.expense, 0)))
         )
-      ),
-      h("p", { className: "text-[11px] text-ink-400 px-4 py-2.5 border-t border-ink-50" }, "💡 แตะที่แถวเดือนไหน เพื่อดูรายละเอียดรายการของเดือนนั้นด้านล่าง")
-    ),
-    h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-      h("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "เปรียบเทียบ 6 เดือนล่าสุด"),
-      h("div", { className: "flex items-end gap-3 h-40" },
-        monthlyData.map((m) => h("div", { key: m.month, className: "flex-1 flex flex-col items-center gap-1" },
-          h("div", { className: "w-full flex items-end justify-center gap-1 h-32" },
-            h("div", { className: "w-1/2 rounded-t-md bg-gradient-to-t from-emerald-500 to-emerald-400", style: { height: Math.max(3, m.income / maxVal * 100) + "%" }, title: "รายรับ " + baht(m.income) }),
-            h("div", { className: "w-1/2 rounded-t-md bg-gradient-to-t from-red-500 to-rose-400", style: { height: Math.max(3, m.expense / maxVal * 100) + "%" }, title: "รายจ่าย " + baht(m.expense) })
-          ),
-          h("div", { className: "text-[10px] text-ink-400" }, monthLabel(m.month))
-        ))
-      ),
-      h("div", { className: "flex items-center gap-4 mt-3 text-[11px] text-ink-500" },
-        h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" }), "รายรับ"),
-        h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" }), "รายจ่าย")
       )
     ),
-    h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-      h("div", { className: "flex items-center justify-between mb-4" },
-        h("h4", { className: "text-sm font-semibold text-ink-700" }, "แนวโน้มกำไรสุทธิรายเดือน"),
-        h("span", { className: `text-xs font-semibold ${trendData[trendData.length - 1].net >= 0 ? "text-emerald-600" : "text-red-600"}` },
-          trendData[trendData.length - 1].net >= 0 ? "▲ " : "▼ ", baht(Math.abs(trendData[trendData.length - 1].net)))
-      ),
-      h(TrendChart, { data: trendData })
-    ),
+    h("p", { className: "text-[11px] text-ink-400 px-1" }, "\u2139\uFE0F หมายเหตุ: ตัวเลขอัปเดตล่าสุด ณ ", new Date().toLocaleString("th-TH", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })),
     h("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4" },
       h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
         h("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "สัดส่วนรายจ่ายตามหมวดหมู่ (สะสม)"),
@@ -6900,6 +6934,11 @@ function LoginJobBoardPreview() {
 function LoginScreen() {
   const [busy, setBusy] = React.useState(false);
   const [role, setRole] = React.useState("company");
+  const [authMode, setAuthMode] = React.useState("signin"); // "signin" | "signup"
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [showPw, setShowPw] = React.useState(false);
+  const [remember, setRemember] = React.useState(true);
   const canvasRef = React.useRef(null);
   const cardRef = React.useRef(null);
   const go = async () => {
@@ -6908,6 +6947,32 @@ function LoginScreen() {
       try { localStorage.setItem("solar_pending_role", role); } catch (e) {}
       await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + window.location.pathname } });
     } catch (e) { alert("เข้าสู่ระบบไม่สำเร็จ: " + (e && e.message)); setBusy(false); }
+  };
+  const submitEmailAuth = async () => {
+    if (!email.trim() || !password) { alert("กรอกอีเมลและรหัสผ่านก่อนนะครับ"); return; }
+    setBusy(true);
+    try {
+      try { localStorage.setItem("solar_pending_role", role); } catch (e) {}
+      if (authMode === "signup") {
+        const { error } = await sb.auth.signUp({ email: email.trim(), password });
+        if (error) throw error;
+        alert("สมัครสมาชิกสำเร็จ! ถ้าระบบต้องยืนยันอีเมล กรุณาเช็คกล่องจดหมายก่อนเข้าสู่ระบบ ไม่งั้นลองเข้าสู่ระบบได้เลยครับ");
+        setAuthMode("signin");
+      } else {
+        const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) throw error;
+      }
+    } catch (e) {
+      alert((authMode === "signup" ? "สมัครสมาชิกไม่สำเร็จ: " : "เข้าสู่ระบบไม่สำเร็จ: ") + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
+    } finally { setBusy(false); }
+  };
+  const forgotPassword = async () => {
+    if (!email.trim()) { alert("กรอกอีเมลของคุณในช่องด้านบนก่อน แล้วกด \"ลืมรหัสผ่าน?\" อีกครั้งนะครับ"); return; }
+    try {
+      const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin + window.location.pathname });
+      if (error) throw error;
+      alert("ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมล " + email.trim() + " แล้วครับ กรุณาเช็คกล่องจดหมาย");
+    } catch (e) { alert("ส่งอีเมลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
   };
   // particle network
   React.useEffect(() => {
@@ -6957,16 +7022,12 @@ function LoginScreen() {
     React.createElement("div", { className: "lgn-grid" }),
     React.createElement("canvas", { ref: canvasRef, className: "lgn-canvas" }),
     sparks,
-    React.createElement("div", { style: { position: "relative", zIndex: 5, display: "flex", alignItems: "center", gap: "24px", flexWrap: "wrap", justifyContent: "center" } },
+    React.createElement("div", { style: { position: "relative", zIndex: 5, display: "flex", alignItems: "stretch", gap: "24px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1400px", margin: "0 auto", padding: "0 16px" } },
+    React.createElement(LoginMarketingPanel, null),
     React.createElement("div", { ref: cardRef, className: "lgn-card", "data-modal": "" },
       React.createElement("div", { className: "lgn-logo" }, React.createElement("img", { src: "https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png", alt: "SolarCRM", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" } })),
-      React.createElement("h1", { className: "lgn-title" }, "SolarCRM"),
-      React.createElement("p", { className: "lgn-sub" }, "\u0E23\u0E30\u0E1A\u0E1A\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"),
-      React.createElement("p", { className: "lgn-desc" },
-        "SolarCRM ไม่ได้แค่เก็บลูกค้า แต่ช่วยกันลูกค้าหลุดจากมือคุณ — แจ้งเตือนทันทีเมื่อมี",
-        React.createElement("span", { className: "lgn-desc-accent" }, "ดีลเสี่ยงหลุด"),
-        "หรือถึงคิวต้องติดตาม"
-      ),
+      React.createElement("h1", { className: "lgn-title" }, authMode === "signup" ? "สมัครสมาชิก" : "ยินดีต้อนรับ \uD83D\uDC4B"),
+      React.createElement("p", { className: "lgn-sub" }, authMode === "signup" ? "สร้างบัญชี SolarCRM ใหม่" : "เข้าสู่ระบบ SolarCRM"),
       React.createElement("div", { style: { display: "flex", gap: "8px", width: "100%", margin: "16px 0 4px" } },
         React.createElement("button", {
           type: "button", onClick: () => setRole("company"),
@@ -6987,10 +7048,41 @@ function LoginScreen() {
           }
         }, "🔧 ช่างติดตั้งโซล่าเซลล์")
       ),
-      React.createElement("div", { className: "lgn-chips" },
-        React.createElement("span", { className: "lgn-chip" }, "\u26A1 \u0E40\u0E23\u0E35\u0E22\u0E25\u0E44\u0E17\u0E21\u0E4C"),
-        React.createElement("span", { className: "lgn-chip" }, "\u{1F510} \u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22"),
-        React.createElement("span", { className: "lgn-chip" }, "\u{1F4C8} \u0E04\u0E23\u0E1A\u0E27\u0E07\u0E08\u0E23")),
+      React.createElement("div", { style: { width: "100%", marginTop: "8px" } },
+        React.createElement("input", {
+          type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "อีเมลหรือเบอร์โทรศัพท์",
+          style: { width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.05)", color: "#fff", fontSize: "13.5px", outline: "none", marginBottom: "8px" }
+        }),
+        React.createElement("div", { style: { position: "relative" } },
+          React.createElement("input", {
+            type: showPw ? "text" : "password", value: password, onChange: (e) => setPassword(e.target.value), placeholder: "รหัสผ่าน",
+            onKeyDown: (e) => { if (e.key === "Enter") submitEmailAuth(); },
+            style: { width: "100%", padding: "11px 40px 11px 14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.05)", color: "#fff", fontSize: "13.5px", outline: "none" }
+          }),
+          React.createElement("button", { type: "button", onClick: () => setShowPw((v) => !v), style: { position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(255,255,255,.5)", cursor: "pointer", fontSize: "14px" } }, showPw ? "\uD83D\uDE48" : "\uD83D\uDC41\uFE0F")
+        ),
+        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "10px", fontSize: "12px" } },
+          React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", color: "rgba(255,255,255,.6)", cursor: "pointer" } },
+            React.createElement("input", { type: "checkbox", checked: remember, onChange: (e) => setRemember(e.target.checked) }),
+            "จดจำฉัน"
+          ),
+          authMode === "signin" && React.createElement("button", { type: "button", onClick: forgotPassword, style: { background: "none", border: "none", color: "#6ee7b7", cursor: "pointer", fontSize: "12px" } }, "ลืมรหัสผ่าน?")
+        ),
+        React.createElement("button", {
+          type: "button", onClick: submitEmailAuth, disabled: busy,
+          style: { width: "100%", marginTop: "14px", padding: "12px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff", fontWeight: 700, fontSize: "14px", cursor: "pointer", opacity: busy ? .7 : 1 }
+        }, busy ? "กำลังดำเนินการ..." : (authMode === "signup" ? "สมัครสมาชิก" : "เข้าสู่ระบบ"), " \u2192"),
+        React.createElement("div", { style: { textAlign: "center", marginTop: "10px", fontSize: "12px" } },
+          React.createElement("button", { type: "button", onClick: () => setAuthMode((m) => m === "signin" ? "signup" : "signin"), style: { background: "none", border: "none", color: "rgba(255,255,255,.55)", cursor: "pointer" } },
+            authMode === "signin" ? "ยังไม่มีบัญชี? สมัครสมาชิก" : "มีบัญชีแล้ว? เข้าสู่ระบบ"
+          )
+        )
+      ),
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", width: "100%", margin: "16px 0" } },
+        React.createElement("div", { style: { flex: 1, height: "1px", background: "rgba(255,255,255,.12)" } }),
+        React.createElement("span", { style: { fontSize: "11px", color: "rgba(255,255,255,.4)" } }, "หรือ"),
+        React.createElement("div", { style: { flex: 1, height: "1px", background: "rgba(255,255,255,.12)" } })
+      ),
       React.createElement("button", { onClick: go, disabled: busy, className: "lgn-btn" },
         React.createElement("svg", { width: "20", height: "20", viewBox: "0 0 48 48" },
           React.createElement("path", { fill: "#FFC107", d: "M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.3 5.1 29.4 3 24 3 12.9 3 4 11.9 4 23s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" }),
@@ -6998,8 +7090,81 @@ function LoginScreen() {
           React.createElement("path", { fill: "#4CAF50", d: "M24 43c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 34.5 26.7 35 24 35c-5.3 0-9.7-2.6-11.3-7l-6.5 5C9.6 38.6 16.2 43 24 43z" }),
           React.createElement("path", { fill: "#1976D2", d: "M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4-4.1 5.3l6.2 5.2C41.4 35.7 44 30.3 44 23c0-1.3-.1-2.5-.4-3.5z" })),
         busy ? "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E40\u0E1B\u0E34\u0E14 Google\u2026" : "\u0E40\u0E02\u0E49\u0E32\u0E2A\u0E39\u0E48\u0E23\u0E30\u0E1A\u0E1A\u0E14\u0E49\u0E27\u0E22 Google"),
-      React.createElement("p", { className: "lgn-foot" }, React.createElement("span", { className: "lgn-secure" }, "\u{1F512} \u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E40\u0E02\u0E49\u0E32\u0E23\u0E2B\u0E31\u0E2A\u0E1A\u0E19 Supabase \u00B7 \u0E41\u0E22\u0E01\u0E15\u0E32\u0E21\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49"))),
+      React.createElement("p", { className: "lgn-foot" }, React.createElement("span", { className: "lgn-secure" }, "\u{1F512} \u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E02\u0E2D\u0E07\u0E04\u0E38\u0E13\u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22\u0E01\u0E31\u0E1A\u0E40\u0E23\u0E32 100%"))),
+    React.createElement(LoginAnnouncementsPanel, null),
     React.createElement(LoginJobBoardPreview, null)));
+}
+function LoginMarketingPanel() {
+  return React.createElement("div", { className: "hidden xl:flex", style: { position: "relative", zIndex: 5, width: "380px", flexDirection: "column", justifyContent: "center", color: "#fff" } },
+    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", marginBottom: "18px" } },
+      React.createElement("div", { style: { width: "52px", height: "52px", borderRadius: "14px", overflow: "hidden", boxShadow: "0 8px 24px -8px rgba(16,185,129,.6)" } },
+        React.createElement("img", { src: "https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png", style: { width: "100%", height: "100%", objectFit: "cover" } })
+      ),
+      React.createElement("div", null,
+        React.createElement("div", { style: { fontSize: "26px", fontWeight: 800, lineHeight: 1 } }, "Solar", React.createElement("span", { style: { color: "#34d399" } }, "CRM")),
+        React.createElement("div", { style: { fontSize: "11px", color: "rgba(255,255,255,.5)", marginTop: "3px" } }, "ระบบจัดการลูกค้าธุรกิจโซลาร์เซลล์")
+      )
+    ),
+    React.createElement("h2", { style: { fontSize: "22px", fontWeight: 700, lineHeight: 1.4, margin: "6px 0 20px" } },
+      "จัดการทุกงานขาย ติดตามลูกค้า ",
+      React.createElement("span", { style: { color: "#34d399" } }, "เพิ่มยอดขายได้ง่ายขึ้น")
+    ),
+    React.createElement("div", { style: { display: "flex", gap: "10px", marginBottom: "26px" } },
+      [["\uD83D\uDC65", "จัดการลูกค้า", "บริหารข้อมูลลูกค้าครบจบในที่เดียว"], ["\u26A1", "ติดตามงานขาย", "ติดตามทุกความคืบหน้า ไม่พลาดทุกโอกาส"], ["\uD83D\uDCC8", "เพิ่มยอดขาย", "วิเคราะห์ข้อมูลแม่นยำ ปิดการขายได้มากขึ้น"]].map(([icon, t, d], i) =>
+        React.createElement("div", { key: i, style: { flex: 1, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "14px", padding: "12px 8px", textAlign: "center" } },
+          React.createElement("div", { style: { fontSize: "18px", marginBottom: "4px" } }, icon),
+          React.createElement("div", { style: { fontSize: "11px", fontWeight: 700 } }, t),
+          React.createElement("div", { style: { fontSize: "9px", color: "rgba(255,255,255,.45)", marginTop: "3px", lineHeight: 1.4 } }, d)
+        )
+      )
+    ),
+    React.createElement("div", { style: { position: "relative", borderRadius: "20px", overflow: "hidden", background: "linear-gradient(160deg, rgba(16,185,129,.18), rgba(15,23,42,.4))", border: "1px solid rgba(255,255,255,.08)", padding: "20px" } },
+      React.createElement("svg", { viewBox: "0 0 300 140", style: { width: "100%", height: "auto" } },
+        React.createElement("rect", { x: "20", y: "80", width: "90", height: "50", rx: "3", fill: "#1e293b" }),
+        React.createElement("polygon", { points: "20,80 65,50 110,80", fill: "#334155" }),
+        React.createElement("rect", { x: "30", y: "55", width: "70", height: "22", rx: "2", fill: "#0ea5e9", opacity: "0.85", transform: "translate(0,-2)" }),
+        React.createElement("line", { x1: "30", y1: "60", x2: "100", y2: "60", stroke: "#082f49", strokeWidth: "0.6" }),
+        React.createElement("line", { x1: "30", y1: "65", x2: "100", y2: "65", stroke: "#082f49", strokeWidth: "0.6" }),
+        React.createElement("line", { x1: "30", y1: "70", x2: "100", y2: "70", stroke: "#082f49", strokeWidth: "0.6" }),
+        React.createElement("rect", { x: "45", y: "95", width: "12", height: "35", fill: "#0f172a" }),
+        React.createElement("rect", { x: "70", y: "95", width: "12", height: "35", fill: "#fbbf24", opacity: "0.7" }),
+        [0, 1, 2, 3, 4].map((i) => React.createElement("rect", { key: i, x: 140 + i * 30, y: 130 - (20 + i * 18), width: "18", height: 20 + i * 18, rx: "3", fill: "#34d399", opacity: 0.55 + i * 0.09 })),
+        React.createElement("polyline", { points: "140,110 170,95 200,100 230,70 260,55", fill: "none", stroke: "#6ee7b7", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }),
+        React.createElement("circle", { cx: "260", cy: "55", r: "4", fill: "#fff" })
+      ),
+      React.createElement("div", { style: { position: "absolute", left: "14px", bottom: "14px", background: "rgba(15,23,42,.85)", borderRadius: "10px", padding: "6px 10px", fontSize: "10px", display: "flex", alignItems: "center", gap: "5px" } },
+        React.createElement("span", null, "\uD83D\uDC64"), "ลูกค้าใหม่ ", React.createElement("b", { style: { color: "#34d399" } }, "+23%")
+      ),
+      React.createElement("div", { style: { position: "absolute", right: "14px", top: "14px", background: "rgba(15,23,42,.85)", borderRadius: "10px", padding: "6px 10px", fontSize: "10px", display: "flex", alignItems: "center", gap: "5px" } },
+        React.createElement("span", null, "\uD83D\uDCB0"), "ยอดขายรวม ", React.createElement("b", { style: { color: "#34d399" } }, "+41%")
+      )
+    ),
+    React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "22px" } },
+      [["\uD83D\uDCF1", "รองรับทุกอุปกรณ์"], ["\u2705", "ระบบปลอดภัย"], ["\u2601\uFE0F", "สำรองข้อมูลอัตโนมัติ"], ["\uD83D\uDD52", "ทีมซัพพอร์ต 24/7"]].map(([icon, t], i) =>
+        React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: "6px", fontSize: "10.5px", color: "rgba(255,255,255,.6)" } }, icon, " ", t)
+      )
+    ),
+    React.createElement("div", { style: { fontSize: "10px", color: "rgba(255,255,255,.3)", marginTop: "22px" } }, "\u00A9 ", new Date().getFullYear() + 543 - 2000 + 2000 - 0, " SolarCRM. All rights reserved.")
+  );
+}
+function LoginAnnouncementsPanel() {
+  const items = [
+    { tag: "NEW", tone: "#3b82f6", icon: "\uD83D\uDCE3", title: "อัปเดตระบบใหม่", desc: "เพิ่มฟีเจอร์จัดการใบเสนอราคาและติดตามสถานะงานได้ง่ายขึ้น" },
+    { tag: null, tone: "#10b981", icon: "\uD83D\uDCC8", title: "ฟีเจอร์คลังสินค้า", desc: "เชื่อมสต๊อกกับใบสั่งซื้อและบัญชีบริษัทอัตโนมัติ" },
+    { tag: null, tone: "#f59e0b", icon: "\uD83C\uDF81", title: "ระบบทีมช่าง", desc: "มอบหมายงานและติดตามช่างได้จากในระบบเดียว" }
+  ];
+  return React.createElement("div", { className: "hidden xl:block", style: { position: "relative", zIndex: 5, width: "260px" } },
+    React.createElement("div", { style: { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "20px", padding: "18px", backdropFilter: "blur(10px)" } },
+      React.createElement("div", { style: { fontSize: "13px", fontWeight: 700, color: "#fff", marginBottom: "14px", display: "flex", alignItems: "center", gap: "6px" } }, "\uD83D\uDCE2 ประกาศ & ข่าวสาร"),
+      items.map((it, i) => React.createElement("div", { key: i, style: { marginBottom: i === items.length - 1 ? 0 : "14px", paddingBottom: i === items.length - 1 ? 0 : "14px", borderBottom: i === items.length - 1 ? "none" : "1px solid rgba(255,255,255,.06)" } },
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" } },
+          it.tag && React.createElement("span", { style: { fontSize: "8px", fontWeight: 800, background: it.tone, color: "#fff", padding: "1px 6px", borderRadius: "4px" } }, it.tag),
+          React.createElement("span", { style: { fontSize: "12px", fontWeight: 700, color: "#fff" } }, it.icon, " ", it.title)
+        ),
+        React.createElement("div", { style: { fontSize: "10.5px", color: "rgba(255,255,255,.5)", lineHeight: 1.5 } }, it.desc)
+      ))
+    )
+  );
 }
 
 function RoleSelectScreen({ onSelect }) {
