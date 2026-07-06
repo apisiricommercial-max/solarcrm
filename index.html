@@ -187,6 +187,18 @@ tailwind.config = {
   .fade-in > *:nth-child(5){animation-delay:.22s}
   .fade-in > *:nth-child(6){animation-delay:.27s}
 
+  /* ===== ลูกเล่นเพิ่มเติมสำหรับหน้าลูกค้า (หรูหรา มีชีวิตชีวา) ===== */
+  @keyframes rowIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+  .row-anim{animation:rowIn .45s cubic-bezier(.2,.7,.3,1) backwards}
+  @keyframes avatarPop{0%{transform:scale(.75) rotate(-10deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+  .avatar-pop{animation:avatarPop .5s cubic-bezier(.34,1.56,.64,1) backwards}
+  @keyframes pulseRingRed{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 5px rgba(239,68,68,0)}}
+  .hot-pulse{animation:pulseRingRed 1.8s ease-in-out infinite}
+  @keyframes tabPopIn{0%{transform:scale(.92)}60%{transform:scale(1.04)}100%{transform:scale(1)}}
+  .tab-active-pop{animation:tabPopIn .32s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes shimmerText{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .value-shimmer{background:linear-gradient(90deg,#059669,#34d399,#059669);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmerText 3s linear infinite}
+
   /* ===== HOVER LIFT on cards ===== */
   [class~="rounded-2xl"][class~="shadow-sm"]{transition:transform .2s ease,box-shadow .2s ease}
   [class~="rounded-2xl"][class~="shadow-sm"]:hover{transform:translateY(-3px);box-shadow:0 14px 30px -12px rgba(15,23,42,.28)}
@@ -1591,9 +1603,9 @@ function StatusBadge({ s }) {
   const o = statusOf(s);
   return /* @__PURE__ */ React.createElement(Badge, { cls: o.soft }, /* @__PURE__ */ React.createElement("span", { className: `w-1.5 h-1.5 rounded-full ${o.color}` }), o.label);
 }
-function HeatBadge({ h }) {
-  const o = heatOf(h);
-  return /* @__PURE__ */ React.createElement(Badge, { cls: o.soft }, o.emoji, " ", o.label);
+function HeatBadge({ h: heatKey }) {
+  const o = heatOf(heatKey);
+  return /* @__PURE__ */ React.createElement(Badge, { cls: `${o.soft} ${heatKey === "hot" ? "hot-pulse" : ""}` }, o.emoji, " ", o.label);
 }
 function Icon({ d, cls = "w-5 h-5" }) {
   return /* @__PURE__ */ React.createElement("svg", { className: cls, fill: "none", viewBox: "0 0 24 24", strokeWidth: "1.8", stroke: "currentColor" }, /* @__PURE__ */ React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d }));
@@ -2954,13 +2966,40 @@ function Dashboard({ rows, onOpen }) {
     )
   ), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4" }, /* @__PURE__ */ React.createElement(Stat, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14", value: fmt(total), sub: "\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A", icon: I.users, tone: "blue" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48", value: fmt(isNew), sub: "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D", icon: I.plus, tone: "violet" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", value: fmt(following), sub: "\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E44\u0E1B\u0E1B\u0E4C\u0E44\u0E25\u0E19\u0E4C", icon: I.bell, tone: "amber" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22\u0E41\u0E25\u0E49\u0E27", value: fmt(won.length), sub: `\u0E2D\u0E31\u0E15\u0E23\u0E32\u0E1B\u0E34\u0E14 ${total ? Math.round(won.length / total * 100) : 0}%`, icon: I.check, tone: "green" })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "sheen rounded-2xl p-5 text-white shadow-sm", style: { background: "linear-gradient(135deg, var(--grad-from), var(--grad-to))" } }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-white/80" }, "\u0E22\u0E2D\u0E14\u0E02\u0E32\u0E22\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E44\u0E14\u0E49"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-white/70 bg-white/15 rounded-full px-2 py-0.5 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(Icon, { d: I.clock, cls: "w-3 h-3" }), monthLabelTh)), /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold mt-1", style: { WebkitTextFillColor: "#fff" } }, baht(closedThisMonthValue)), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-white/80 mt-1" }, "\u0E08\u0E32\u0E01 ", closedThisMonth.length, " \u0E14\u0E35\u0E25\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08 (\u0E23\u0E27\u0E21\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19)")), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-500" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E23\u0E27\u0E21\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 (Pipeline)"), /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold text-ink-900 mt-1" }, baht(totalValue)), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, "\u0E23\u0E27\u0E21\u0E17\u0E38\u0E01\u0E2A\u0E16\u0E32\u0E19\u0E30")), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2.5" }, srcData.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-500 w-20 shrink-0" }, s.label), /* @__PURE__ */ React.createElement("div", { className: "flex-1 h-2.5 rounded-full bg-ink-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full", style: { width: `${s.value / maxSrc * 100}%`, background: "linear-gradient(90deg, var(--grad-from), var(--grad-to))" } })), /* @__PURE__ */ React.createElement("span", { className: "num text-xs font-semibold text-ink-700 w-6 text-right" }, s.value)))))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "\u0E2A\u0E23\u0E38\u0E1B\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement(Donut, { data: statusData, unit: "\u0E23\u0E32\u0E22" }))));
 }
+function CountUpNumber({ value, format }) {
+  const [display, setDisplay] = useState(0);
+  const prevRef = useRef(0);
+  useEffect(() => {
+    const from = prevRef.current;
+    const to = Number(value) || 0;
+    if (from === to) { setDisplay(to); return; }
+    const duration = 550;
+    const start = performance.now();
+    let raf;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(Math.round(from + (to - from) * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else prevRef.current = to;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => raf && cancelAnimationFrame(raf);
+    // eslint-disable-next-line
+  }, [value]);
+  return h(React.Fragment, null, format ? format(display) : display);
+}
 function CustomerAvatar({ name, size }) {
   const initial = (name || "?").trim().charAt(0).toUpperCase() || "?";
-  // สีวนตามตัวอักษรแรกของชื่อ ทำให้แต่ละคนมีสีต่างกันแต่คงที่เสมอ (ไม่สุ่มใหม่ทุกครั้งที่ render)
-  const colors = ["bg-blue-100 text-blue-700", "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700", "bg-violet-100 text-violet-700", "bg-rose-100 text-rose-700", "bg-cyan-100 text-cyan-700", "bg-orange-100 text-orange-700", "bg-indigo-100 text-indigo-700"];
-  const idx = initial.charCodeAt(0) % colors.length;
+  // ไล่เฉดสีวนตามตัวอักษรแรกของชื่อ ทำให้แต่ละคนมีสีต่างกันแต่คงที่เสมอ (ไม่สุ่มใหม่ทุกครั้งที่ render)
+  const gradients = [
+    "from-blue-400 to-indigo-500", "from-emerald-400 to-teal-500", "from-amber-400 to-orange-500",
+    "from-violet-400 to-purple-500", "from-rose-400 to-pink-500", "from-cyan-400 to-sky-500",
+    "from-orange-400 to-red-500", "from-indigo-400 to-blue-600"
+  ];
+  const idx = initial.charCodeAt(0) % gradients.length;
   const sizeCls = size === "sm" ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm";
-  return h("div", { className: `${sizeCls} rounded-full ${colors[idx]} flex items-center justify-center font-bold shrink-0` }, initial);
+  return h("div", { className: `avatar-pop ${sizeCls} rounded-full bg-gradient-to-br ${gradients[idx]} text-white flex items-center justify-center font-bold shrink-0 shadow-sm ring-2 ring-white transition-transform hover:scale-110` }, initial);
 }
 function CustomerTable({ rows, onOpen, onEdit, onDelete }) {
   const [sortKey, setSortKey] = useState(null);
@@ -3001,9 +3040,14 @@ function CustomerTable({ rows, onOpen, onEdit, onDelete }) {
           )
         ),
         h("tbody", { className: "divide-y divide-ink-50" },
-          sorted.map((c) => {
+          sorted.map((c, i) => {
             const du = daysUntil(c.nextFollowup);
-            return h("tr", { key: c.id, className: "hover:bg-brand-50/30 transition cursor-pointer group", onClick: () => onOpen(c) },
+            return h("tr", {
+              key: c.id,
+              className: "row-anim hover:bg-brand-50/40 transition-all duration-200 cursor-pointer group hover:shadow-sm",
+              style: { animationDelay: Math.min(i, 14) * 0.035 + "s" },
+              onClick: () => onOpen(c)
+            },
               h("td", { className: "px-4 py-3" },
                 h("div", { className: "flex items-center gap-3" },
                   h(CustomerAvatar, { name: c.name }),
@@ -3015,7 +3059,7 @@ function CustomerTable({ rows, onOpen, onEdit, onDelete }) {
               ),
               h("td", { className: "px-4 py-3 text-ink-600" }, c.province ? h("span", { className: "inline-flex items-center gap-1" }, "\uD83D\uDCCD", c.province) : h("span", { className: "text-ink-300" }, "\u2014")),
               h("td", { className: "px-4 py-3 text-ink-600" }, c.systemSize || h("span", { className: "text-ink-300" }, "\u2014")),
-              h("td", { className: "px-4 py-3 num font-bold text-emerald-600 text-right" }, baht(c.value)),
+              h("td", { className: "px-4 py-3 num font-bold value-shimmer text-right" }, "\u0E3F", h(CountUpNumber, { value: c.value || 0, format: (n) => n.toLocaleString("th-TH") })),
               h("td", { className: "px-4 py-3" }, h(HeatBadge, { h: c.heat })),
               h("td", { className: "px-4 py-3" }, c.nextFollowup ? h("span", { className: `text-xs font-semibold ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup)) : h("span", { className: "text-xs text-ink-300" }, "\u2014")),
               h("td", { className: "px-4 py-3", onClick: (e) => e.stopPropagation() },
@@ -3030,15 +3074,15 @@ function CustomerTable({ rows, onOpen, onEdit, onDelete }) {
       )
     ),
     h("div", { className: "md:hidden divide-y divide-ink-50" },
-      rows.map((c) => {
+      rows.map((c, i) => {
         const du = daysUntil(c.nextFollowup);
-        return h("div", { key: c.id, className: "p-4", onClick: () => onOpen(c) },
+        return h("div", { key: c.id, className: "row-anim p-4 active:bg-ink-50 transition-colors", style: { animationDelay: Math.min(i, 14) * 0.035 + "s" }, onClick: () => onOpen(c) },
           h("div", { className: "flex items-start gap-3" },
             h(CustomerAvatar, { name: c.name }),
             h("div", { className: "min-w-0 flex-1" },
               h("div", { className: "flex items-start justify-between gap-2" },
                 h("div", { className: "font-semibold text-ink-800 truncate" }, c.name),
-                h("span", { className: "num font-bold text-emerald-600 shrink-0" }, baht(c.value))
+                h("span", { className: "num font-bold value-shimmer shrink-0" }, "\u0E3F", h(CountUpNumber, { value: c.value || 0, format: (n) => n.toLocaleString("th-TH") }))
               ),
               h("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province ? "\uD83D\uDCCD " + c.province : "\u2014", " \xB7 ", c.phone || "\u2014"),
               h("div", { className: "flex flex-wrap items-center gap-2 mt-2" }, h(HeatBadge, { h: c.heat }), h(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.systemSize)),
@@ -3133,10 +3177,10 @@ function Customers({ rows, onOpen, onEdit, onDelete, onAdd, locked }) {
       tabs.map((t) => h("button", {
         key: t.key,
         onClick: () => setActiveTab(t.key),
-        className: `shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition ${activeTab === t.key ? "bg-brand-600 text-white shadow-sm" : "bg-white text-ink-600 ring-1 ring-ink-200 hover:bg-ink-50"}`
+        className: `shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${activeTab === t.key ? "bg-brand-600 text-white shadow-md tab-active-pop" : "bg-white text-ink-600 ring-1 ring-ink-200 hover:bg-ink-50 hover:-translate-y-0.5"}`
       },
-        h("span", null, t.icon), h("span", null, t.label),
-        h("span", { className: `num text-xs font-bold px-1.5 py-0.5 rounded-full ${activeTab === t.key ? "bg-white/25" : "bg-ink-100 text-ink-500"}` }, t.rows.length)
+        h("span", { className: activeTab === t.key ? "inline-block" : "" }, t.icon), h("span", null, t.label),
+        h("span", { className: `num text-xs font-bold px-1.5 py-0.5 rounded-full transition-colors ${activeTab === t.key ? "bg-white/25" : "bg-ink-100 text-ink-500"}` }, t.rows.length)
       ))
     ),
     h("div", { className: "text-sm text-ink-500" },
