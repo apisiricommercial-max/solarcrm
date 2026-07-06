@@ -971,7 +971,7 @@ const inventoryDb = {
     if (error) throw error;
   },
   // เริ่มติดตามพัสดุผ่าน 17TRACK — เรียก Edge Function เพราะต้องใช้ API key ลับของ 17TRACK (เก็บไว้ฝั่งเซิร์ฟเวอร์เท่านั้น)
-  async registerTracking(poId, trackingNumber) {
+  async registerTracking(poId, trackingNumber, carrierName) {
     if (!sb || !window.SUPABASE_URL) throw new Error("ยังไม่ได้ตั้งค่า Supabase");
     const { data: sessionData } = await sb.auth.getSession();
     const token = sessionData && sessionData.session ? sessionData.session.access_token : window.SUPABASE_ANON_KEY;
@@ -982,7 +982,7 @@ const inventoryDb = {
         "Authorization": "Bearer " + token,
         "apikey": window.SUPABASE_ANON_KEY
       },
-      body: JSON.stringify({ po_id: poId, tracking_number: trackingNumber })
+      body: JSON.stringify({ po_id: poId, tracking_number: trackingNumber, carrier_name: carrierName || null })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "เริ่มติดตามพัสดุไม่สำเร็จ");
@@ -5286,7 +5286,9 @@ function PODetailExtras({ po, onChanged }) {
   const fileRef = useRef(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [trackingInput, setTrackingInput] = useState(po.tracking_number || "");
+  const [carrierInput, setCarrierInput] = useState("");
   const [registering, setRegistering] = useState(false);
+  const CARRIER_OPTIONS = ["", "Flash Express", "Kerry Express (TH)", "J&T Express (TH)", "Thailand Post", "Ninja Van (TH)", "Shopee Xpress (TH)", "DHL", "Best Express (TH)"];
 
   const onPickReceipt = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -5304,7 +5306,7 @@ function PODetailExtras({ po, onChanged }) {
     if (!trackingInput.trim()) { alert("กรอกเลขพัสดุก่อนนะครับ"); return; }
     setRegistering(true);
     try {
-      await inventoryDb.registerTracking(po.id, trackingInput.trim());
+      await inventoryDb.registerTracking(po.id, trackingInput.trim(), carrierInput);
       onChanged();
       alert("เริ่มติดตามพัสดุแล้ว! ระบบจะอัปเดตสถานะให้อัตโนมัติผ่าน 17TRACK");
     } catch (e) { alert("เริ่มติดตามไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
@@ -5324,13 +5326,20 @@ function PODetailExtras({ po, onChanged }) {
       h("div", { className: "text-xs font-semibold text-ink-600 mb-2" }, "\uD83D\uDCE6 ติดตามพัสดุ (17TRACK)"),
       po.tracking_number
         ? h("div", { className: "space-y-1" },
-            h("div", { className: "text-xs text-ink-500" }, "เลขพัสดุ: ", h("span", { className: "font-mono" }, po.tracking_number)),
+            h("div", { className: "text-xs text-ink-500" }, "เลขพัสดุ: ", h("span", { className: "font-mono" }, po.tracking_number), po.tracking_carrier && h("span", { className: "text-ink-400" }, " \xB7 ", po.tracking_carrier)),
             h("div", { className: "text-xs font-medium text-brand-600" }, po.tracking_status_detail || "รอผลอัปเดต"),
             po.tracking_updated_at && h("div", { className: "text-[10px] text-ink-300" }, "อัปเดตล่าสุด: ", new Date(po.tracking_updated_at).toLocaleString("th-TH"))
           )
-        : h("div", { className: "flex gap-2" },
-            h("input", { value: trackingInput, onChange: (e) => setTrackingInput(e.target.value), placeholder: "กรอกเลขพัสดุ", className: "flex-1 px-2 py-1.5 rounded-lg border border-ink-200 text-xs outline-none focus:border-brand-500" }),
-            h("button", { onClick: startTracking, disabled: registering, className: "text-xs px-3 py-1.5 rounded-lg bg-brand-600 text-white font-semibold hover:bg-brand-700 disabled:opacity-50 shrink-0" }, registering ? "..." : "เริ่มติดตาม")
+        : h("div", { className: "space-y-1.5" },
+            h("input", { value: trackingInput, onChange: (e) => setTrackingInput(e.target.value), placeholder: "กรอกเลขพัสดุ", className: "w-full px-2 py-1.5 rounded-lg border border-ink-200 text-xs outline-none focus:border-brand-500" }),
+            h("div", { className: "flex gap-2" },
+              h("select", { value: carrierInput, onChange: (e) => setCarrierInput(e.target.value), className: "flex-1 px-2 py-1.5 rounded-lg border border-ink-200 text-xs" },
+                h("option", { value: "" }, "ให้ระบบตรวจจับเอง"),
+                CARRIER_OPTIONS.filter(Boolean).map((c) => h("option", { key: c, value: c }, c))
+              ),
+              h("button", { onClick: startTracking, disabled: registering, className: "text-xs px-3 py-1.5 rounded-lg bg-brand-600 text-white font-semibold hover:bg-brand-700 disabled:opacity-50 shrink-0" }, registering ? "..." : "เริ่มติดตาม")
+            ),
+            h("div", { className: "text-[10px] text-ink-400" }, "ถ้าระบบหาบริษัทขนส่งไม่เจอ ลองเลือกเองในดรอปดาวน์ดูครับ")
           )
     )
   );
@@ -7367,11 +7376,15 @@ function Gate() {
     });
     return () => { try { sub.subscription.unsubscribe(); } catch (e) {} };
   }, []);
-  // เช็คว่า user คนนี้เลือกบทบาท (บริษัท/ช่าง) อะไรไว้ — เช็คทุกครั้งที่ session เปลี่ยน
-  // สำคัญ: ต้องเช็ค "pending role" ที่เพิ่งเลือกไว้หน้า Login ก่อนเป็นอันดับแรกเสมอ แล้ว "เขียนทับ" ค่าจาก DB ได้เลย
-  // (ไม่ใช่แค่ตอนยังไม่เคยเลือก) เพราะถ้าเช็ค role เดิมใน DB ก่อน จะทำให้กดเลือกบทบาทใหม่ตอน Login ไปแล้วไม่มีผลอะไรเลย — นี่คือสาเหตุของบั๊กที่เลือก "ช่าง" แล้วไม่เข้าโปรไฟล์ช่าง
+  // เช็คว่า user คนนี้เลือกบทบาท (บริษัท/ช่าง) อะไรไว้ — เช็คเฉพาะตอน "เปลี่ยนคนละ user" จริงๆ เท่านั้น
+  // สำคัญ: ห้ามเช็คซ้ำทุกครั้งที่ session เปลี่ยน เพราะ Supabase จะรีเฟรช token อัตโนมัติเวลาสลับกลับมาที่แท็บ
+  // (เป็น user คนเดิม แค่ token ใหม่) ถ้าเช็คซ้ำทุกครั้งจะรีเซ็ต role เป็น "กำลังโหลด" ทำให้แอปทั้งหน้าถูก
+  // ถอดประกอบและสร้างใหม่ (unmount/remount) หน้าที่เปิดค้างไว้ (เช่นคลังสินค้า) จะหายกลับไปแดชบอร์ดทันที — นี่คือบั๊กที่เจอ
+  const lastCheckedUserId = React.useRef(null);
   React.useEffect(() => {
-    if (!sb || !session || !session.user) { setRole(null); return; }
+    if (!sb || !session || !session.user) { setRole(null); lastCheckedUserId.current = null; return; }
+    if (lastCheckedUserId.current === session.user.id) return; // user เดิม (แค่ token refresh) ข้ามไปเลย ไม่ต้องเช็คซ้ำ
+    lastCheckedUserId.current = session.user.id;
     setRole(undefined);
     (async () => {
       let pending = null;
