@@ -2186,9 +2186,9 @@ function Donut({ data, unit }) {
     )
   );
 }
-function Stat({ label, value, sub, icon, tone }) {
+function Stat({ label, value, sub, icon, tone, trend }) {
   const tones = { blue: "bg-brand-50 text-brand-600", green: "bg-emerald-50 text-emerald-600", amber: "bg-amber-50 text-amber-600", violet: "bg-violet-50 text-violet-600", slate: "bg-ink-100 text-ink-600", red: "bg-red-50 text-red-600" };
-  return /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-500" }, label), /* @__PURE__ */ React.createElement("span", { className: `w-9 h-9 rounded-xl flex items-center justify-center ${tones[tone]}` }, /* @__PURE__ */ React.createElement(Icon, { d: icon, cls: "w-5 h-5" }))), /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900 mt-2" }, value), sub && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, sub));
+  return /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-500" }, label), /* @__PURE__ */ React.createElement("span", { className: `w-9 h-9 rounded-xl flex items-center justify-center ${tones[tone]}` }, /* @__PURE__ */ React.createElement(Icon, { d: icon, cls: "w-5 h-5" }))), /* @__PURE__ */ React.createElement("div", { className: "num text-2xl font-bold text-ink-900 mt-2" }, value), trend != null && /* @__PURE__ */ React.createElement("div", { className: `text-xs font-semibold mt-1 inline-flex items-center gap-1 ${trend > 0 ? "text-emerald-600" : trend < 0 ? "text-red-500" : "text-ink-400"}` }, trend > 0 ? "\u2191" : trend < 0 ? "\u2193" : "", Math.abs(trend), "% จากเดือนที่แล้ว"), sub && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-0.5" }, sub));
 }
 function TeamPerformanceTab() {
   const [rows, setRows] = useState([]);
@@ -2961,24 +2961,50 @@ function SkeletonGrid() {
     )
   );
 }
+function Sparkline({ data, stroke, fill }) {
+  const w = 200, hgt = 56;
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => [(i / (data.length - 1)) * w, hgt - ((v - min) / range) * (hgt - 6) - 3]);
+  const path = pts.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  const areaPath = path + ` L${w},${hgt} L0,${hgt} Z`;
+  return h("svg", { viewBox: `0 0 ${w} ${hgt}`, className: "w-full h-14", preserveAspectRatio: "none" },
+    fill && h("path", { d: areaPath, fill, stroke: "none" }),
+    h("path", { d: path, fill: "none", stroke: stroke || "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" })
+  );
+}
+function monthlyBuckets(rows, dateField, months) {
+  const buckets = [];
+  const now = new Date();
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    buckets.push({ key: d.toISOString().slice(0, 7), sum: 0 });
+  }
+  rows.forEach((r) => {
+    const dv = r[dateField];
+    if (!dv) return;
+    const key = String(dv).slice(0, 7);
+    const b = buckets.find((x) => x.key === key);
+    if (b) b.sum += Number(r.value) || 0;
+  });
+  return buckets.map((b) => b.sum);
+}
 function Dashboard({ rows, onOpen }) {
   const total = rows.length;
   const isNew = rows.filter((r) => r.status === "new").length;
   const following = rows.filter((r) => FOLLOWING.includes(r.status)).length;
   const won = rows.filter((r) => r.status === "won" || r.status === "warranty");
   const totalValue = rows.reduce((s, r) => s + (r.value || 0), 0);
-  // "ปิดได้" รวมทั้งสถานะปิดการขาย (won) และอยู่ในประกัน (warranty) เพราะทั้งคู่คือปิดงานสำเร็จแล้ว
-  // นับเฉพาะเดือนปัจจุบัน (ใช้ wonAt ที่บันทึกอัตโนมัติตอนปิดงาน — ถ้าไม่มี wonAt เก่ากว่าระบบนี้ ให้นับรวมไว้ก่อน กันยอดหายจากเคสเก่า)
   const curMonth = todayISO().slice(0, 7);
+  const lastMonthKey = (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
   const closedThisMonth = rows.filter((r) => (r.status === "won" || r.status === "warranty") && (!r.wonAt || r.wonAt.slice(0, 7) === curMonth));
   const closedThisMonthValue = closedThisMonth.reduce((s, r) => s + (r.value || 0), 0);
   const monthLabelTh = new Date().toLocaleDateString("th-TH", { month: "long", year: "numeric" });
   const statusData = STATUSES.filter((s) => s.key !== "lost").map((s) => ({ label: s.label, value: rows.filter((r) => r.status === s.key).length, color: { new: "#3b82f6", talking: "#6366f1", sent: "#06b6d4", waiting: "#f59e0b", won: "#10b981", warranty: "#14b8a6" }[s.key] }));
   const srcData = SOURCES.map((s) => ({ label: s, value: rows.filter((r) => r.source === s).length })).sort((a, b) => b.value - a.value);
   const maxSrc = Math.max(...srcData.map((s) => s.value), 1);
-  // ลูกค้าที่ปิดเคสแล้ว (ปิดการขาย/อยู่ในประกัน) หรือไม่สนใจแล้ว ไม่ต้องติดตามต่อ
-  const dueToday = rows.filter((r) => r.nextFollowup && daysUntil(r.nextFollowup) <= 0 && !["won", "warranty", "lost"].includes(r.status));
-  // ===== วิดเจ็ต "งานที่ต้องทำวันนี้" — รวมทุกอย่างที่ต้องรีบทำมาไว้จุดเดียว เด่นที่สุดบนแดชบอร์ด =====
   const overdueFollow = rows.filter((r) => r.nextFollowup && daysUntil(r.nextFollowup) < 0 && !["won", "warranty", "lost"].includes(r.status));
   const todayFollow = rows.filter((r) => r.nextFollowup && daysUntil(r.nextFollowup) === 0 && !["won", "warranty", "lost"].includes(r.status));
   const warrantyAlertsToday = rows.map((r) => ({ r, w: warrantyInfo(r) })).filter(({ w }) => w && (w.soon || w.expired));
@@ -2987,33 +3013,107 @@ function Dashboard({ rows, onOpen }) {
     ...todayFollow.map((r) => ({ id: "t" + r.id, customer: r, order: 1, icon: "\u{1F7E1}", label: "\u0E04\u0E23\u0E1A\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49", tone: "amber" })),
     ...warrantyAlertsToday.map(({ r, w }) => ({ id: "w" + r.id, customer: r, order: 2, icon: w.expired ? "\u26A0\uFE0F" : "\u{1F6E1}\uFE0F", label: w.expired ? `\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E41\u0E25\u0E49\u0E27 ${Math.abs(w.daysLeft)} \u0E27\u0E31\u0E19` : `\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19\u0E43\u0E01\u0E25\u0E49\u0E2B\u0E21\u0E14 (\u0E40\u0E2B\u0E25\u0E37\u0E2D ${w.daysLeft} \u0E27\u0E31\u0E19)`, tone: w.expired ? "red" : "orange" }))
   ].sort((a, b) => a.order - b.order);
+
+  // ===== เทรนด์จริงเทียบเดือนที่แล้ว (คำนวณจากข้อมูลจริงทั้งหมด ไม่มีตัวเลขปลอม) =====
+  const newThisMonthCount = rows.filter((r) => r.createdAt && r.createdAt.slice(0, 7) === curMonth).length;
+  const newLastMonthCount = rows.filter((r) => r.createdAt && r.createdAt.slice(0, 7) === lastMonthKey).length;
+  const newTrend = newLastMonthCount > 0 ? Math.round((newThisMonthCount - newLastMonthCount) / newLastMonthCount * 100) : (newThisMonthCount > 0 ? 100 : 0);
+  const totalUpToLastMonth = rows.filter((r) => !r.createdAt || r.createdAt.slice(0, 7) <= lastMonthKey).length;
+  const totalTrend = totalUpToLastMonth > 0 ? Math.round((total - totalUpToLastMonth) / totalUpToLastMonth * 100) : 0;
+  const closedLastMonthCount = rows.filter((r) => (r.status === "won" || r.status === "warranty") && r.wonAt && r.wonAt.slice(0, 7) === lastMonthKey).length;
+  const closedTrend = closedLastMonthCount > 0 ? Math.round((closedThisMonth.length - closedLastMonthCount) / closedLastMonthCount * 100) : (closedThisMonth.length > 0 ? 100 : 0);
+
+  // ===== ตัวเลขสรุปด้านล่าง (คำนวณจากดีลที่ปิดจริงทั้งหมด) =====
+  const avgDealValue = won.length > 0 ? Math.round(won.reduce((s, r) => s + (r.value || 0), 0) / won.length) : 0;
+  const daysToCloseList = won.filter((r) => r.createdAt && r.wonAt).map((r) => Math.max(0, Math.round((new Date(r.wonAt) - new Date(r.createdAt)) / 86400000)));
+  const avgDaysToClose = daysToCloseList.length > 0 ? Math.round(daysToCloseList.reduce((a, b) => a + b, 0) / daysToCloseList.length) : null;
+  const conversionRate = total > 0 ? Math.round(won.length / total * 100) : 0;
+  const curYear = new Date().getFullYear();
+  const wonThisYear = won.filter((r) => r.wonAt && new Date(r.wonAt).getFullYear() === curYear);
+  const revenueThisYear = wonThisYear.reduce((s, r) => s + (r.value || 0), 0);
+
+  const salesSpark = monthlyBuckets(won.map((r) => ({ ...r, createdAt: r.wonAt })), "createdAt", 6);
+  const pipelineSpark = monthlyBuckets(rows, "createdAt", 6);
+
+  // ===== กิจกรรมล่าสุด (รวม timeline จริงของทุกลูกค้า ไม่ใช่ข้อมูลตัวอย่าง) =====
+  const activityFeed = rows.flatMap((r) => (r.timeline || []).map((t) => ({ ...t, customerName: r.name, customer: r })))
+    .filter((t) => t.date)
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+    .slice(0, 5);
+
   const todayThaiFull = new Date().toLocaleDateString("th-TH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  return /* @__PURE__ */ React.createElement("div", { className: "space-y-5 fade-in" }, h("div", { className: "rounded-2xl overflow-hidden shadow-lg ring-1 ring-ink-100" },
-    h("div", { className: "bg-gradient-to-br from-ink-900 to-ink-800 px-5 py-4 flex items-center justify-between flex-wrap gap-3" },
-      h("div", null,
-        h("div", { className: "text-white font-bold text-lg flex items-center gap-2" }, "\u{1F4C5} \u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E17\u0E33\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49"),
-        h("div", { className: "text-ink-300 text-xs mt-0.5" }, todayThaiFull)
-      ),
-      h("div", { className: `text-2xl font-black num px-4 py-1.5 rounded-xl ${taskItems.length > 0 ? "bg-red-500 text-white" : "bg-emerald-500 text-white"}` }, taskItems.length)
+
+  return h("div", { className: "space-y-5 fade-in" },
+    h("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4" },
+      h(Stat, { label: "ลูกค้าทั้งหมด", value: fmt(total), sub: "ในระบบ", icon: I.users, tone: "blue", trend: totalTrend }),
+      h(Stat, { label: "ลูกค้าใหม่", value: fmt(isNew), sub: "ยังไม่ได้ติดต่อ", icon: I.plus, tone: "violet", trend: newTrend }),
+      h(Stat, { label: "กำลังติดตาม", value: fmt(following), sub: "อยู่ในไปป์ไลน์", icon: I.bell, tone: "amber" }),
+      h(Stat, { label: "ปิดการขายแล้ว", value: fmt(won.length), sub: `อัตราปิด ${conversionRate}%`, icon: I.check, tone: "green", trend: closedTrend })
     ),
-    h("div", { className: "bg-white" },
-      taskItems.length === 0
-        ? h("div", { className: "py-10 text-center" }, h("div", { className: "text-4xl mb-2" }, "\u{1F389}"), h("div", { className: "text-ink-500 text-sm font-medium" }, "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E07\u0E32\u0E19\u0E04\u0E49\u0E32\u0E07\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49 \u0E17\u0E33\u0E44\u0E14\u0E49\u0E14\u0E35\u0E21\u0E32\u0E01!"))
-        : h("div", { className: "divide-y divide-ink-50 max-h-[420px] overflow-y-auto" },
-            taskItems.map((t) => h("button", {
-              key: t.id, onClick: () => onOpen(t.customer),
-              className: "w-full flex items-center gap-3 px-5 py-3.5 hover:bg-ink-50 transition text-left"
-            },
-              h("span", { className: "text-lg shrink-0" }, t.icon),
+    h("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-4" },
+      h("div", { className: "sheen rounded-2xl p-5 text-white shadow-sm relative overflow-hidden", style: { background: "linear-gradient(135deg, var(--grad-from), var(--grad-to))" } },
+        h("div", { className: "flex items-center justify-between relative z-10" },
+          h("div", { className: "text-sm text-white/80" }, "ยอดขายที่ปิดได้"),
+          h("div", { className: "text-[10px] text-white/70 bg-white/15 rounded-full px-2 py-0.5 flex items-center gap-1" }, h(Icon, { d: I.clock, cls: "w-3 h-3" }), monthLabelTh)
+        ),
+        h("div", { className: "num text-3xl font-extrabold mt-1 relative z-10", style: { WebkitTextFillColor: "#fff" } }, baht(closedThisMonthValue)),
+        h("div", { className: "text-xs text-white/80 mt-1 relative z-10" }, "จาก ", closedThisMonth.length, " ดีลที่ปิดสำเร็จ (รวมอยู่ในประกัน)"),
+        h("div", { className: "mt-2 text-white/90" }, h(Sparkline, { data: salesSpark, stroke: "#fff", fill: "rgba(255,255,255,.18)" }))
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("div", { className: "text-sm text-ink-500" }, "มูลค่ารวมทั้งหมด (Pipeline)"),
+        h("div", { className: "num text-3xl font-extrabold text-ink-900 mt-1" }, baht(totalValue)),
+        h("div", { className: "text-xs text-ink-400 mt-1" }, "รวมทุกสถานะ"),
+        h("div", { className: "mt-2 text-brand-500" }, h(Sparkline, { data: pipelineSpark, stroke: "currentColor", fill: "rgba(124,58,237,.08)" }))
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "สรุปสถานะลูกค้า"),
+        h(Donut, { data: statusData, unit: "ราย" })
+      )
+    ),
+    h("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-4" },
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "ลูกค้าตามแหล่งที่มา"),
+        h("div", { className: "space-y-2.5" }, srcData.map((s) => h("div", { key: s.label, className: "flex items-center gap-3" },
+          h("span", { className: "text-xs text-ink-500 w-20 shrink-0 truncate" }, s.label),
+          h("div", { className: "flex-1 h-2.5 rounded-full bg-ink-100 overflow-hidden" }, h("div", { className: "h-full rounded-full", style: { width: `${s.value / maxSrc * 100}%`, background: "linear-gradient(90deg, var(--grad-from), var(--grad-to))" } })),
+          h("span", { className: "num text-xs font-semibold text-ink-700 w-6 text-right" }, s.value)
+        )))
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "กิจกรรมล่าสุด"),
+        activityFeed.length === 0
+          ? h("div", { className: "text-xs text-ink-400 text-center py-8" }, "ยังไม่มีกิจกรรมล่าสุด")
+          : h("div", { className: "space-y-3" }, activityFeed.map((a) => h("button", { key: a.id, onClick: () => onOpen(a.customer), className: "w-full flex items-start gap-2.5 text-left hover:bg-ink-50 rounded-lg p-1.5 -m-1.5 transition" },
+              h("span", { className: "w-7 h-7 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-xs shrink-0 mt-0.5" }, "\uD83D\uDCDD"),
               h("div", { className: "min-w-0 flex-1" },
-                h("div", { className: "font-semibold text-ink-800 text-sm truncate" }, t.customer.name),
-                h("div", { className: "text-xs text-ink-400 truncate" }, t.customer.province || "\u2014", " \xB7 ", t.customer.phone || "\u2014")
-              ),
-              h("span", { className: `text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${t.tone === "red" ? "bg-red-50 text-red-600" : t.tone === "amber" ? "bg-amber-50 text-amber-600" : "bg-orange-50 text-orange-600"}` }, t.label)
-            ))
-          )
+                h("div", { className: "text-xs font-medium text-ink-700 truncate" }, a.topic || "\u2014"),
+                h("div", { className: "text-[11px] text-ink-400" }, a.customerName, " \xB7 ", thDate(a.date))
+              )
+            )))
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden flex flex-col" },
+        h("div", { className: "px-5 py-3.5 border-b border-ink-50 flex items-center justify-between" },
+          h("h4", { className: "text-sm font-semibold text-ink-700" }, "งานที่ต้องทำวันนี้"),
+          h("span", { className: `text-xs font-black num px-2.5 py-0.5 rounded-full ${taskItems.length > 0 ? "bg-red-500 text-white" : "bg-emerald-500 text-white"}` }, taskItems.length)
+        ),
+        taskItems.length === 0
+          ? h("div", { className: "py-8 text-center flex-1" }, h("div", { className: "text-3xl mb-1" }, "\uD83C\uDF89"), h("div", { className: "text-ink-500 text-xs font-medium" }, "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E07\u0E32\u0E19\u0E04\u0E49\u0E32\u0E07\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49!"))
+          : h("div", { className: "divide-y divide-ink-50 max-h-[220px] overflow-y-auto" }, taskItems.slice(0, 5).map((t) => h("button", { key: t.id, onClick: () => onOpen(t.customer), className: "w-full flex items-center gap-2.5 px-5 py-2.5 hover:bg-ink-50 transition text-left" },
+              h("span", { className: "text-base shrink-0" }, t.icon),
+              h("div", { className: "min-w-0 flex-1" }, h("div", { className: "font-medium text-ink-800 text-xs truncate" }, t.customer.name)),
+              h("span", { className: `text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${t.tone === "red" ? "bg-red-50 text-red-600" : t.tone === "amber" ? "bg-amber-50 text-amber-600" : "bg-orange-50 text-orange-600"}` }, t.label)
+            ))),
+        taskItems.length > 5 && h("div", { className: "px-5 py-2 text-center border-t border-ink-50" }, h("span", { className: "text-xs text-brand-600 font-semibold" }, "+", taskItems.length - 5, " งานเพิ่มเติม"))
+      )
+    ),
+    h("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4" },
+      h(Stat, { label: "มูลค่าเฉลี่ยต่อดีล", value: baht(avgDealValue), sub: `จากดีลที่ปิดแล้ว ${won.length} ดีล`, icon: I.money, tone: "violet" }),
+      h(Stat, { label: "ระยะเวลาปิดดีลเฉลี่ย", value: avgDaysToClose != null ? avgDaysToClose + " วัน" : "\u2014", sub: "นับจากวันที่เพิ่มลูกค้า", icon: I.clock, tone: "blue" }),
+      h(Stat, { label: "อัตราการแปลงลูกค้า", value: conversionRate + "%", sub: "ปิดการขายสำเร็จ", icon: I.check, tone: "green" }),
+      h(Stat, { label: "รายได้รวมปีนี้", value: baht(revenueThisYear), sub: `จาก ${wonThisYear.length} ดีล`, icon: I.money, tone: "amber" })
     )
-  ), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4" }, /* @__PURE__ */ React.createElement(Stat, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14", value: fmt(total), sub: "\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A", icon: I.users, tone: "blue" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48", value: fmt(isNew), sub: "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D", icon: I.plus, tone: "violet" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", value: fmt(following), sub: "\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E44\u0E1B\u0E1B\u0E4C\u0E44\u0E25\u0E19\u0E4C", icon: I.bell, tone: "amber" }), /* @__PURE__ */ React.createElement(Stat, { label: "\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22\u0E41\u0E25\u0E49\u0E27", value: fmt(won.length), sub: `\u0E2D\u0E31\u0E15\u0E23\u0E32\u0E1B\u0E34\u0E14 ${total ? Math.round(won.length / total * 100) : 0}%`, icon: I.check, tone: "green" })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "sheen rounded-2xl p-5 text-white shadow-sm", style: { background: "linear-gradient(135deg, var(--grad-from), var(--grad-to))" } }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-white/80" }, "\u0E22\u0E2D\u0E14\u0E02\u0E32\u0E22\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E44\u0E14\u0E49"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-white/70 bg-white/15 rounded-full px-2 py-0.5 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(Icon, { d: I.clock, cls: "w-3 h-3" }), monthLabelTh)), /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold mt-1", style: { WebkitTextFillColor: "#fff" } }, baht(closedThisMonthValue)), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-white/80 mt-1" }, "\u0E08\u0E32\u0E01 ", closedThisMonth.length, " \u0E14\u0E35\u0E25\u0E17\u0E35\u0E48\u0E1B\u0E34\u0E14\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08 (\u0E23\u0E27\u0E21\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19)")), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-500" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E23\u0E27\u0E21\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 (Pipeline)"), /* @__PURE__ */ React.createElement("div", { className: "num text-3xl font-extrabold text-ink-900 mt-1" }, baht(totalValue)), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mt-1" }, "\u0E23\u0E27\u0E21\u0E17\u0E38\u0E01\u0E2A\u0E16\u0E32\u0E19\u0E30")), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E32\u0E21\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2.5" }, srcData.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-500 w-20 shrink-0" }, s.label), /* @__PURE__ */ React.createElement("div", { className: "flex-1 h-2.5 rounded-full bg-ink-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full", style: { width: `${s.value / maxSrc * 100}%`, background: "linear-gradient(90deg, var(--grad-from), var(--grad-to))" } })), /* @__PURE__ */ React.createElement("span", { className: "num text-xs font-semibold text-ink-700 w-6 text-right" }, s.value)))))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "\u0E2A\u0E23\u0E38\u0E1B\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement(Donut, { data: statusData, unit: "\u0E23\u0E32\u0E22" }))));
+  );
 }
 function CountUpNumber({ value, format }) {
   const [display, setDisplay] = useState(0);
@@ -3050,9 +3150,74 @@ function CustomerAvatar({ name, size }) {
   const sizeCls = size === "sm" ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm";
   return h("div", { className: `avatar-pop ${sizeCls} rounded-full bg-gradient-to-br ${gradients[idx]} text-white flex items-center justify-center font-bold shrink-0 shadow-sm ring-2 ring-white transition-transform hover:scale-110` }, initial);
 }
+function systemTypeOf(sizeStr) {
+  const s = (sizeStr || "").toLowerCase();
+  if (s.includes("hybrid") || s.includes("\u0e41\u0e1a\u0e15") || s.includes("battery")) return { icon: "\uD83D\uDD0B", label: "Hybrid" };
+  return { icon: "\u2600\uFE0F", label: "On Grid" };
+}
+function ContactIcons({ c }) {
+  const base = "w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 transition";
+  return h("div", { className: "flex items-center gap-1.5", onClick: (e) => e.stopPropagation() },
+    c.phone
+      ? h("a", { href: `tel:${c.phone}`, title: "\u0e42\u0e17\u0e23: " + c.phone, className: `${base} bg-emerald-50 text-emerald-600 hover:bg-emerald-100` }, "\uD83D\uDCDE")
+      : h("span", { className: `${base} bg-ink-50 text-ink-300` }, "\uD83D\uDCDE"),
+    c.lineId
+      ? h("button", { onClick: () => { try { navigator.clipboard.writeText(c.lineId); } catch (e) {} alert("\u0e04\u0e31\u0e14\u0e25\u0e2d\u0e01 LINE ID \u0e41\u0e25\u0e49\u0e27: " + c.lineId); }, title: "LINE: " + c.lineId, className: `${base} bg-green-50 text-green-600 hover:bg-green-100` }, "\uD83D\uDCAC")
+      : h("span", { className: `${base} bg-ink-50 text-ink-300` }, "\uD83D\uDCAC"),
+    c.facebook
+      ? h("a", { href: c.facebook.startsWith("http") ? c.facebook : `https://facebook.com/${c.facebook}`, target: "_blank", rel: "noreferrer", title: "Facebook", className: `${base} bg-blue-50 text-blue-600 hover:bg-blue-100` }, "\uD83D\uDC64")
+      : h("span", { className: `${base} bg-ink-50 text-ink-300` }, "\uD83D\uDC64")
+  );
+}
+function Pagination({ page, setPage, totalPages, pageSize, setPageSize, totalCount }) {
+  return h("div", { className: "flex items-center justify-between flex-wrap gap-2 px-1" },
+    h("div", { className: "flex items-center gap-2 text-xs text-ink-500" },
+      "\u0e41\u0e2a\u0e14\u0e07",
+      h("select", { value: pageSize, onChange: (e) => { setPageSize(Number(e.target.value)); setPage(1); }, className: "px-2 py-1 rounded-lg border border-ink-200 text-xs" },
+        [10, 20, 50].map((n) => h("option", { key: n, value: n }, n))
+      ),
+      "\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23"
+    ),
+    h("div", { className: "text-xs text-ink-500" }, "\u0e41\u0e2a\u0e14\u0e07 ", totalCount === 0 ? 0 : (page - 1) * pageSize + 1, "-", Math.min(page * pageSize, totalCount), " \u0e08\u0e32\u0e01 ", totalCount, " \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23"),
+    h("div", { className: "flex items-center gap-1" },
+      h("button", { onClick: () => setPage((p) => Math.max(1, p - 1)), disabled: page === 1, className: "w-7 h-7 rounded-lg bg-white ring-1 ring-ink-200 text-ink-500 disabled:opacity-40" }, "\u2039"),
+      h("span", { className: "w-7 h-7 rounded-lg bg-brand-600 text-white text-xs font-bold flex items-center justify-center" }, page),
+      h("button", { onClick: () => setPage((p) => Math.min(totalPages, p + 1)), disabled: page === totalPages, className: "w-7 h-7 rounded-lg bg-white ring-1 ring-ink-200 text-ink-500 disabled:opacity-40" }, "\u203A")
+    )
+  );
+}
+function CustomerCardGrid({ rows, onOpen, onEdit, onDelete }) {
+  if (rows.length === 0) return h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 py-16 text-center text-ink-400 text-sm" }, "\u0e44\u0e21\u0e48\u0e21\u0e35\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e43\u0e19\u0e2b\u0e21\u0e27\u0e14\u0e19\u0e35\u0e49");
+  return h("div", { className: "grid sm:grid-cols-2 lg:grid-cols-3 gap-3" }, rows.map((c, i) => {
+    const sys = systemTypeOf(c.systemSize);
+    const du = daysUntil(c.nextFollowup);
+    return h("div", { key: c.id, className: "row-anim bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm hover:shadow-md transition cursor-pointer", style: { animationDelay: Math.min(i, 14) * 0.03 + "s" }, onClick: () => onOpen(c) },
+      h("div", { className: "flex items-start justify-between gap-2" },
+        h("div", { className: "flex items-center gap-2.5 min-w-0" },
+          h(CustomerAvatar, { name: c.name }),
+          h("div", { className: "min-w-0" }, h("div", { className: "font-semibold text-ink-800 truncate" }, c.name), h("div", { className: "text-xs text-ink-400 truncate" }, c.province ? "\uD83D\uDCCD " + c.province : "\u2014"))
+        ),
+        h(HeatBadge, { h: c.heat })
+      ),
+      h("div", { className: "flex items-center gap-2 mt-3 text-xs text-ink-500" }, h("span", null, sys.icon, " ", sys.label), h("span", { className: "text-ink-300" }, "\u00b7"), h("span", null, c.systemSize || "\u2014")),
+      h("div", { className: "num text-lg font-bold value-shimmer mt-1" }, "\u0e3f", h(CountUpNumber, { value: c.value || 0, format: (n) => n.toLocaleString("th-TH") })),
+      c.nextFollowup && h("div", { className: `text-[11px] mt-1.5 font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-400"}` }, "\u0e15\u0e34\u0e14\u0e15\u0e32\u0e21: ", du < 0 ? `\u0e40\u0e25\u0e22 ${Math.abs(du)} \u0e27\u0e31\u0e19` : du === 0 ? "\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49" : thDate(c.nextFollowup)),
+      h("div", { className: "flex items-center justify-between mt-3 pt-3 border-t border-ink-50" },
+        h(ContactIcons, { c }),
+        h("div", { className: "flex gap-1", onClick: (e) => e.stopPropagation() },
+          h("button", { onClick: () => onEdit(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-brand-600" }, h(Icon, { d: I.edit, cls: "w-4 h-4" })),
+          h("button", { onClick: () => onDelete(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" }, h(Icon, { d: I.trash, cls: "w-4 h-4" }))
+        )
+      )
+    );
+  }));
+}
 function CustomerTable({ rows, onOpen, onEdit, onDelete }) {
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  useEffect(() => { setPage(1); }, [rows.length]);
   if (rows.length === 0) {
     return h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 py-16 text-center" },
       h("div", { className: "text-4xl mb-2" }, "\u{1F4ED}"),
@@ -3070,86 +3235,93 @@ function CustomerTable({ rows, onOpen, onEdit, onDelete }) {
     if (sortKey === "follow") { av = a.nextFollowup || "9999"; bv = b.nextFollowup || "9999"; return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av); }
     return 0;
   }) : rows;
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const pageRows = sorted.slice((page - 1) * pageSize, page * pageSize);
   const SortHead = ({ label, sortField, className }) => h("th", {
     className: `font-semibold px-4 py-3 select-none ${className || "text-left"} ${sortField ? "cursor-pointer hover:text-ink-700" : ""}`,
     onClick: sortField ? () => toggleSort(sortField) : undefined
   }, h("span", { className: "inline-flex items-center gap-1" }, label, sortField && h("span", { className: `text-[9px] ${sortKey === sortField ? "text-brand-600" : "text-ink-300"}` }, sortKey === sortField ? (sortDir === "asc" ? "\u25B2" : "\u25BC") : "\u25B4\u25BE")));
-  return h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden no-hover-lift" },
-    h("div", { className: "hidden md:block overflow-x-auto" },
-      h("table", { className: "w-full text-sm" },
-        h("thead", { className: "bg-ink-50 text-ink-500 text-xs uppercase tracking-wide sticky top-0 z-10" },
-          h("tr", null,
-            h(SortHead, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", sortField: "name" }),
-            h(SortHead, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }),
-            h(SortHead, { label: "\u0E23\u0E30\u0E1A\u0E1A" }),
-            h(SortHead, { label: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32", sortField: "value", className: "text-right" }),
-            h(SortHead, { label: "\u0E23\u0E30\u0E14\u0E31\u0E1A" }),
-            h(SortHead, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", sortField: "follow" }),
-            h("th", { className: "px-4 py-3 w-20" })
-          )
-        ),
-        h("tbody", { className: "divide-y divide-ink-50" },
-          sorted.map((c, i) => {
-            const du = daysUntil(c.nextFollowup);
-            return h("tr", {
-              key: c.id,
-              className: "row-anim hover:bg-brand-50/40 transition-all duration-200 cursor-pointer group hover:shadow-sm",
-              style: { animationDelay: Math.min(i, 14) * 0.035 + "s" },
-              onClick: () => onOpen(c)
-            },
-              h("td", { className: "px-4 py-3" },
-                h("div", { className: "flex items-center gap-3" },
-                  h(CustomerAvatar, { name: c.name }),
-                  h("div", { className: "min-w-0" },
-                    h("div", { className: "font-semibold text-ink-800 truncate" }, c.name),
-                    h("div", { className: "text-xs text-ink-400 truncate" }, c.phone || "\u2014", " \xB7 ", c.type)
-                  )
-                )
-              ),
-              h("td", { className: "px-4 py-3 text-ink-600" }, c.province ? h("span", { className: "inline-flex items-center gap-1" }, "\uD83D\uDCCD", c.province) : h("span", { className: "text-ink-300" }, "\u2014")),
-              h("td", { className: "px-4 py-3 text-ink-600" }, c.systemSize || h("span", { className: "text-ink-300" }, "\u2014")),
-              h("td", { className: "px-4 py-3 num font-bold value-shimmer text-right" }, "\u0E3F", h(CountUpNumber, { value: c.value || 0, format: (n) => n.toLocaleString("th-TH") })),
-              h("td", { className: "px-4 py-3" }, h(HeatBadge, { h: c.heat })),
-              h("td", { className: "px-4 py-3" }, c.nextFollowup ? h("span", { className: `text-xs font-semibold ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup)) : h("span", { className: "text-xs text-ink-300" }, "\u2014")),
-              h("td", { className: "px-4 py-3", onClick: (e) => e.stopPropagation() },
-                h("div", { className: "flex gap-1 opacity-0 group-hover:opacity-100 transition" },
-                  h("button", { onClick: () => onEdit(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-brand-600" }, h(Icon, { d: I.edit, cls: "w-4 h-4" })),
-                  h("button", { onClick: () => onDelete(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" }, h(Icon, { d: I.trash, cls: "w-4 h-4" }))
-                )
-              )
-            );
-          })
-        )
-      )
-    ),
-    h("div", { className: "md:hidden divide-y divide-ink-50" },
-      rows.map((c, i) => {
-        const du = daysUntil(c.nextFollowup);
-        return h("div", { key: c.id, className: "row-anim p-4 active:bg-ink-50 transition-colors", style: { animationDelay: Math.min(i, 14) * 0.035 + "s" }, onClick: () => onOpen(c) },
-          h("div", { className: "flex items-start gap-3" },
-            h(CustomerAvatar, { name: c.name }),
-            h("div", { className: "min-w-0 flex-1" },
-              h("div", { className: "flex items-start justify-between gap-2" },
-                h("div", { className: "font-semibold text-ink-800 truncate" }, c.name),
-                h("span", { className: "num font-bold value-shimmer shrink-0" }, "\u0E3F", h(CountUpNumber, { value: c.value || 0, format: (n) => n.toLocaleString("th-TH") }))
-              ),
-              h("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province ? "\uD83D\uDCCD " + c.province : "\u2014", " \xB7 ", c.phone || "\u2014"),
-              h("div", { className: "flex flex-wrap items-center gap-2 mt-2" }, h(HeatBadge, { h: c.heat }), h(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.systemSize)),
-              c.nextFollowup && h("div", { className: `text-xs mt-2 font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21: ", du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup))
+  return h(React.Fragment, null,
+    h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden no-hover-lift" },
+      h("div", { className: "hidden md:block overflow-x-auto" },
+        h("table", { className: "w-full text-sm" },
+          h("thead", { className: "bg-ink-50 text-ink-500 text-xs uppercase tracking-wide sticky top-0 z-10" },
+            h("tr", null,
+              h(SortHead, { label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", sortField: "name" }),
+              h(SortHead, { label: "\u0e15\u0e34\u0e14\u0e15\u0e48\u0e2d" }),
+              h(SortHead, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }),
+              h(SortHead, { label: "\u0e23\u0e30\u0e1a\u0e1a" }),
+              h(SortHead, { label: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e01\u0e32\u0e23\u0e1c\u0e25\u0e34\u0e15" }),
+              h(SortHead, { label: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32", sortField: "value", className: "text-right" }),
+              h(SortHead, { label: "\u0E2A\u0E16\u0E32\u0E19\u0E30" }),
+              h(SortHead, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", sortField: "follow" }),
+              h("th", { className: "px-4 py-3 w-20" })
             )
           ),
-          h("div", { className: "flex gap-2 mt-3 pt-3 border-t border-ink-50", onClick: (e) => e.stopPropagation() },
-            h("button", { onClick: () => onEdit(c), className: "flex-1 py-1.5 rounded-lg bg-ink-100 text-ink-600 text-xs font-semibold" }, "\u0E41\u0E01\u0E49\u0E44\u0E02"),
-            h("button", { onClick: () => onDelete(c), className: "flex-1 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold" }, "\u0E25\u0E1A")
+          h("tbody", { className: "divide-y divide-ink-50" },
+            pageRows.map((c) => {
+              const du = daysUntil(c.nextFollowup);
+              const sys = systemTypeOf(c.systemSize);
+              return h("tr", { key: c.id, className: "hover:bg-brand-50/30 transition cursor-pointer group", onClick: () => onOpen(c) },
+                h("td", { className: "px-4 py-3" },
+                  h("div", { className: "flex items-center gap-3" },
+                    h(CustomerAvatar, { name: c.name }),
+                    h("div", { className: "min-w-0" },
+                      h("div", { className: "font-semibold text-ink-800 truncate" }, c.name),
+                      h("div", { className: "text-xs text-ink-400 truncate" }, c.phone || "\u2014", " \xB7 ", c.type)
+                    )
+                  )
+                ),
+                h("td", { className: "px-4 py-3" }, h(ContactIcons, { c })),
+                h("td", { className: "px-4 py-3 text-ink-600" }, c.province ? h("span", { className: "inline-flex items-center gap-1" }, "\uD83D\uDCCD", c.province) : h("span", { className: "text-ink-300" }, "\u2014")),
+                h("td", { className: "px-4 py-3 text-ink-600 whitespace-nowrap" }, sys.icon, " ", sys.label),
+                h("td", { className: "px-4 py-3 text-ink-600" }, c.systemSize || h("span", { className: "text-ink-300" }, "\u2014")),
+                h("td", { className: "px-4 py-3 num font-bold value-shimmer text-right" }, "\u0E3F", h(CountUpNumber, { value: c.value || 0, format: (n) => n.toLocaleString("th-TH") })),
+                h("td", { className: "px-4 py-3" }, h(HeatBadge, { h: c.heat })),
+                h("td", { className: "px-4 py-3" }, c.nextFollowup ? h("span", { className: `text-xs font-semibold ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup)) : h("span", { className: "text-xs text-ink-300" }, "\u2014")),
+                h("td", { className: "px-4 py-3", onClick: (e) => e.stopPropagation() },
+                  h("div", { className: "flex gap-1 opacity-0 group-hover:opacity-100 transition" },
+                    h("button", { onClick: () => onEdit(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-brand-600" }, h(Icon, { d: I.edit, cls: "w-4 h-4" })),
+                    h("button", { onClick: () => onDelete(c), className: "p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" }, h(Icon, { d: I.trash, cls: "w-4 h-4" }))
+                  )
+                )
+              );
+            })
           )
-        );
-      })
-    )
+        )
+      ),
+      h("div", { className: "md:hidden divide-y divide-ink-50" },
+        pageRows.map((c) => {
+          const du = daysUntil(c.nextFollowup);
+          return h("div", { key: c.id, className: "p-4", onClick: () => onOpen(c) },
+            h("div", { className: "flex items-start gap-3" },
+              h(CustomerAvatar, { name: c.name }),
+              h("div", { className: "min-w-0 flex-1" },
+                h("div", { className: "flex items-start justify-between gap-2" },
+                  h("div", { className: "font-semibold text-ink-800 truncate" }, c.name),
+                  h("span", { className: "num font-bold value-shimmer shrink-0" }, "\u0E3F", h(CountUpNumber, { value: c.value || 0, format: (n) => n.toLocaleString("th-TH") }))
+                ),
+                h("div", { className: "text-xs text-ink-400 mt-0.5" }, c.province ? "\uD83D\uDCCD " + c.province : "\u2014", " \xB7 ", c.phone || "\u2014"),
+                h("div", { className: "flex flex-wrap items-center gap-2 mt-2" }, h(HeatBadge, { h: c.heat }), h(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.systemSize)),
+                h("div", { className: "mt-2" }, h(ContactIcons, { c })),
+                c.nextFollowup && h("div", { className: `text-xs mt-2 font-medium ${du < 0 ? "text-red-600" : du === 0 ? "text-amber-600" : "text-ink-500"}` }, "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21: ", du < 0 ? `\u0E40\u0E25\u0E22 ${Math.abs(du)} \u0E27\u0E31\u0E19` : du === 0 ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : thDate(c.nextFollowup))
+              )
+            ),
+            h("div", { className: "flex gap-2 mt-3 pt-3 border-t border-ink-50", onClick: (e) => e.stopPropagation() },
+              h("button", { onClick: () => onEdit(c), className: "flex-1 py-1.5 rounded-lg bg-ink-100 text-ink-600 text-xs font-semibold" }, "\u0E41\u0E01\u0E49\u0E44\u0E02"),
+              h("button", { onClick: () => onDelete(c), className: "flex-1 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold" }, "\u0E25\u0E1A")
+            )
+          );
+        })
+      )
+    ),
+    h(Pagination, { page, setPage, totalPages, pageSize, setPageSize, totalCount: sorted.length })
   );
 }
 function Customers({ rows, onOpen, onEdit, onDelete, onAdd, locked }) {
   const [q, setQ] = useState("");
   const [showFilter, setShowFilter] = useState(false);
+  const [viewMode, setViewMode] = useState("list");
   const [flt, setFlt] = useState({ province: "", status: "", heat: "", type: "", source: "", tag: "", minValue: "", due: "" });
   const setF = (k, v) => setFlt((p) => ({ ...p, [k]: v }));
   const provincesPresent = useMemo(() => [...new Set(rows.map((r) => r.province).filter(Boolean))].sort(), [rows]);
@@ -3177,67 +3349,79 @@ function Customers({ rows, onOpen, onEdit, onDelete, onAdd, locked }) {
   }, [rows, q, flt]);
   const activeFilters = Object.values(flt).filter(Boolean).length;
   const selCls = "rounded-lg border border-ink-200 bg-white px-2.5 py-2 text-sm text-ink-700 outline-none focus:border-brand-500";
-  // แบ่งกลุ่มลูกค้าตามสถานะ ให้แยกชัดเจนว่าใครยังต้องตามต่อ / ใครปิดเคสแล้ว / ใครไม่สนใจ
-  const activeRows = filtered.filter((r) => ["new", "talking", "sent", "waiting"].includes(r.status));
+  const newRows = filtered.filter((r) => r.status === "new");
+  const followingRows = filtered.filter((r) => ["talking", "sent", "waiting"].includes(r.status));
   const closedRows = filtered.filter((r) => ["won", "warranty"].includes(r.status));
   const lostRows = filtered.filter((r) => r.status === "lost");
-  // กันลูกค้าที่มี status แปลกๆ (ค่าว่าง/พิมพ์ผิด/ข้อมูลเก่าก่อนหน้านี้) หายไปเงียบๆ จากทุกกลุ่มข้างบน
-  // ทั้งที่ตัวเลข "พบ X ราย" ด้านบนนับรวมไว้แล้ว ทำให้ดูเหมือนข้อมูลหาย
   const unknownRows = filtered.filter((r) => !["new", "talking", "sent", "waiting", "won", "warranty", "lost"].includes(r.status));
-  const groupingHidden = !!(flt.status); // ถ้ากรองสถานะเฉพาะเจาะจงอยู่แล้ว ไม่ต้องแบ่งแท็บซ้อน แสดงตารางเดียวพอ
+  const groupingHidden = !!(flt.status);
 
-  // แท็บหมวดหมู่ — เลือกดูทีละหมวด แทนการกางทุกหมวดต่อกันยาวๆ (มืออาชีพและดูง่ายกว่า)
-  const tabs = [
-    { key: "all", label: "ทั้งหมด", icon: "\u{1F4CB}", rows: filtered },
-    { key: "active", label: "กำลังดำเนินการ", icon: "\u{1F535}", rows: activeRows },
-    { key: "closed", label: "ปิดเคสแล้ว", icon: "\u2705", rows: closedRows },
-    { key: "lost", label: "ไม่สนใจ", icon: "\u26AA", rows: lostRows },
-    unknownRows.length > 0 ? { key: "unknown", label: "ไม่ทราบสถานะ", icon: "\u2753", rows: unknownRows } : null
-  ].filter(Boolean);
-  const [activeTab, setActiveTab] = useState("active");
-  const currentTab = tabs.find((t) => t.key === activeTab) || tabs[0];
-  const displayRows = groupingHidden ? filtered : currentTab.rows;
+  const curMonth = todayISO().slice(0, 7);
+  const lastMonthKey = (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
+  const trendOf = (list, dateField) => {
+    const thisM = list.filter((r) => r[dateField] && r[dateField].slice(0, 7) === curMonth).length;
+    const lastM = rows.filter((r) => r[dateField] && r[dateField].slice(0, 7) === lastMonthKey).length;
+    return lastM > 0 ? Math.round((thisM - lastM) / lastM * 100) : (thisM > 0 ? 100 : 0);
+  };
+
+  const cards = [
+    { key: "all", label: "\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14", value: filtered.length, icon: I.users, tone: "blue", trend: trendOf(rows, "createdAt") },
+    { key: "new", label: "\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e43\u0e2b\u0e21\u0e48", value: newRows.length, icon: I.plus, tone: "violet", trend: trendOf(newRows, "createdAt") },
+    { key: "following", label: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e15\u0e34\u0e14\u0e15\u0e32\u0e21", value: followingRows.length, icon: I.bell, tone: "amber" },
+    { key: "closed", label: "\u0e1b\u0e34\u0e14\u0e01\u0e32\u0e23\u0e02\u0e32\u0e22\u0e41\u0e25\u0e49\u0e27", value: closedRows.length, sub: `\u0e2d\u0e31\u0e15\u0e23\u0e32\u0e1b\u0e34\u0e14 ${filtered.length ? Math.round(closedRows.length / filtered.length * 100) : 0}%`, icon: I.check, tone: "green" },
+    unknownRows.length > 0
+      ? { key: "unknown", label: "\u0e44\u0e21\u0e48\u0e17\u0e23\u0e32\u0e1a\u0e2a\u0e16\u0e32\u0e19\u0e30", value: unknownRows.length, sub: "\u0e15\u0e49\u0e2d\u0e07\u0e15\u0e34\u0e14\u0e15\u0e32\u0e21\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e40\u0e15\u0e34\u0e21", icon: I.help || "M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z", tone: "red" }
+      : { key: "lost", label: "\u0e44\u0e21\u0e48\u0e2a\u0e19\u0e43\u0e08", value: lostRows.length, icon: I.help || "M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z", tone: "slate" }
+  ];
+  const [activeTab, setActiveTab] = useState("all");
+  const tabRowsOf = { all: filtered, new: newRows, following: followingRows, closed: closedRows, unknown: unknownRows, lost: lostRows };
+  const displayRowsRaw = groupingHidden ? filtered : (tabRowsOf[activeTab] || filtered);
 
   return h("div", { className: "space-y-4 fade-in" },
+    h("div", { className: "grid grid-cols-2 lg:grid-cols-5 gap-3" },
+      cards.map((c) => h("button", { key: c.key, onClick: () => setActiveTab(c.key), className: "text-left" },
+        h("div", { className: `bg-white rounded-2xl ring-1 p-4 shadow-sm transition hover:-translate-y-0.5 ${activeTab === c.key && !groupingHidden ? "ring-brand-300 ring-2" : "ring-ink-100"}` },
+          h("div", { className: "flex items-center justify-between" },
+            h("span", { className: "text-xs text-ink-500" }, c.label),
+            h("span", { className: `w-8 h-8 rounded-lg flex items-center justify-center ${{ blue: "bg-brand-50 text-brand-600", violet: "bg-violet-50 text-violet-600", amber: "bg-amber-50 text-amber-600", green: "bg-emerald-50 text-emerald-600", red: "bg-red-50 text-red-600", slate: "bg-ink-100 text-ink-500" }[c.tone]}` }, h(Icon, { d: c.icon, cls: "w-4 h-4" }))
+          ),
+          h("div", { className: "num text-xl font-bold text-ink-900 mt-1.5" }, c.value, h("span", { className: "text-xs font-normal text-ink-400" }, " \u0e23\u0e32\u0e22")),
+          c.trend != null && h("div", { className: `text-[11px] font-semibold mt-0.5 ${c.trend > 0 ? "text-emerald-600" : c.trend < 0 ? "text-red-500" : "text-ink-400"}` }, c.trend > 0 ? "\u2191" : c.trend < 0 ? "\u2193" : "", Math.abs(c.trend), "% \u0e08\u0e32\u0e01\u0e40\u0e14\u0e37\u0e2d\u0e19\u0e17\u0e35\u0e48\u0e41\u0e25\u0e49\u0e27"),
+          c.sub && h("div", { className: "text-[11px] text-ink-400 mt-0.5" }, c.sub)
+        )
+      ))
+    ),
     h("div", { className: "flex flex-col sm:flex-row gap-3" },
       h("div", { className: "relative flex-1" },
         h("span", { className: "absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" }, h(Icon, { d: I.search, cls: "w-5 h-5" })),
-        h("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: "ค้นหาชื่อ เบอร์ Line จังหวัด หมายเหตุ…", className: "w-full pl-10 pr-3 py-2.5 rounded-xl border border-ink-200 bg-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" })
+        h("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: "\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e0a\u0e37\u0e48\u0e2d\u0e40\u0e1a\u0e2d\u0e23\u0e4c Line \u0e08\u0e31\u0e07\u0e2b\u0e27\u0e31\u0e14 \u0e2b\u0e21\u0e32\u0e22\u0e40\u0e2b\u0e15\u0e38\u2026", className: "w-full pl-10 pr-3 py-2.5 rounded-xl border border-ink-200 bg-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" })
       ),
-      h("button", { onClick: () => setShowFilter((v) => !v), className: `px-4 py-2.5 rounded-xl text-sm font-medium ring-1 inline-flex items-center gap-2 ${activeFilters ? "bg-brand-50 text-brand-700 ring-brand-200" : "bg-white text-ink-600 ring-ink-200"}` }, h(Icon, { d: I.filter, cls: "w-4 h-4" }), "ตัวกรอง", activeFilters > 0 && h("span", { className: "num bg-brand-600 text-white rounded-full px-1.5 text-xs" }, activeFilters)),
+      h("select", { className: selCls, value: flt.province, onChange: (e) => setF("province", e.target.value) }, h("option", { value: "" }, "\u0e08\u0e31\u0e07\u0e2b\u0e27\u0e31\u0e14\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14"), provincesPresent.map((p) => h("option", { key: p }, p))),
+      h("select", { className: selCls, value: flt.status, onChange: (e) => setF("status", e.target.value) }, h("option", { value: "" }, "\u0e2a\u0e16\u0e32\u0e19\u0e30\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14"), STATUSES.map((s) => h("option", { key: s.key, value: s.key }, s.label))),
+      h("button", { onClick: () => setShowFilter((v) => !v), className: `px-4 py-2.5 rounded-xl text-sm font-medium ring-1 inline-flex items-center gap-2 ${activeFilters ? "bg-brand-50 text-brand-700 ring-brand-200" : "bg-white text-ink-600 ring-ink-200"}` }, h(Icon, { d: I.filter, cls: "w-4 h-4" }), "\u0e15\u0e31\u0e27\u0e01\u0e23\u0e2d\u0e07", activeFilters > 0 && h("span", { className: "num bg-brand-600 text-white rounded-full px-1.5 text-xs" }, activeFilters)),
+      h("div", { className: "flex bg-white rounded-xl ring-1 ring-ink-200 p-1 gap-1" },
+        h("button", { onClick: () => setViewMode("grid"), title: "\u0e21\u0e38\u0e21\u0e21\u0e2d\u0e07\u0e01\u0e23\u0e34\u0e14", className: `w-9 h-9 rounded-lg flex items-center justify-center ${viewMode === "grid" ? "bg-brand-600 text-white" : "text-ink-400 hover:bg-ink-50"}` }, h(Icon, { d: I.grid || "M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z", cls: "w-4 h-4" })),
+        h("button", { onClick: () => setViewMode("list"), title: "\u0e21\u0e38\u0e21\u0e21\u0e2d\u0e07\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23", className: `w-9 h-9 rounded-lg flex items-center justify-center ${viewMode === "list" ? "bg-brand-600 text-white" : "text-ink-400 hover:bg-ink-50"}` }, h(Icon, { d: "M4 6h16M4 12h16M4 18h16", cls: "w-4 h-4" }))
+      ),
       h("button", {
         onClick: onAdd,
-        title: locked ? "ลบข้อมูลตัวอย่างก่อน (ปุ่ม 🧹 มุมขวาบน) จึงจะเพิ่มลูกค้าจริงได้" : "",
-        className: `px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm inline-flex items-center gap-2 justify-center transition ${locked ? "bg-ink-100 text-ink-400 hover:bg-ink-200" : "bg-brand-600 text-white hover:bg-brand-700"}`
-      }, locked ? "🔒" : h(Icon, { d: I.plus, cls: "w-4 h-4" }), locked ? "เพิ่มลูกค้า (ลบตัวอย่างก่อน)" : "เพิ่มลูกค้า")
+        title: locked ? "\u0e25\u0e1a\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e15\u0e31\u0e27\u0e2d\u0e22\u0e48\u0e32\u0e07\u0e01\u0e48\u0e2d\u0e19 (\u0e1b\u0e38\u0e48\u0e21 \uD83E\uDDF9 \u0e21\u0e38\u0e21\u0e02\u0e27\u0e32\u0e1a\u0e19) \u0e08\u0e36\u0e07\u0e08\u0e30\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e08\u0e23\u0e34\u0e07\u0e44\u0e14\u0e49" : "",
+        className: `px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm inline-flex items-center gap-2 justify-center transition whitespace-nowrap ${locked ? "bg-ink-100 text-ink-400 hover:bg-ink-200" : "bg-brand-600 text-white hover:bg-brand-700"}`
+      }, locked ? "\uD83D\uDD12" : h(Icon, { d: I.plus, cls: "w-4 h-4" }), locked ? "\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32 (\u0e25\u0e1a\u0e15\u0e31\u0e27\u0e2d\u0e22\u0e48\u0e32\u0e07\u0e01\u0e48\u0e2d\u0e19)" : "\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32")
     ),
     showFilter && h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 fade-in" },
-      h("select", { className: selCls, value: flt.province, onChange: (e) => setF("province", e.target.value) }, h("option", { value: "" }, "ทุกจังหวัด"), provincesPresent.map((p) => h("option", { key: p }, p))),
-      h("select", { className: selCls, value: flt.status, onChange: (e) => setF("status", e.target.value) }, h("option", { value: "" }, "ทุกสถานะ"), STATUSES.map((s) => h("option", { key: s.key, value: s.key }, s.label))),
-      h("select", { className: selCls, value: flt.heat, onChange: (e) => setF("heat", e.target.value) }, h("option", { value: "" }, "ทุกระดับ"), HEATS.map((hh) => h("option", { key: hh.key, value: hh.key }, hh.label))),
-      h("select", { className: selCls, value: flt.type, onChange: (e) => setF("type", e.target.value) }, h("option", { value: "" }, "ทุกประเภท"), TYPES.map((t) => h("option", { key: t }, t))),
-      h("select", { className: selCls, value: flt.source, onChange: (e) => setF("source", e.target.value) }, h("option", { value: "" }, "ทุกแหล่งที่มา"), SOURCES.map((s) => h("option", { key: s }, s))),
-      h("select", { className: selCls, value: flt.tag, onChange: (e) => setF("tag", e.target.value) }, h("option", { value: "" }, "ทุก Tag"), TAGS.map((t) => h("option", { key: t }, t))),
-      h("select", { className: selCls, value: flt.due, onChange: (e) => setF("due", e.target.value) }, h("option", { value: "" }, "การติดตาม: ทั้งหมด"), h("option", { value: "overdue" }, "เลยกำหนด"), h("option", { value: "today" }, "ครบวันนี้"), h("option", { value: "week" }, "ภายใน 7 วัน")),
-      h("input", { type: "number", className: selCls, value: flt.minValue, onChange: (e) => setF("minValue", e.target.value), placeholder: "มูลค่าขั้นต่ำ (฿)" }),
-      activeFilters > 0 && h("button", { onClick: () => setFlt({ province: "", status: "", heat: "", type: "", source: "", tag: "", minValue: "", due: "" }), className: "col-span-2 sm:col-span-4 text-sm text-brand-600 font-medium hover:underline text-left" }, "ล้างตัวกรองทั้งหมด")
+      h("select", { className: selCls, value: flt.heat, onChange: (e) => setF("heat", e.target.value) }, h("option", { value: "" }, "\u0e17\u0e38\u0e01\u0e23\u0e30\u0e14\u0e31\u0e1a"), HEATS.map((hh) => h("option", { key: hh.key, value: hh.key }, hh.label))),
+      h("select", { className: selCls, value: flt.type, onChange: (e) => setF("type", e.target.value) }, h("option", { value: "" }, "\u0e17\u0e38\u0e01\u0e1b\u0e23\u0e30\u0e40\u0e20\u0e17"), TYPES.map((t) => h("option", { key: t }, t))),
+      h("select", { className: selCls, value: flt.source, onChange: (e) => setF("source", e.target.value) }, h("option", { value: "" }, "\u0e17\u0e38\u0e01\u0e41\u0e2b\u0e25\u0e48\u0e07\u0e17\u0e35\u0e48\u0e21\u0e32"), SOURCES.map((s) => h("option", { key: s }, s))),
+      h("select", { className: selCls, value: flt.tag, onChange: (e) => setF("tag", e.target.value) }, h("option", { value: "" }, "\u0e17\u0e38\u0e01 Tag"), TAGS.map((t) => h("option", { key: t }, t))),
+      h("select", { className: selCls, value: flt.due, onChange: (e) => setF("due", e.target.value) }, h("option", { value: "" }, "\u0e01\u0e32\u0e23\u0e15\u0e34\u0e14\u0e15\u0e32\u0e21: \u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14"), h("option", { value: "overdue" }, "\u0e40\u0e25\u0e22\u0e01\u0e33\u0e2b\u0e19\u0e14"), h("option", { value: "today" }, "\u0e04\u0e23\u0e1a\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49"), h("option", { value: "week" }, "\u0e20\u0e32\u0e22\u0e43\u0e19 7 \u0e27\u0e31\u0e19")),
+      h("input", { type: "number", className: selCls, value: flt.minValue, onChange: (e) => setF("minValue", e.target.value), placeholder: "\u0e21\u0e39\u0e25\u0e04\u0e48\u0e32\u0e02\u0e31\u0e49\u0e19\u0e15\u0e48\u0e33 (\u0e3f)" }),
+      activeFilters > 0 && h("button", { onClick: () => setFlt({ province: "", status: "", heat: "", type: "", source: "", tag: "", minValue: "", due: "" }), className: "col-span-2 sm:col-span-4 text-sm text-brand-600 font-medium hover:underline text-left" }, "\u0e25\u0e49\u0e32\u0e07\u0e15\u0e31\u0e27\u0e01\u0e23\u0e2d\u0e07\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14")
     ),
-    !groupingHidden && h("div", { className: "flex gap-2 overflow-x-auto pb-1" },
-      tabs.map((t) => h("button", {
-        key: t.key,
-        onClick: () => setActiveTab(t.key),
-        className: `shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${activeTab === t.key ? "bg-brand-600 text-white shadow-md tab-active-pop" : "bg-white text-ink-600 ring-1 ring-ink-200 hover:bg-ink-50 hover:-translate-y-0.5"}`
-      },
-        h("span", { className: activeTab === t.key ? "inline-block" : "" }, t.icon), h("span", null, t.label),
-        h("span", { className: `num text-xs font-bold px-1.5 py-0.5 rounded-full transition-colors ${activeTab === t.key ? "bg-white/25" : "bg-ink-100 text-ink-500"}` }, t.rows.length)
-      ))
-    ),
-    h("div", { className: "text-sm text-ink-500" },
-      groupingHidden
-        ? h(React.Fragment, null, "พบ ", h("b", { className: "text-ink-800 num" }, filtered.length), " ราย")
-        : h(React.Fragment, null, h("b", { className: "text-ink-800 num" }, displayRows.length), " ราย ในหมวด \u201C", currentTab.label, "\u201D")
-    ),
-    h(CustomerTable, { rows: displayRows, onOpen, onEdit, onDelete })
+    h("div", { className: "text-sm text-ink-500" }, h("b", { className: "text-ink-800 num" }, displayRowsRaw.length), " \u0e23\u0e32\u0e22"),
+    viewMode === "grid"
+      ? h(CustomerCardGrid, { rows: displayRowsRaw, onOpen, onEdit, onDelete })
+      : h(CustomerTable, { rows: displayRowsRaw, onOpen, onEdit, onDelete })
   );
 }
 function FollowUp({ rows, onOpen }) {
@@ -5721,6 +5905,59 @@ function WarehousePage({ customers }) {
     tab === "po" && h(PurchaseOrdersTab, null)
   );
 }
+const SUPPORT_CONTACT_KEY = "solar_support_contact_v1";
+function getSupportContact() {
+  try { const raw = localStorage.getItem(SUPPORT_CONTACT_KEY); return raw ? JSON.parse(raw) : { phone: "", line: "", email: "" }; } catch (e) { return { phone: "", line: "", email: "" }; }
+}
+function setSupportContact(v) { try { localStorage.setItem(SUPPORT_CONTACT_KEY, JSON.stringify(v)); } catch (e) {} }
+function SupportContactModal({ onClose }) {
+  const [contact, setContact] = useState(getSupportContact());
+  const [editing, setEditing] = useState(!(contact.phone || contact.line || contact.email));
+  const [draft, setDraft] = useState(contact);
+  const save = () => { setSupportContact(draft); setContact(draft); setEditing(false); };
+  const labelCls = "block text-xs font-medium text-ink-500 mb-1";
+  const inputCls = "w-full px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500";
+  return h(Modal, { open: true, onClose },
+    h("div", { className: "p-6" },
+      h("div", { className: "flex items-center gap-2 mb-1" },
+        h("span", { className: "w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg shrink-0" }, "\uD83C\uDFA7"),
+        h("div", null, h("h3", { className: "text-lg font-semibold text-ink-800" }, "ติดต่อเจ้าหน้าที่"), h("p", { className: "text-xs text-emerald-600 font-medium" }, "\u25CF พร้อมให้บริการ 24 ชั่วโมง"))
+      ),
+      editing
+        ? h("div", { className: "space-y-3 mt-4" },
+            h("div", null, h("label", { className: labelCls }, "เบอร์โทรศัพท์"), h("input", { value: draft.phone, onChange: (e) => setDraft((p) => ({ ...p, phone: e.target.value })), placeholder: "08x-xxx-xxxx", className: inputCls })),
+            h("div", null, h("label", { className: labelCls }, "ลิงก์ LINE OA"), h("input", { value: draft.line, onChange: (e) => setDraft((p) => ({ ...p, line: e.target.value })), placeholder: "https://lin.ee/xxxxxxx", className: inputCls })),
+            h("div", null, h("label", { className: labelCls }, "อีเมล"), h("input", { value: draft.email, onChange: (e) => setDraft((p) => ({ ...p, email: e.target.value })), placeholder: "support@yourcompany.com", className: inputCls })),
+            h("button", { onClick: save, className: "w-full py-2.5 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "บันทึกข้อมูลติดต่อ")
+          )
+        : h("div", { className: "space-y-2 mt-4" },
+            contact.phone && h("a", { href: `tel:${contact.phone}`, className: "flex items-center gap-3 p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 transition" }, h("span", { className: "text-xl" }, "\uD83D\uDCDE"), h("div", null, h("div", { className: "text-sm font-semibold text-ink-800" }, "โทรเลย"), h("div", { className: "text-xs text-ink-500" }, contact.phone))),
+            contact.line && h("a", { href: contact.line, target: "_blank", rel: "noreferrer", className: "flex items-center gap-3 p-3 rounded-xl bg-green-50 hover:bg-green-100 transition" }, h("span", { className: "text-xl" }, "\uD83D\uDCAC"), h("div", null, h("div", { className: "text-sm font-semibold text-ink-800" }, "แชททาง LINE"), h("div", { className: "text-xs text-ink-500 truncate" }, contact.line))),
+            contact.email && h("a", { href: `mailto:${contact.email}`, className: "flex items-center gap-3 p-3 rounded-xl bg-blue-50 hover:bg-blue-100 transition" }, h("span", { className: "text-xl" }, "\u2709\uFE0F"), h("div", null, h("div", { className: "text-sm font-semibold text-ink-800" }, "ส่งอีเมล"), h("div", { className: "text-xs text-ink-500" }, contact.email))),
+            h("button", { onClick: () => { setDraft(contact); setEditing(true); }, className: "w-full py-2 rounded-lg text-xs text-ink-400 hover:bg-ink-100 mt-2" }, "\u270F\uFE0F แก้ไขข้อมูลติดต่อ")
+          ),
+      h("button", { onClick: onClose, className: "w-full mt-3 py-2 rounded-lg text-sm text-ink-500 hover:bg-ink-100" }, "ปิด")
+    )
+  );
+}
+function SupportContactButton() {
+  const [open, setOpen] = useState(false);
+  return h(React.Fragment, null,
+    h("button", {
+      onClick: () => setOpen(true),
+      title: "ติดต่อเจ้าหน้าที่ 24 ชม.",
+      className: "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100 transition"
+    },
+      h("span", { className: "relative flex h-2 w-2" },
+        h("span", { className: "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" }),
+        h("span", { className: "relative inline-flex rounded-full h-2 w-2 bg-emerald-500" })
+      ),
+      h("span", { className: "hidden sm:inline" }, "ติดต่อเจ้าหน้าที่ 24 ชม."),
+      h("span", { className: "sm:hidden" }, "\uD83C\uDFA7")
+    ),
+    open && h(SupportContactModal, { onClose: () => setOpen(false) })
+  );
+}
 function NotificationBell({ rows, onOpen }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef(null);
@@ -6168,7 +6405,7 @@ function App() {
   return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.filter((n) => n.key !== "leads").map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, "data-tour": n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
-  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", techteam: "จัดการรายชื่อช่าง เชื่อมต่อ LINE เพื่อรับแจ้งเตือนงานประจำวันอัตโนมัติ", jobboard: "ประกาศงานหาช่างอิสระ ดูโปรไฟล์ผู้สมัครพร้อมรีวิวและผลงาน", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", warehouse: "ติดตามสต๊อกสินค้าและใบสั่งซื้ออุปกรณ์ เชื่อมกับบัญชีบริษัทอัตโนมัติ", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), hasDemoData && /* @__PURE__ */ React.createElement("button", { onClick: () => clearDemoData(), "data-tour": "clearDemo", className: "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100", style: { animation: "tourBounceLeft 1.8s ease-in-out infinite" }, title: "ข้อมูลตัวอย่างสำหรับสอนการใช้งาน — กดเพื่อลบออกทั้งหมด" }, "🧹", /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "ล้างข้อมูลตัวอย่าง")), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: guardedOpenForm, title: hasDemoData ? "ลบข้อมูลตัวอย่างก่อน (ปุ่ม 🧹 มุมขวาบน) จึงจะเพิ่มลูกค้าจริงได้" : "", className: `hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition ${hasDemoData ? "bg-ink-100 text-ink-400 hover:bg-ink-200" : "bg-brand-600 text-white hover:bg-brand-700"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: guardedOpenForm, locked: hasDemoData }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "techteam" && /* @__PURE__ */ React.createElement(TechTeamPage, null), view === "jobboard" && /* @__PURE__ */ React.createElement(CompanyJobBoardPage, null), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null), view === "warehouse" && /* @__PURE__ */ React.createElement(WarehousePage, { customers: rows })))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
+  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", techteam: "จัดการรายชื่อช่าง เชื่อมต่อ LINE เพื่อรับแจ้งเตือนงานประจำวันอัตโนมัติ", jobboard: "ประกาศงานหาช่างอิสระ ดูโปรไฟล์ผู้สมัครพร้อมรีวิวและผลงาน", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", warehouse: "ติดตามสต๊อกสินค้าและใบสั่งซื้ออุปกรณ์ เชื่อมกับบัญชีบริษัทอัตโนมัติ", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(SupportContactButton, null), /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), hasDemoData && /* @__PURE__ */ React.createElement("button", { onClick: () => clearDemoData(), "data-tour": "clearDemo", className: "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100", style: { animation: "tourBounceLeft 1.8s ease-in-out infinite" }, title: "ข้อมูลตัวอย่างสำหรับสอนการใช้งาน — กดเพื่อลบออกทั้งหมด" }, "🧹", /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "ล้างข้อมูลตัวอย่าง")), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: guardedOpenForm, title: hasDemoData ? "ลบข้อมูลตัวอย่างก่อน (ปุ่ม 🧹 มุมขวาบน) จึงจะเพิ่มลูกค้าจริงได้" : "", className: `hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition ${hasDemoData ? "bg-ink-100 text-ink-400 hover:bg-ink-200" : "bg-brand-600 text-white hover:bg-brand-700"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: guardedOpenForm, locked: hasDemoData }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "techteam" && /* @__PURE__ */ React.createElement(TechTeamPage, null), view === "jobboard" && /* @__PURE__ */ React.createElement(CompanyJobBoardPage, null), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null), view === "warehouse" && /* @__PURE__ */ React.createElement(WarehousePage, { customers: rows })))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
     upsert(c);
     setFormOpen(false);
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
