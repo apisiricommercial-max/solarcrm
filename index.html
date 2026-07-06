@@ -5326,8 +5326,8 @@ function PODetailExtras({ po, onChanged }) {
     setRegistering(true);
     try {
       await inventoryDb.registerTracking(po.id, trackingInput.trim(), carrierInput);
-      onChanged();
-      alert("เริ่มติดตามพัสดุแล้ว! ระบบจะอัปเดตสถานะให้อัตโนมัติผ่าน 17TRACK");
+      await onChanged();
+      alert("เริ่มติดตามพัสดุแล้ว! ระบบจะอัปเดตสถานะให้อัตโนมัติผ่าน 17TRACK\n\nกดปุ่ม \"🔄 เช็คสถานะตอนนี้เลย\" ที่โผล่ขึ้นมาด้านล่างได้เลยครับ");
     } catch (e) { alert("เริ่มติดตามไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
     finally { setRegistering(false); }
   };
@@ -5335,7 +5335,7 @@ function PODetailExtras({ po, onChanged }) {
     setChecking(true);
     try {
       const res = await inventoryDb.checkTrackingNow(po.id, po.tracking_number);
-      onChanged();
+      await onChanged();
       if (!res.status) alert("17TRACK ยังไม่มีข้อมูลสถานะให้ตอนนี้ ลองใหม่อีกสักครู่ครับ (ปกติเริ่มมีผลภายในไม่กี่นาทีหลังลงทะเบียน)");
     } catch (e) { alert("เช็คสถานะไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
     finally { setChecking(false); }
@@ -5380,7 +5380,7 @@ function PurchaseOrdersTab() {
   const [expandedId, setExpandedId] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const refresh = () => { setLoading(true); inventoryDb.listPOs().then((d) => { setPos(d); setLoading(false); }); };
+  const refresh = () => { setLoading(true); return inventoryDb.listPOs().then((d) => { setPos(d); setLoading(false); }); };
   useEffect(() => { refresh(); }, []);
 
   const poTotal = (po) => (po.purchase_order_items || []).reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unit_price) || 0), 0);
