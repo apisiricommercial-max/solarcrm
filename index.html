@@ -1400,7 +1400,7 @@ const heatOf = (k) => HEATS.find((h) => h.key === k) || HEATS[1];
 const TYPES = ["\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E1A\u0E49\u0E32\u0E19", "\u0E0A\u0E48\u0E32\u0E07", "\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E2A\u0E27\u0E19", "\u0E42\u0E23\u0E07\u0E07\u0E32\u0E19", "\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07"];
 const SOURCES = ["Facebook", "TikTok", "\u0E01\u0E25\u0E38\u0E48\u0E21\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C", "Inbox", "\u0E41\u0E19\u0E30\u0E19\u0E33\u0E15\u0E48\u0E2D"];
 const SIZES = ["3kW", "5kW", "10kW", "Hybrid", "Battery"];
-const TAGS = ["\u0E2A\u0E19\u0E43\u0E08\u0E2B\u0E19\u0E31\u0E07\u0E2A\u0E37\u0E2D 990", "\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07", "\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F", "\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27", "\u0E42\u0E14\u0E19\u0E0A\u0E48\u0E32\u0E07\u0E40\u0E2A\u0E19\u0E2D\u0E41\u0E1E\u0E07", "\u0E2A\u0E19\u0E43\u0E08\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48", "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E48\u0E27\u0E19"];
+const TAGS = ["\u0E2A\u0E19\u0E43\u0E08\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07\u0E40\u0E2D\u0E07", "\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E1B\u0E23\u0E30\u0E2B\u0E22\u0E31\u0E14\u0E04\u0E48\u0E32\u0E44\u0E1F", "\u0E21\u0E35\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32\u0E41\u0E25\u0E49\u0E27", "\u0E42\u0E14\u0E19\u0E0A\u0E48\u0E32\u0E07\u0E40\u0E2A\u0E19\u0E2D\u0E41\u0E1E\u0E07", "\u0E2A\u0E19\u0E43\u0E08\u0E41\u0E1A\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E35\u0E48", "\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E14\u0E48\u0E27\u0E19"];
 const PROVINCES = ["\u0E01\u0E23\u0E38\u0E07\u0E40\u0E17\u0E1E\u0E21\u0E2B\u0E32\u0E19\u0E04\u0E23", "\u0E19\u0E19\u0E17\u0E1A\u0E38\u0E23\u0E35", "\u0E1B\u0E17\u0E38\u0E21\u0E18\u0E32\u0E19\u0E35", "\u0E2A\u0E21\u0E38\u0E17\u0E23\u0E1B\u0E23\u0E32\u0E01\u0E32\u0E23", "\u0E1E\u0E23\u0E30\u0E19\u0E04\u0E23\u0E28\u0E23\u0E35\u0E2D\u0E22\u0E38\u0E18\u0E22\u0E32", "\u0E0A\u0E25\u0E1A\u0E38\u0E23\u0E35", "\u0E23\u0E30\u0E22\u0E2D\u0E07", "\u0E19\u0E04\u0E23\u0E23\u0E32\u0E0A\u0E2A\u0E35\u0E21\u0E32", "\u0E02\u0E2D\u0E19\u0E41\u0E01\u0E48\u0E19", "\u0E2D\u0E38\u0E14\u0E23\u0E18\u0E32\u0E19\u0E35", "\u0E40\u0E0A\u0E35\u0E22\u0E07\u0E43\u0E2B\u0E21\u0E48", "\u0E40\u0E0A\u0E35\u0E22\u0E07\u0E23\u0E32\u0E22", "\u0E1E\u0E34\u0E29\u0E13\u0E38\u0E42\u0E25\u0E01", "\u0E19\u0E04\u0E23\u0E2A\u0E27\u0E23\u0E23\u0E04\u0E4C", "\u0E2A\u0E38\u0E1E\u0E23\u0E23\u0E13\u0E1A\u0E38\u0E23\u0E35", "\u0E23\u0E32\u0E0A\u0E1A\u0E38\u0E23\u0E35", "\u0E40\u0E1E\u0E0A\u0E23\u0E1A\u0E38\u0E23\u0E35", "\u0E1B\u0E23\u0E30\u0E08\u0E27\u0E1A\u0E04\u0E35\u0E23\u0E35\u0E02\u0E31\u0E19\u0E18\u0E4C", "\u0E2A\u0E07\u0E02\u0E25\u0E32", "\u0E2A\u0E38\u0E23\u0E32\u0E29\u0E0E\u0E23\u0E4C\u0E18\u0E32\u0E19\u0E35", "\u0E20\u0E39\u0E40\u0E01\u0E47\u0E15", "\u0E19\u0E04\u0E23\u0E28\u0E23\u0E35\u0E18\u0E23\u0E23\u0E21\u0E23\u0E32\u0E0A", "\u0E2D\u0E38\u0E1A\u0E25\u0E23\u0E32\u0E0A\u0E18\u0E32\u0E19\u0E35", "\u0E2A\u0E23\u0E30\u0E1A\u0E38\u0E23\u0E35", "\u0E25\u0E1E\u0E1A\u0E38\u0E23\u0E35"];
 const fmt = (n) => (Number(n) || 0).toLocaleString("th-TH");
 const baht = (n) => "\u0E3F" + fmt(n);
@@ -1712,7 +1712,48 @@ const EMPTY = { name: "", phone: "", lineId: "", facebook: "", province: "", add
 function Field({ label, children, full }) {
   return /* @__PURE__ */ React.createElement("label", { className: `block ${full ? "sm:col-span-2" : ""}` }, /* @__PURE__ */ React.createElement("span", { className: "block text-xs font-medium text-ink-500 mb-1" }, label), children);
 }
+function IconField({ label, icon, full, required, children }) {
+  return h("label", { className: `block ${full ? "sm:col-span-2" : ""}` },
+    h("span", { className: "block text-xs font-medium text-ink-500 mb-1" }, label, required && h("span", { className: "text-red-500" }, " *")),
+    h("div", { className: "relative" },
+      h("span", { className: "absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-sm pointer-events-none" }, icon),
+      children
+    )
+  );
+}
+function SectionHeader({ icon, title }) {
+  return h("div", { className: "sm:col-span-2 flex items-center gap-2.5 pt-4 mt-1 first:pt-0 first:mt-0 border-t border-ink-100 first:border-t-0" },
+    h("span", { className: "w-7 h-7 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-sm shrink-0" }, icon),
+    h("span", { className: "text-sm font-bold text-brand-600" }, title)
+  );
+}
+function TagInput({ tags, onToggle, onAdd }) {
+  const [draft, setDraft] = React.useState("");
+  const addCustom = () => {
+    const t = draft.trim();
+    if (!t) return;
+    onAdd(t);
+    setDraft("");
+  };
+  const customTags = tags.filter((t) => !TAGS.includes(t));
+  return h("div", null,
+    h("div", { className: "flex flex-wrap gap-2 mb-2.5" },
+      TAGS.map((t) => h("button", { key: t, type: "button", onClick: () => onToggle(t), className: `px-3 py-1.5 rounded-full text-xs font-medium ring-1 ring-inset transition ${tags.includes(t) ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-ink-500 ring-ink-200 hover:ring-brand-300"}` }, t)),
+      customTags.map((t) => h("button", { key: t, type: "button", onClick: () => onToggle(t), className: "px-3 py-1.5 rounded-full text-xs font-medium ring-1 ring-inset bg-violet-600 text-white ring-violet-600 inline-flex items-center gap-1.5" }, t, h("span", { className: "text-white/70" }, "\u2715")))
+    ),
+    h("div", { className: "flex gap-2" },
+      h("input", {
+        value: draft, onChange: (e) => setDraft(e.target.value),
+        onKeyDown: (e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } },
+        placeholder: "\u0E1E\u0E34\u0E21\u0E1E\u0E4C Tag \u0E43\u0E2B\u0E21\u0E48\u0E41\u0E25\u0E49\u0E27\u0E01\u0E14 Enter",
+        className: inputCls + " text-xs py-1.5"
+      }),
+      h("button", { type: "button", onClick: addCustom, className: "px-3.5 py-1.5 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-semibold shrink-0" }, "+ \u0E40\u0E1E\u0E34\u0E48\u0E21")
+    )
+  );
+}
 const inputCls = "w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition";
+const inputClsIcon = inputCls + " pl-9";
 function CustomerForm({ open, initial, onClose, onSave }) {
   const [f, setF] = useState(EMPTY);
   useEffect(() => {
@@ -1720,14 +1761,75 @@ function CustomerForm({ open, initial, onClose, onSave }) {
   }, [initial, open]);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleTag = (t) => setF((p) => ({ ...p, tags: p.tags.includes(t) ? p.tags.filter((x) => x !== t) : [...p.tags, t] }));
+  const addCustomTag = (t) => setF((p) => (p.tags.includes(t) ? p : { ...p, tags: [...p.tags, t] }));
   const submit = () => {
-    if (!f.name.trim()) {
-      alert("\u0E01\u0E23\u0E38\u0E13\u0E32\u0E01\u0E23\u0E2D\u0E01\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32");
-      return;
-    }
+    if (!f.name.trim()) { alert("กรุณากรอกชื่อลูกค้า"); return; }
     onSave({ ...f, monthlyBill: +f.monthlyBill || 0, budget: +f.budget || 0, value: +f.value || 0 });
   };
-  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800" }, initial ? "\u0E41\u0E01\u0E49\u0E44\u0E02\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" : "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E43\u0E2B\u0E21\u0E48"), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x }))), /* @__PURE__ */ React.createElement("div", { className: "px-6 py-5 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: "\u0E0A\u0E37\u0E48\u0E2D-\u0E19\u0E32\u0E21\u0E2A\u0E01\u0E38\u0E25 *" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.name, onChange: (e) => set("name", e.target.value), placeholder: "\u0E40\u0E0A\u0E48\u0E19 \u0E04\u0E38\u0E13\u0E2A\u0E21\u0E0A\u0E32\u0E22 \u0E43\u0E08\u0E14\u0E35" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.phone, onChange: (e) => set("phone", e.target.value), placeholder: "08x-xxx-xxxx" })), /* @__PURE__ */ React.createElement(Field, { label: "Line ID" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.lineId, onChange: (e) => set("lineId", e.target.value), placeholder: "@lineid" })), /* @__PURE__ */ React.createElement(Field, { label: "Facebook" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.facebook, onChange: (e) => set("facebook", e.target.value), placeholder: "\u0E0A\u0E37\u0E48\u0E2D/\u0E25\u0E34\u0E07\u0E01\u0E4C Facebook" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, list: "provinces", value: f.province, onChange: (e) => set("province", e.target.value), placeholder: "\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E2B\u0E23\u0E37\u0E2D\u0E1E\u0E34\u0E21\u0E1E\u0E4C\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14" }), /* @__PURE__ */ React.createElement("datalist", { id: "provinces" }, PROVINCES.map((p) => /* @__PURE__ */ React.createElement("option", { key: p, value: p })))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: f.address, onChange: (e) => set("address", e.target.value), placeholder: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48\u0E15\u0E34\u0E14\u0E15\u0E31\u0E49\u0E07" })), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 flex items-center gap-2 pt-3 mt-1 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("span", { className: "text-base" }, "📋"), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-ink-400 uppercase tracking-wider" }, "รายละเอียดงาน")), /* @__PURE__ */ React.createElement(Field, { label: "\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.type, onChange: (e) => set("type", e.target.value) }, TYPES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.source, onChange: (e) => set("source", e.target.value) }, SOURCES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F\u0E15\u0E48\u0E2D\u0E40\u0E14\u0E37\u0E2D\u0E19 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.monthlyBill, onChange: (e) => set("monthlyBill", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.systemSize, onChange: (e) => set("systemSize", e.target.value) }, SIZES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.budget, onChange: (e) => set("budget", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E14\u0E22\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13 (\u0E1A\u0E32\u0E17)" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: inputCls, value: f.value, onChange: (e) => set("value", e.target.value), placeholder: "0" })), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 flex items-center gap-2 pt-3 mt-1 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("span", { className: "text-base" }, "🎯"), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-ink-400 uppercase tracking-wider" }, "สถานะและการติดตาม")), /* @__PURE__ */ React.createElement(Field, { label: "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E04\u0E27\u0E32\u0E21\u0E2A\u0E19\u0E43\u0E08" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.heat, onChange: (e) => set("heat", e.target.value) }, HEATS.map((h) => /* @__PURE__ */ React.createElement("option", { key: h.key, value: h.key }, h.emoji, " ", h.label)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E2A\u0E16\u0E32\u0E19\u0E30" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.status, onChange: (e) => set("status", e.target.value) }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.key, value: s.key }, s.label)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.lastContact, onChange: (e) => set("lastContact", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.nextFollowup, onChange: (e) => set("nextFollowup", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Tag / \u0E2B\u0E21\u0E27\u0E14\u0E2B\u0E21\u0E39\u0E48", full: true }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, TAGS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, type: "button", onClick: () => toggleTag(t), className: `px-3 py-1.5 rounded-full text-xs font-medium ring-1 ring-inset transition ${f.tags.includes(t) ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-ink-500 ring-ink-200 hover:ring-brand-300"}` }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38", full: true }, /* @__PURE__ */ React.createElement("textarea", { className: inputCls + " h-20 resize-none", value: f.note, onChange: (e) => set("note", e.target.value), placeholder: "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E22\u0E48\u0E2D\u0E40\u0E01\u0E35\u0E48\u0E22\u0E27\u0E01\u0E31\u0E1A\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32" })), /* @__PURE__ */ React.createElement("div", { className: "sm:col-span-2 flex items-center gap-2 pt-3 mt-1 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("span", { className: "text-base" }, "🛡️"), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-ink-400 uppercase tracking-wider" }, "การรับประกัน (กรอกเมื่อส่งมอบงานแล้ว)")), /* @__PURE__ */ React.createElement(Field, { label: "วันที่ติดตั้งเสร็จ / ส่งมอบงาน" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: f.installDate, onChange: (e) => set("installDate", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "ระยะเวลารับประกัน (ปี)" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: f.warrantyYears, onChange: (e) => set("warrantyYears", e.target.value) }, Array.from({ length: 25 }, (_, i) => i + 1).map((y) => /* @__PURE__ */ React.createElement("option", { key: y, value: y }, y, " \u0E1B\u0E35"))))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-3 px-6 py-4 border-t border-ink-100" }, /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01"), /* @__PURE__ */ React.createElement("button", { onClick: submit, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm" }, initial ? "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E41\u0E01\u0E49\u0E44\u0E02" : "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")));
+  return h(Modal, { open, onClose, wide: true },
+    h("div", { className: "flex items-center gap-3 px-6 py-5 border-b border-ink-100" },
+      h("div", { className: "w-11 h-11 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-lg shrink-0" }, "\uD83D\uDC64\u2795"),
+      h("div", { className: "flex-1 min-w-0" },
+        h("h3", { className: "text-lg font-semibold text-ink-800" }, initial ? "แก้ไขข้อมูลลูกค้า" : "เพิ่มลูกค้าใหม่"),
+        h("p", { className: "text-xs text-ink-400" }, initial ? "แก้ไขข้อมูลลูกค้าในระบบ" : "กรอกข้อมูลลูกค้าเพื่อเพิ่มเข้าสู่ระบบ")
+      ),
+      h("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600 shrink-0" }, h(Icon, { d: I.x }))
+    ),
+    h("div", { className: "px-6 py-5 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4" },
+      h(SectionHeader, { icon: "\uD83D\uDC64", title: "ข้อมูลติดต่อ" }),
+      h(IconField, { label: "ชื่อ-นามสกุล", icon: "\uD83D\uDC64", required: true },
+        h("input", { className: inputClsIcon, value: f.name, onChange: (e) => set("name", e.target.value), placeholder: "เช่น คุณสมชาย ใจดี" })),
+      h(IconField, { label: "เบอร์โทร", icon: "\uD83D\uDCDE" },
+        h("input", { className: inputClsIcon, value: f.phone, onChange: (e) => set("phone", e.target.value), placeholder: "08x-xxx-xxxx" })),
+      h(IconField, { label: "Line ID", icon: "\uD83D\uDCAC" },
+        h("input", { className: inputClsIcon, value: f.lineId, onChange: (e) => set("lineId", e.target.value), placeholder: "@lineid" })),
+      h(IconField, { label: "Facebook", icon: "\uD83D\uDC65" },
+        h("input", { className: inputClsIcon, value: f.facebook, onChange: (e) => set("facebook", e.target.value), placeholder: "ชื่อ/ลิงก์ Facebook" })),
+      h(IconField, { label: "จังหวัด", icon: "\uD83D\uDCCD" },
+        h("input", { className: inputClsIcon, list: "provinces", value: f.province, onChange: (e) => set("province", e.target.value), placeholder: "เลือกหรือพิมพ์จังหวัด" }),
+        h("datalist", { id: "provinces" }, PROVINCES.map((p) => h("option", { key: p, value: p })))),
+      h(IconField, { label: "ที่อยู่", icon: "\uD83C\uDFE0" },
+        h("input", { className: inputClsIcon, value: f.address, onChange: (e) => set("address", e.target.value), placeholder: "ที่อยู่ติดต่อ" })),
+
+      h(SectionHeader, { icon: "\uD83D\uDCCB", title: "รายละเอียดงาน" }),
+      h(IconField, { label: "ประเภทลูกค้า", icon: "\uD83D\uDC64" },
+        h("select", { className: inputClsIcon, value: f.type, onChange: (e) => set("type", e.target.value) }, TYPES.map((t) => h("option", { key: t }, t)))),
+      h(IconField, { label: "แหล่งที่มา", icon: "\uD83D\uDCE2" },
+        h("select", { className: inputClsIcon, value: f.source, onChange: (e) => set("source", e.target.value) }, SOURCES.map((t) => h("option", { key: t }, t)))),
+      h(IconField, { label: "ค่าไฟต่อเดือน (บาท)", icon: "\u26A1" },
+        h("input", { type: "number", className: inputClsIcon, value: f.monthlyBill, onChange: (e) => set("monthlyBill", e.target.value), placeholder: "0" })),
+      h(IconField, { label: "ขนาดระบบที่สนใจ", icon: "\u2600\uFE0F" },
+        h("select", { className: inputClsIcon, value: f.systemSize, onChange: (e) => set("systemSize", e.target.value) }, SIZES.map((t) => h("option", { key: t }, t)))),
+      h(IconField, { label: "งบประมาณ (บาท)", icon: "\uD83D\uDCB3" },
+        h("input", { type: "number", className: inputClsIcon, value: f.budget, onChange: (e) => set("budget", e.target.value), placeholder: "0" })),
+      h(IconField, { label: "มูลค่าลูกค้าโดยประมาณ (บาท)", icon: "\uD83D\uDCC8" },
+        h("input", { type: "number", className: inputClsIcon, value: f.value, onChange: (e) => set("value", e.target.value), placeholder: "0" })),
+
+      h(SectionHeader, { icon: "\uD83C\uDFAF", title: "สถานะและการติดตาม" }),
+      h(IconField, { label: "ระดับความสนใจ", icon: "\uD83D\uDD25" },
+        h("select", { className: inputClsIcon, value: f.heat, onChange: (e) => set("heat", e.target.value) }, HEATS.map((hh) => h("option", { key: hh.key, value: hh.key }, hh.emoji, " ", hh.label)))),
+      h(IconField, { label: "สถานะ", icon: "\uD83D\uDCCC" },
+        h("select", { className: inputClsIcon, value: f.status, onChange: (e) => set("status", e.target.value) }, STATUSES.map((s) => h("option", { key: s.key, value: s.key }, s.label)))),
+      h(IconField, { label: "วันที่ติดต่อล่าสุด", icon: "\uD83D\uDCC5" },
+        h("input", { type: "date", className: inputClsIcon, value: f.lastContact, onChange: (e) => set("lastContact", e.target.value) })),
+      h(IconField, { label: "วันที่ต้องติดตามครั้งถัดไป", icon: "\u23F0" },
+        h("input", { type: "date", className: inputClsIcon, value: f.nextFollowup, onChange: (e) => set("nextFollowup", e.target.value) })),
+      h(Field, { label: "Tag / หมวดหมู่ (เลือกจากรายการ หรือพิมพ์เพิ่มเองได้)", full: true },
+        h(TagInput, { tags: f.tags, onToggle: toggleTag, onAdd: addCustomTag })),
+      h(Field, { label: "หมายเหตุ", full: true },
+        h("textarea", { className: inputCls + " h-20 resize-none", value: f.note, onChange: (e) => set("note", e.target.value), placeholder: "บันทึกย่อเกี่ยวกับลูกค้า" })),
+
+      h(SectionHeader, { icon: "\uD83D\uDEE1\uFE0F", title: "การรับประกัน (กรอกเมื่อส่งมอบงานแล้ว)" }),
+      h(IconField, { label: "วันที่ติดตั้งเสร็จ / ส่งมอบงาน", icon: "\u2705" },
+        h("input", { type: "date", className: inputClsIcon, value: f.installDate, onChange: (e) => set("installDate", e.target.value) })),
+      h(IconField, { label: "ระยะเวลารับประกัน (ปี)", icon: "\uD83D\uDEE1\uFE0F" },
+        h("select", { className: inputClsIcon, value: f.warrantyYears, onChange: (e) => set("warrantyYears", e.target.value) }, Array.from({ length: 25 }, (_, i) => i + 1).map((y) => h("option", { key: y, value: y }, y, " ปี"))))
+    ),
+    h("div", { className: "flex justify-end gap-3 px-6 py-4 border-t border-ink-100" },
+      h("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm font-medium text-ink-600 hover:bg-ink-100" }, "ยกเลิก"),
+      h("button", { onClick: submit, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-sm inline-flex items-center gap-1.5" }, initial ? "บันทึกการแก้ไข" : h(React.Fragment, null, "\u2795 เพิ่มลูกค้า"))
+    )
+  );
 }
 function WarrantyDetailModal({ open, customer, onClose, onAddLog, onUpdateWarranty }) {
   const w = customer ? warrantyInfo(customer) : null;
