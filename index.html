@@ -2122,7 +2122,7 @@ function CustomerProfile({ open, customer, onClose, onEdit, onAddLog, onStatus, 
     setLog({ topic: "", interest: "", sent: "", next: "" });
   };
   const Line = ({ label, val, href }) => /* @__PURE__ */ React.createElement("div", { className: "flex justify-between gap-3 py-1.5 border-b border-ink-50 last:border-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs text-ink-400" }, label), href && val ? /* @__PURE__ */ React.createElement("a", { href, target: "_blank", className: "text-sm text-brand-600 font-medium text-right break-all" }, val) : /* @__PURE__ */ React.createElement("span", { className: "text-sm text-ink-700 font-medium text-right break-all" }, val || "\u2014"));
-  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shrink-0" }, c.name.replace(/^คุณ|^ช่าง/, "").trim().charAt(0) || "?"), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-1" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.type)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: onOpenBOQ, className: "relative inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:brightness-110 shadow-sm", title: "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32 BOQ \u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E19\u0E35\u0E49" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), boqCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "absolute -top-1.5 -right-1.5 bg-white text-orange-600 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center ring-2 ring-orange-200" }, boqCount)), /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-2 rounded-lg text-ink-500 hover:bg-ink-100", title: "\u0E41\u0E01\u0E49\u0E44\u0E02" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit })), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 rounded-lg text-ink-400 hover:bg-ink-100" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x })))), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-0 max-h-[72vh] overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "p-6 md:border-r border-ink-100 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-600" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-emerald-700" }, baht(c.value)), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-500 mt-0.5 truncate" }, "⭐ จาก ", primaryQuote.quoteNo || "BOQ"), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1" }, "✓ ติดตามงวดชำระในบัญชีบริษัท")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600" }, "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-brand-700" }, baht(c.budget)))), /* @__PURE__ */ React.createElement(WarrantyCard, { customer: c, onClick: () => setWarrantyOpen(true), onEdit: () => onEdit(c) }), /* @__PURE__ */ React.createElement(InstallStageStepper, { customer: c, onUpdate: onUpdateInstallStage }), /* @__PURE__ */ React.createElement(TechnicianJobSection, { customer: c }), /* @__PURE__ */ React.createElement(JobScheduleAssign, { customer: c, onSave: onAssignTechnician }), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" }, /* @__PURE__ */ React.createElement(Line, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23", val: c.phone, href: c.phone ? `tel:${c.phone}` : null }), /* @__PURE__ */ React.createElement(Line, { label: "Line ID", val: c.lineId }), /* @__PURE__ */ React.createElement(Line, { label: "Facebook", val: c.facebook }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14", val: c.province }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48", val: c.address }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32", val: c.source }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F/\u0E40\u0E14\u0E37\u0E2D\u0E19", val: c.monthlyBill ? baht(c.monthlyBill) : "\u2014" }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08", val: c.systemSize }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14", val: thDate(c.lastContact) }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B", val: thDate(c.nextFollowup) })), c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, c.tags.map((t) => /* @__PURE__ */ React.createElement(Badge, { key: t, cls: "bg-amber-50 text-amber-700 ring-amber-200" }, "\u{1F3F7}\uFE0F ", t))), c.note && /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-ink-50 p-3 text-sm text-ink-600" }, "\u{1F4DD} ", c.note), /* @__PURE__ */ React.createElement(DocumentsSection, { customer: c, onUpdate: onUpdateDocuments }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-medium text-ink-500 mb-1.5" }, "\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5" }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, onClick: () => onStatus(c.id, s.key), className: `px-2.5 py-1 rounded-lg text-xs font-medium transition ${c.status === s.key ? s.color + " text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, s.label))))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-ink-50/40" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white ring-1 ring-ink-100 p-3 space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E04\u0E38\u0E22\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2D\u0E30\u0E44\u0E23 *", value: log.topic, onChange: (e) => setLog((p) => ({ ...p, topic: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E2A\u0E19\u0E43\u0E08\u0E2D\u0E30\u0E44\u0E23", value: log.interest, onChange: (e) => setLog((p) => ({ ...p, interest: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E30\u0E44\u0E23\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27", value: log.sent, onChange: (e) => setLog((p) => ({ ...p, sent: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E48\u0E2D\u0E44\u0E1B\u0E04\u0E37\u0E2D\u0E2D\u0E30\u0E44\u0E23", value: log.next, onChange: (e) => setLog((p) => ({ ...p, next: e.target.value })) }), /* @__PURE__ */ React.createElement("button", { onClick: addLog, className: "w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, (c.timeline || []).slice().reverse().map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "relative pl-5" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-4 ring-brand-100" }), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mb-0.5" }, thDate(t.date)), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg bg-white ring-1 ring-ink-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-ink-800" }, t.topic), t.interest && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500 mt-1" }, "\u0E2A\u0E19\u0E43\u0E08: ", t.interest), t.sent && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500" }, "\u0E2A\u0E48\u0E07\u0E41\u0E25\u0E49\u0E27: ", t.sent), t.next && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600 mt-1" }, "\u2192 \u0E16\u0E31\u0E14\u0E44\u0E1B: ", t.next)))), (!c.timeline || c.timeline.length === 0) && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 text-center py-6" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")))), /* @__PURE__ */ React.createElement(WarrantyDetailModal, { open: warrantyOpen, customer: c, onClose: () => setWarrantyOpen(false), onAddLog, onUpdateWarranty }));
+  return /* @__PURE__ */ React.createElement(Modal, { open, onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between px-6 py-4 border-b border-ink-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "w-11 h-11 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shrink-0" }, c.name.replace(/^คุณ|^ช่าง/, "").trim().charAt(0) || "?"), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold text-ink-800 truncate" }, c.name), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center gap-2 mt-1" }, /* @__PURE__ */ React.createElement(StatusBadge, { s: c.status }), /* @__PURE__ */ React.createElement(HeatBadge, { h: c.heat }), /* @__PURE__ */ React.createElement(Badge, { cls: "bg-ink-100 text-ink-600 ring-ink-200" }, c.type)))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: onOpenBOQ, className: "relative inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:brightness-110 shadow-sm", title: "\u0E2D\u0E2D\u0E01\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32 BOQ \u0E43\u0E2B\u0E49\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E19\u0E35\u0E49" }, /* @__PURE__ */ React.createElement(Icon, { d: I.doc, cls: "w-4 h-4" }), /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"), boqCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "absolute -top-1.5 -right-1.5 bg-white text-orange-600 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center ring-2 ring-orange-200" }, boqCount)), /* @__PURE__ */ React.createElement("button", { onClick: () => onEdit(c), className: "p-2 rounded-lg text-ink-500 hover:bg-ink-100", title: "\u0E41\u0E01\u0E49\u0E44\u0E02" }, /* @__PURE__ */ React.createElement(Icon, { d: I.edit })), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 rounded-lg text-ink-400 hover:bg-ink-100" }, /* @__PURE__ */ React.createElement(Icon, { d: I.x })))), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-0 max-h-[72vh] overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "p-6 md:border-r border-ink-100 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-emerald-50 ring-1 ring-emerald-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-600" }, "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-emerald-700" }, baht(c.value)), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-500 mt-0.5 truncate" }, "⭐ จาก ", primaryQuote.quoteNo || "BOQ"), primaryQuote && /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1" }, "✓ ติดตามงวดชำระในบัญชีบริษัท")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-brand-50 ring-1 ring-brand-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600" }, "\u0E07\u0E1A\u0E1B\u0E23\u0E30\u0E21\u0E32\u0E13"), /* @__PURE__ */ React.createElement("div", { className: "num text-xl font-bold text-brand-700" }, baht(c.budget)))), /* @__PURE__ */ React.createElement(WarrantyCard, { customer: c, onClick: () => setWarrantyOpen(true), onEdit: () => onEdit(c) }), /* @__PURE__ */ React.createElement(InstallStageStepper, { customer: c, onUpdate: onUpdateInstallStage }), /* @__PURE__ */ React.createElement(TechnicianJobSection, { customer: c }), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl ring-1 ring-ink-100 p-4" }, /* @__PURE__ */ React.createElement(Line, { label: "\u0E40\u0E1A\u0E2D\u0E23\u0E4C\u0E42\u0E17\u0E23", val: c.phone, href: c.phone ? `tel:${c.phone}` : null }), /* @__PURE__ */ React.createElement(Line, { label: "Line ID", val: c.lineId }), /* @__PURE__ */ React.createElement(Line, { label: "Facebook", val: c.facebook }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14", val: c.province }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E17\u0E35\u0E48\u0E2D\u0E22\u0E39\u0E48", val: c.address }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E17\u0E35\u0E48\u0E21\u0E32", val: c.source }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E04\u0E48\u0E32\u0E44\u0E1F/\u0E40\u0E14\u0E37\u0E2D\u0E19", val: c.monthlyBill ? baht(c.monthlyBill) : "\u2014" }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E02\u0E19\u0E32\u0E14\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E2A\u0E19\u0E43\u0E08", val: c.systemSize }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14", val: thDate(c.lastContact) }), /* @__PURE__ */ React.createElement(Line, { label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E04\u0E23\u0E31\u0E49\u0E07\u0E16\u0E31\u0E14\u0E44\u0E1B", val: thDate(c.nextFollowup) })), c.tags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, c.tags.map((t) => /* @__PURE__ */ React.createElement(Badge, { key: t, cls: "bg-amber-50 text-amber-700 ring-amber-200" }, "\u{1F3F7}\uFE0F ", t))), c.note && /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-ink-50 p-3 text-sm text-ink-600" }, "\u{1F4DD} ", c.note), /* @__PURE__ */ React.createElement(DocumentsSection, { customer: c, onUpdate: onUpdateDocuments }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-medium text-ink-500 mb-1.5" }, "\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5" }, STATUSES.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, onClick: () => onStatus(c.id, s.key), className: `px-2.5 py-1 rounded-lg text-xs font-medium transition ${c.status === s.key ? s.color + " text-white" : "bg-ink-100 text-ink-500 hover:bg-ink-200"}` }, s.label))))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-ink-50/40" }, /* @__PURE__ */ React.createElement("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22"), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white ring-1 ring-ink-100 p-3 space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E04\u0E38\u0E22\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2D\u0E30\u0E44\u0E23 *", value: log.topic, onChange: (e) => setLog((p) => ({ ...p, topic: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E2A\u0E19\u0E43\u0E08\u0E2D\u0E30\u0E44\u0E23", value: log.interest, onChange: (e) => setLog((p) => ({ ...p, interest: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E30\u0E44\u0E23\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27", value: log.sent, onChange: (e) => setLog((p) => ({ ...p, sent: e.target.value })) }), /* @__PURE__ */ React.createElement("input", { className: inputCls, placeholder: "\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E15\u0E48\u0E2D\u0E44\u0E1B\u0E04\u0E37\u0E2D\u0E2D\u0E30\u0E44\u0E23", value: log.next, onChange: (e) => setLog((p) => ({ ...p, next: e.target.value })) }), /* @__PURE__ */ React.createElement("button", { onClick: addLog, className: "w-full py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, (c.timeline || []).slice().reverse().map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "relative pl-5" }, /* @__PURE__ */ React.createElement("span", { className: "absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-4 ring-brand-100" }), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-400 mb-0.5" }, thDate(t.date)), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg bg-white ring-1 ring-ink-100 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-ink-800" }, t.topic), t.interest && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500 mt-1" }, "\u0E2A\u0E19\u0E43\u0E08: ", t.interest), t.sent && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-ink-500" }, "\u0E2A\u0E48\u0E07\u0E41\u0E25\u0E49\u0E27: ", t.sent), t.next && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-brand-600 mt-1" }, "\u2192 \u0E16\u0E31\u0E14\u0E44\u0E1B: ", t.next)))), (!c.timeline || c.timeline.length === 0) && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-ink-400 text-center py-6" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E04\u0E38\u0E22")))), /* @__PURE__ */ React.createElement(WarrantyDetailModal, { open: warrantyOpen, customer: c, onClose: () => setWarrantyOpen(false), onAddLog, onUpdateWarranty }));
 }
 function Donut({ data, unit }) {
   const totalReal = data.reduce((s, d) => s + d.value, 0);
@@ -3518,8 +3518,6 @@ const NAV = [
   { key: "cust", label: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", icon: I.users },
   { key: "install", label: "🏗️ ไปป์ไลน์งาน", icon: I.board },
   { key: "follow", label: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21", icon: I.bell },
-  { key: "techteam", label: "🔧 ทีมช่าง", icon: I.users },
-  { key: "jobboard", label: "📢 หาช่างเพิ่ม", icon: I.inbox },
   { key: "profit", label: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E01\u0E33\u0E44\u0E23", icon: I.calc },
   { key: "roi", label: "☀️ คำนวณคืนทุน", icon: I.money },
   { key: "loadcalc", label: "🔌 คำนวณโหลดไฟฟ้า", icon: I.calc },
@@ -7022,32 +7020,15 @@ function LoginScreen() {
     React.createElement("div", { className: "lgn-grid" }),
     React.createElement("canvas", { ref: canvasRef, className: "lgn-canvas" }),
     sparks,
-    React.createElement("div", { style: { position: "relative", zIndex: 5, display: "flex", alignItems: "stretch", gap: "24px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1400px", margin: "0 auto", padding: "0 16px" } },
+    React.createElement("div", { style: { position: "relative", zIndex: 5, display: "flex", alignItems: "flex-start", gap: "28px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1500px", margin: "0 auto", padding: "24px 16px" } },
     React.createElement(LoginMarketingPanel, null),
-    React.createElement("div", { ref: cardRef, className: "lgn-card", "data-modal": "" },
-      React.createElement("div", { className: "lgn-logo" }, React.createElement("img", { src: "https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png", alt: "SolarCRM", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" } })),
+    React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "20px", width: "min(460px, 100%)" } },
+    React.createElement("div", { style: { borderRadius: "28px", padding: "1.5px", background: "linear-gradient(160deg,#fbbf24,#f59e0b 30%,rgba(245,158,11,.15) 60%,rgba(96,165,250,.4))", boxShadow: "0 30px 80px -20px rgba(0,0,0,.6)" } },
+    React.createElement("div", { style: { borderRadius: "26.5px", overflow: "hidden", background: "rgba(10,14,25,.92)" } },
+    React.createElement("div", { ref: cardRef, className: "lgn-card", "data-modal": "", style: { maxWidth: "none", borderRadius: "0", border: "none", boxShadow: "none", background: "transparent", backdropFilter: "none" } },
+      React.createElement("div", { className: "lgn-logo", style: { borderRadius: "50%", border: "3px solid #fbbf24", boxShadow: "0 0 30px -6px rgba(251,191,36,.7)" } }, React.createElement("img", { src: "https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png", alt: "SolarCRM", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" } })),
       React.createElement("h1", { className: "lgn-title" }, authMode === "signup" ? "สมัครสมาชิก" : "ยินดีต้อนรับ \uD83D\uDC4B"),
       React.createElement("p", { className: "lgn-sub" }, authMode === "signup" ? "สร้างบัญชี SolarCRM ใหม่" : "เข้าสู่ระบบ SolarCRM"),
-      React.createElement("div", { style: { display: "flex", gap: "8px", width: "100%", margin: "16px 0 4px" } },
-        React.createElement("button", {
-          type: "button", onClick: () => setRole("company"),
-          style: {
-            flex: 1, padding: "10px 6px", borderRadius: "14px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer",
-            border: role === "company" ? "1.5px solid rgba(52,211,153,.85)" : "1px solid rgba(255,255,255,.15)",
-            background: role === "company" ? "rgba(52,211,153,.16)" : "rgba(255,255,255,.05)",
-            color: role === "company" ? "#6ee7b7" : "rgba(255,255,255,.65)"
-          }
-        }, "🏢 บริษัทติดตั้งโซลาร์"),
-        React.createElement("button", {
-          type: "button", onClick: () => setRole("technician"),
-          style: {
-            flex: 1, padding: "10px 6px", borderRadius: "14px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer",
-            border: role === "technician" ? "1.5px solid rgba(96,165,250,.85)" : "1px solid rgba(255,255,255,.15)",
-            background: role === "technician" ? "rgba(96,165,250,.16)" : "rgba(255,255,255,.05)",
-            color: role === "technician" ? "#93c5fd" : "rgba(255,255,255,.65)"
-          }
-        }, "🔧 ช่างติดตั้งโซล่าเซลล์")
-      ),
       React.createElement("div", { style: { width: "100%", marginTop: "8px" } },
         React.createElement("input", {
           type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "อีเมลหรือเบอร์โทรศัพท์",
@@ -7090,72 +7071,107 @@ function LoginScreen() {
           React.createElement("path", { fill: "#4CAF50", d: "M24 43c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 34.5 26.7 35 24 35c-5.3 0-9.7-2.6-11.3-7l-6.5 5C9.6 38.6 16.2 43 24 43z" }),
           React.createElement("path", { fill: "#1976D2", d: "M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4-4.1 5.3l6.2 5.2C41.4 35.7 44 30.3 44 23c0-1.3-.1-2.5-.4-3.5z" })),
         busy ? "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E40\u0E1B\u0E34\u0E14 Google\u2026" : "\u0E40\u0E02\u0E49\u0E32\u0E2A\u0E39\u0E48\u0E23\u0E30\u0E1A\u0E1A\u0E14\u0E49\u0E27\u0E22 Google"),
-      React.createElement("p", { className: "lgn-foot" }, React.createElement("span", { className: "lgn-secure" }, "\u{1F512} \u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E02\u0E2D\u0E07\u0E04\u0E38\u0E13\u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22\u0E01\u0E31\u0E1A\u0E40\u0E23\u0E32 100%"))),
-    React.createElement(LoginAnnouncementsPanel, null),
-    React.createElement(LoginJobBoardPreview, null)));
+      React.createElement("p", { className: "lgn-foot" }, React.createElement("span", { className: "lgn-secure" }, "\u{1F512} \u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E02\u0E2D\u0E07\u0E04\u0E38\u0E13\u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22\u0E14\u0E49\u0E27\u0E22\u0E01\u0E32\u0E23\u0E40\u0E02\u0E49\u0E32\u0E23\u0E2B\u0E31\u0E2A 256-bit"))))),
+    React.createElement(LoginAnnouncementsPanel, null)),
+    /* กระดานงานโซลาร์ (ฟีเจอร์มาร์เก็ตเพลสช่าง) ปิดไว้ก่อนชั่วคราว: React.createElement(LoginJobBoardPreview, null) */));
 }
 function LoginMarketingPanel() {
-  return React.createElement("div", { className: "hidden xl:flex", style: { position: "relative", zIndex: 5, width: "380px", flexDirection: "column", justifyContent: "center", color: "#fff" } },
-    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", marginBottom: "18px" } },
-      React.createElement("div", { style: { width: "52px", height: "52px", borderRadius: "14px", overflow: "hidden", boxShadow: "0 8px 24px -8px rgba(16,185,129,.6)" } },
-        React.createElement("img", { src: "https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png", style: { width: "100%", height: "100%", objectFit: "cover" } })
+  const comboSpark = [
+    { month: "ม.ค.", income: 850000, expense: 620000, net: 230000 },
+    { month: "ก.พ.", income: 720000, expense: 540000, net: 180000 },
+    { month: "มี.ค.", income: 1050000, expense: 610000, net: 440000 },
+    { month: "เม.ย.", income: 980000, expense: 700000, net: 280000 },
+    { month: "พ.ค.", income: 1120000, expense: 650000, net: 470000 },
+    { month: "มิ.ย.", income: 1245000, expense: 320500, net: 924500 }
+  ];
+  const projectDonut = [
+    { label: "ติดตั้งใหม่", value: 18, color: "#10b981" },
+    { label: "ต่อเติมระบบ", value: 11, color: "#8b5cf6" },
+    { label: "ข้อมูลบำรุง", value: 7, color: "#ef4444" },
+    { label: "ตรวจเช็ค", value: 5, color: "#f59e0b" },
+    { label: "อื่นๆ", value: 4, color: "#3b82f6" }
+  ];
+  return React.createElement("div", { className: "hidden lg:flex", style: { position: "relative", zIndex: 5, width: "min(700px, 100%)", flexDirection: "column", justifyContent: "center", color: "#fff" } },
+    React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px", flexWrap: "wrap", gap: "10px" } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px" } },
+        React.createElement("div", { style: { width: "48px", height: "48px", borderRadius: "14px", overflow: "hidden", boxShadow: "0 8px 24px -8px rgba(16,185,129,.6)" } },
+          React.createElement("img", { src: "https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png", style: { width: "100%", height: "100%", objectFit: "cover" } })
+        ),
+        React.createElement("div", null,
+          React.createElement("div", { style: { fontSize: "24px", fontWeight: 800, lineHeight: 1 } }, "Solar", React.createElement("span", { style: { color: "#34d399" } }, "CRM")),
+          React.createElement("div", { style: { fontSize: "11px", color: "rgba(255,255,255,.5)", marginTop: "3px" } }, "ระบบบริหารธุรกิจโซลาร์เซลล์")
+        )
       ),
-      React.createElement("div", null,
-        React.createElement("div", { style: { fontSize: "26px", fontWeight: 800, lineHeight: 1 } }, "Solar", React.createElement("span", { style: { color: "#34d399" } }, "CRM")),
-        React.createElement("div", { style: { fontSize: "11px", color: "rgba(255,255,255,.5)", marginTop: "3px" } }, "ระบบจัดการลูกค้าธุรกิจโซลาร์เซลล์")
-      )
+      React.createElement("div", { style: { fontSize: "11px", fontWeight: 700, color: "#fbbf24", background: "rgba(251,191,36,.1)", border: "1px solid rgba(251,191,36,.3)", borderRadius: "999px", padding: "6px 14px", display: "flex", alignItems: "center", gap: "6px" } }, "\u2699\uFE0F #1 ระบบ CRM สำหรับธุรกิจโซลาร์เซลล์")
     ),
-    React.createElement("h2", { style: { fontSize: "22px", fontWeight: 700, lineHeight: 1.4, margin: "6px 0 20px" } },
-      "จัดการทุกงานขาย ติดตามลูกค้า ",
+    React.createElement("h2", { style: { fontSize: "26px", fontWeight: 800, lineHeight: 1.35, margin: "6px 0 8px" } },
+      "จัดการทุกงานขาย ติดตามลูกค้า", React.createElement("br"),
       React.createElement("span", { style: { color: "#34d399" } }, "เพิ่มยอดขายได้ง่ายขึ้น")
     ),
-    React.createElement("div", { style: { display: "flex", gap: "10px", marginBottom: "26px" } },
-      [["\uD83D\uDC65", "จัดการลูกค้า", "บริหารข้อมูลลูกค้าครบจบในที่เดียว"], ["\u26A1", "ติดตามงานขาย", "ติดตามทุกความคืบหน้า ไม่พลาดทุกโอกาส"], ["\uD83D\uDCC8", "เพิ่มยอดขาย", "วิเคราะห์ข้อมูลแม่นยำ ปิดการขายได้มากขึ้น"]].map(([icon, t, d], i) =>
-        React.createElement("div", { key: i, style: { flex: 1, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "14px", padding: "12px 8px", textAlign: "center" } },
+    React.createElement("p", { style: { fontSize: "13px", color: "rgba(255,255,255,.55)", marginBottom: "18px", lineHeight: 1.6 } }, "ระบบเดียวจบ ครบทุกฟังก์ชัน ช่วยให้ธุรกิจของคุณเติบโตอย่างมีประสิทธิภาพ"),
+    React.createElement("div", { style: { display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" } },
+      [["\uD83D\uDC65", "จัดการลูกค้า", "บริหารข้อมูลลูกค้าครบจบในที่เดียว"], ["\u26A1", "ติดตามงานขาย", "ติดตามทุกความคืบหน้า ไม่พลาดทุกโอกาส"], ["\uD83D\uDCC8", "เพิ่มยอดขาย", "วิเคราะห์ข้อมูลแม่นยำ ปิดการขายได้มากขึ้น"], ["\uD83D\uDCCA", "วิเคราะห์ธุรกิจ", "รายงานสรุปครบถ้วน ตัดสินใจได้ดียิ่งขึ้น"]].map(([icon, t, d], i) =>
+        React.createElement("div", { key: i, style: { flex: "1 1 130px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "14px", padding: "12px 8px", textAlign: "center" } },
           React.createElement("div", { style: { fontSize: "18px", marginBottom: "4px" } }, icon),
           React.createElement("div", { style: { fontSize: "11px", fontWeight: 700 } }, t),
           React.createElement("div", { style: { fontSize: "9px", color: "rgba(255,255,255,.45)", marginTop: "3px", lineHeight: 1.4 } }, d)
         )
       )
     ),
-    React.createElement("div", { style: { position: "relative", borderRadius: "20px", overflow: "hidden", background: "linear-gradient(160deg, rgba(16,185,129,.18), rgba(15,23,42,.4))", border: "1px solid rgba(255,255,255,.08)", padding: "20px" } },
-      React.createElement("svg", { viewBox: "0 0 300 140", style: { width: "100%", height: "auto" } },
-        React.createElement("rect", { x: "20", y: "80", width: "90", height: "50", rx: "3", fill: "#1e293b" }),
-        React.createElement("polygon", { points: "20,80 65,50 110,80", fill: "#334155" }),
-        React.createElement("rect", { x: "30", y: "55", width: "70", height: "22", rx: "2", fill: "#0ea5e9", opacity: "0.85", transform: "translate(0,-2)" }),
-        React.createElement("line", { x1: "30", y1: "60", x2: "100", y2: "60", stroke: "#082f49", strokeWidth: "0.6" }),
-        React.createElement("line", { x1: "30", y1: "65", x2: "100", y2: "65", stroke: "#082f49", strokeWidth: "0.6" }),
-        React.createElement("line", { x1: "30", y1: "70", x2: "100", y2: "70", stroke: "#082f49", strokeWidth: "0.6" }),
-        React.createElement("rect", { x: "45", y: "95", width: "12", height: "35", fill: "#0f172a" }),
-        React.createElement("rect", { x: "70", y: "95", width: "12", height: "35", fill: "#fbbf24", opacity: "0.7" }),
-        [0, 1, 2, 3, 4].map((i) => React.createElement("rect", { key: i, x: 140 + i * 30, y: 130 - (20 + i * 18), width: "18", height: 20 + i * 18, rx: "3", fill: "#34d399", opacity: 0.55 + i * 0.09 })),
-        React.createElement("polyline", { points: "140,110 170,95 200,100 230,70 260,55", fill: "none", stroke: "#6ee7b7", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }),
-        React.createElement("circle", { cx: "260", cy: "55", r: "4", fill: "#fff" })
+    React.createElement("div", { style: { background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "18px", padding: "16px" } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" } },
+        React.createElement("div", { style: { fontSize: "13px", fontWeight: 700 } }, "\uD83D\uDCCA ภาพรวมธุรกิจวันนี้"),
+        React.createElement("div", { style: { fontSize: "10.5px", fontWeight: 700, color: "#34d399" } }, "\u2197 เพิ่มขึ้น +23.5% จากเมื่อวาน")
       ),
-      React.createElement("div", { style: { position: "absolute", left: "14px", bottom: "14px", background: "rgba(15,23,42,.85)", borderRadius: "10px", padding: "6px 10px", fontSize: "10px", display: "flex", alignItems: "center", gap: "5px" } },
-        React.createElement("span", null, "\uD83D\uDC64"), "ลูกค้าใหม่ ", React.createElement("b", { style: { color: "#34d399" } }, "+23%")
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "8px", marginBottom: "12px" } },
+        [["\uD83D\uDCC8", "รายรับรวม", "\u0e3f1,245,000", "+18.6%", "#34d399", "rgba(16,185,129,.12)"],
+         ["\uD83D\uDCC9", "รายจ่ายรวม", "\u0e3f320,500", "-7.4%", "#f87171", "rgba(239,68,68,.12)"],
+         ["\uD83D\uDCB3", "คงเหลือสุทธิ", "\u0e3f924,500", "+32.8%", "#60a5fa", "rgba(59,130,246,.12)"],
+         ["\uD83D\uDDC4\uFE0F", "ภาษี VAT", "\u0e3f86,715", "รอชำระ", "#a78bfa", "rgba(139,92,246,.12)"]].map(([icon, label, val, trend, color, bg], i) =>
+          React.createElement("div", { key: i, style: { background: bg, borderRadius: "12px", padding: "9px" } },
+            React.createElement("div", { style: { fontSize: "13px" } }, icon),
+            React.createElement("div", { style: { fontSize: "9px", color: "rgba(255,255,255,.55)", marginTop: "3px" } }, label),
+            React.createElement("div", { style: { fontSize: "12.5px", fontWeight: 800, color: "#fff", marginTop: "1px" } }, val),
+            React.createElement("div", { style: { fontSize: "9px", fontWeight: 700, color, marginTop: "1px" } }, trend)
+          )
+        )
       ),
-      React.createElement("div", { style: { position: "absolute", right: "14px", top: "14px", background: "rgba(15,23,42,.85)", borderRadius: "10px", padding: "6px 10px", fontSize: "10px", display: "flex", alignItems: "center", gap: "5px" } },
-        React.createElement("span", null, "\uD83D\uDCB0"), "ยอดขายรวม ", React.createElement("b", { style: { color: "#34d399" } }, "+41%")
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "12px" } },
+        React.createElement("div", { style: { background: "rgba(255,255,255,.03)", borderRadius: "12px", padding: "10px" } },
+          React.createElement("div", { style: { fontSize: "10.5px", fontWeight: 700, color: "rgba(255,255,255,.7)", marginBottom: "4px" } }, "\uD83D\uDCC9 กราฟรายรับ-รายจ่าย 6 เดือนล่าสุด"),
+          React.createElement("div", { style: { filter: "brightness(1.15)" } }, React.createElement(ComboBarLineChart, { data: comboSpark }))
+        ),
+        React.createElement("div", { style: { background: "rgba(255,255,255,.03)", borderRadius: "12px", padding: "10px", display: "flex", flexDirection: "column" } },
+          React.createElement("div", { style: { fontSize: "10.5px", fontWeight: 700, color: "rgba(255,255,255,.7)", marginBottom: "4px" } }, "\uD83D\uDCC8 สัดส่วนประเภทโครงการ"),
+          React.createElement("div", { style: { filter: "brightness(1.2)" } }, React.createElement(Donut, { data: projectDonut, unit: "โครงการ" }))
+        )
       )
     ),
-    React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "22px" } },
-      [["\uD83D\uDCF1", "รองรับทุกอุปกรณ์"], ["\u2705", "ระบบปลอดภัย"], ["\u2601\uFE0F", "สำรองข้อมูลอัตโนมัติ"], ["\uD83D\uDD52", "ทีมซัพพอร์ต 24/7"]].map(([icon, t], i) =>
-        React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: "6px", fontSize: "10.5px", color: "rgba(255,255,255,.6)" } }, icon, " ", t)
+    React.createElement("div", { style: { display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" } },
+      [["\uD83D\uDEE1\uFE0F", "ปลอดภัย 100%", "ข้อมูลเข้ารหัสระดับสูง"], ["\u2601\uFE0F", "สำรองข้อมูลอัตโนมัติ", "ป้องกันข้อมูลสูญหาย"], ["\u23F0", "ใช้งานได้ 24/7", "ระบบเสถียร ไม่ล่ม"], ["\uD83D\uDCF1", "รองรับทุกอุปกรณ์", "ใช้งานได้ทุกที่ ทุกเวลา"]].map(([icon, t, d], i) =>
+        React.createElement("div", { key: i, style: { flex: "1 1 140px", display: "flex", alignItems: "center", gap: "8px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.07)", borderRadius: "12px", padding: "9px 10px" } },
+          React.createElement("span", { style: { fontSize: "16px" } }, icon),
+          React.createElement("div", null,
+            React.createElement("div", { style: { fontSize: "10px", fontWeight: 700 } }, t),
+            React.createElement("div", { style: { fontSize: "8.5px", color: "rgba(255,255,255,.4)" } }, d)
+          )
+        )
       )
     ),
-    React.createElement("div", { style: { fontSize: "10px", color: "rgba(255,255,255,.3)", marginTop: "22px" } }, "\u00A9 ", new Date().getFullYear() + 543 - 2000 + 2000 - 0, " SolarCRM. All rights reserved.")
+    React.createElement("div", { style: { fontSize: "10px", color: "rgba(255,255,255,.3)", marginTop: "18px" } }, "\u00A9 ", (new Date().getFullYear() + 543), " SolarCRM. All rights reserved.")
   );
 }
 function LoginAnnouncementsPanel() {
   const items = [
-    { tag: "NEW", tone: "#3b82f6", icon: "\uD83D\uDCE3", title: "อัปเดตระบบใหม่", desc: "เพิ่มฟีเจอร์จัดการใบเสนอราคาและติดตามสถานะงานได้ง่ายขึ้น" },
-    { tag: null, tone: "#10b981", icon: "\uD83D\uDCC8", title: "ฟีเจอร์คลังสินค้า", desc: "เชื่อมสต๊อกกับใบสั่งซื้อและบัญชีบริษัทอัตโนมัติ" },
-    { tag: null, tone: "#f59e0b", icon: "\uD83C\uDF81", title: "ระบบทีมช่าง", desc: "มอบหมายงานและติดตามช่างได้จากในระบบเดียว" }
+    { tag: "NEW", tone: "#3b82f6", icon: "\uD83D\uDCE3", title: "อัปเดตระบบใหม่!", desc: "เพิ่มฟีเจอร์วิเคราะห์เป็นมอบหมายธุรกิจและติดตามสถานะงานได้ง่ายขึ้น" },
+    { tag: null, tone: "#10b981", icon: "\u2705", title: "ฟีเจอร์คลังสินค้า", desc: "จัดการสต๊อกสินค้า แจ้งเตือนสินค้าใกล้หมดอัตโนมัติ" }
   ];
-  return React.createElement("div", { className: "hidden xl:block", style: { position: "relative", zIndex: 5, width: "260px" } },
+  return React.createElement("div", { className: "hidden lg:block", style: { position: "relative", zIndex: 5, width: "100%" } },
     React.createElement("div", { style: { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "20px", padding: "18px", backdropFilter: "blur(10px)" } },
-      React.createElement("div", { style: { fontSize: "13px", fontWeight: 700, color: "#fff", marginBottom: "14px", display: "flex", alignItems: "center", gap: "6px" } }, "\uD83D\uDCE2 ประกาศ & ข่าวสาร"),
+      React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" } },
+        React.createElement("div", { style: { fontSize: "13px", fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: "6px" } }, "\uD83D\uDCE2 ประกาศ & ข่าวสาร"),
+        React.createElement("span", { style: { fontSize: "11px", fontWeight: 600, color: "#6ee7b7", cursor: "pointer" } }, "ดูทั้งหมด \u2192")
+      ),
       items.map((it, i) => React.createElement("div", { key: i, style: { marginBottom: i === items.length - 1 ? 0 : "14px", paddingBottom: i === items.length - 1 ? 0 : "14px", borderBottom: i === items.length - 1 ? "none" : "1px solid rgba(255,255,255,.06)" } },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" } },
           it.tag && React.createElement("span", { style: { fontSize: "8px", fontWeight: 800, background: it.tone, color: "#fff", padding: "1px 6px", borderRadius: "4px" } }, it.tag),
@@ -8386,13 +8402,7 @@ function Gate() {
   }
   // ยังไม่รู้ role ของ user นี้ (กำลังเช็คอยู่)
   if (sb && session && role === undefined) return React.createElement("div", { className: "min-h-screen flex items-center justify-center text-ink-400" }, "กำลังโหลด\u2026");
-  // ล็อกอินครั้งแรก ยังไม่เคยเลือกว่าเป็นบริษัทหรือช่าง
-  if (sb && session && role === null) return React.createElement(RoleSelectScreen, { onSelect: setRole });
-  if (sb && session && role === "technician") {
-    return React.createElement(React.Fragment, null,
-      React.createElement(AccountChip, { session, key: session.user.id }),
-      React.createElement(TechDashboard, { key: session.user.id }));
-  }
+  // ปิดระบบช่าง/มาร์เก็ตเพลสไว้ก่อนชั่วคราว — ทุกคนเข้าใช้งานฝั่งบริษัทเสมอ ไม่ต้องเลือกบทบาทอีกต่อไป
   return React.createElement(React.Fragment, null,
     sb ? React.createElement(AccountChip, { session, key: session && session.user ? session.user.id : "anon" }) : null,
     React.createElement(App, { key: session && session.user ? session.user.id : "local" }));
