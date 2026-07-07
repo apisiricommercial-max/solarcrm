@@ -178,6 +178,8 @@ tailwind.config = {
   html,body{overflow-anchor:none}
   .fade-in{animation:fadeUp .42s cubic-bezier(.2,.7,.3,1)}
   @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes modalIn{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
+  @keyframes modalBackdropIn{from{opacity:0}to{opacity:1}}
   /* stagger children of a grid/space container on entrance */
   .fade-in > *{animation:fadeUp .5s cubic-bezier(.2,.7,.3,1) backwards}
   .fade-in > *:nth-child(1){animation-delay:.02s}
@@ -1702,9 +1704,9 @@ function Modal({ open, onClose, children, wide }) {
   // ใช้ Portal render ตรงไปที่ document.body เสมอ — กัน modal ไปอิงตำแหน่ง/ขนาดผิดพลาดเมื่อถูกเรียกใช้จากภายใน
   // โครงสร้างที่ซับซ้อน เช่น ตาราง (table/tr/td) ซึ่งบางเบราว์เซอร์จะทำให้ position:fixed คำนวณตำแหน่งผิดไป
   return ReactDOM.createPortal(
-    /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 bg-slate-900/50 backdrop-blur-sm overflow-y-auto no-print", onMouseDown: (e) => {
+    /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 bg-slate-900/50 backdrop-blur-sm overflow-y-auto no-print", style: { animation: "modalBackdropIn .2s ease" }, onMouseDown: (e) => {
       if (e.target === e.currentTarget) onClose();
-    } }, /* @__PURE__ */ React.createElement("div", { "data-modal": true, className: `bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-4xl" : "max-w-2xl"} my-4` }, children)),
+    } }, /* @__PURE__ */ React.createElement("div", { "data-modal": true, className: `bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-4xl" : "max-w-2xl"} my-4`, style: { animation: "modalIn .3s cubic-bezier(.2,.8,.3,1.1)" } }, children)),
     document.body
   );
 }
@@ -1721,10 +1723,19 @@ function IconField({ label, icon, full, required, children }) {
     )
   );
 }
-function SectionHeader({ icon, title }) {
-  return h("div", { className: "sm:col-span-2 flex items-center gap-2.5 pt-4 mt-1 first:pt-0 first:mt-0 border-t border-ink-100 first:border-t-0" },
-    h("span", { className: "w-7 h-7 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-sm shrink-0" }, icon),
-    h("span", { className: "text-sm font-bold text-brand-600" }, title)
+function SectionHeader({ icon, title, tone }) {
+  const tones = {
+    blue: "bg-blue-50 text-blue-600 border-blue-100",
+    violet: "bg-violet-50 text-violet-600 border-violet-100",
+    amber: "bg-amber-50 text-amber-600 border-amber-100",
+    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100"
+  }[tone || "blue"];
+  const textTones = {
+    blue: "text-blue-600", violet: "text-violet-600", amber: "text-amber-600", emerald: "text-emerald-600"
+  }[tone || "blue"];
+  return h("div", { className: "sm:col-span-2 flex items-center gap-2.5 pt-5 mt-2 first:pt-0 first:mt-0 border-t border-ink-100 first:border-t-0 row-anim" },
+    h("span", { className: `w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 shadow-sm ring-2 ${tones}` }, icon),
+    h("span", { className: `text-sm font-bold ${textTones}` }, title)
   );
 }
 function TagInput({ tags, onToggle, onAdd }) {
@@ -1767,16 +1778,16 @@ function CustomerForm({ open, initial, onClose, onSave }) {
     onSave({ ...f, monthlyBill: +f.monthlyBill || 0, budget: +f.budget || 0, value: +f.value || 0 });
   };
   return h(Modal, { open, onClose, wide: true },
-    h("div", { className: "flex items-center gap-3 px-6 py-5 border-b border-ink-100" },
-      h("div", { className: "w-11 h-11 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-lg shrink-0" }, "\uD83D\uDC64\u2795"),
+    h("div", { className: "flex items-center gap-3 px-6 py-5 border-b border-ink-100 relative overflow-hidden", style: { background: "linear-gradient(120deg,#ede9fe,#eff6ff 60%,#ffffff)" } },
+      h(CustomerAvatar, { name: f.name || "?" }),
       h("div", { className: "flex-1 min-w-0" },
-        h("h3", { className: "text-lg font-semibold text-ink-800" }, initial ? "แก้ไขข้อมูลลูกค้า" : "เพิ่มลูกค้าใหม่"),
+        h("h3", { className: "text-lg font-semibold text-ink-800" }, initial ? "แก้ไขข้อมูลลูกค้า" : (f.name ? f.name : "เพิ่มลูกค้าใหม่")),
         h("p", { className: "text-xs text-ink-400" }, initial ? "แก้ไขข้อมูลลูกค้าในระบบ" : "กรอกข้อมูลลูกค้าเพื่อเพิ่มเข้าสู่ระบบ")
       ),
-      h("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600 shrink-0" }, h(Icon, { d: I.x }))
+      h("button", { onClick: onClose, className: "text-ink-400 hover:text-ink-600 hover:bg-white/60 rounded-full p-1.5 transition shrink-0" }, h(Icon, { d: I.x }))
     ),
     h("div", { className: "px-6 py-5 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4" },
-      h(SectionHeader, { icon: "\uD83D\uDC64", title: "ข้อมูลติดต่อ" }),
+      h(SectionHeader, { icon: "\uD83D\uDC64", title: "ข้อมูลติดต่อ", tone: "blue" }),
       h(IconField, { label: "ชื่อ-นามสกุล", icon: "\uD83D\uDC64", required: true },
         h("input", { className: inputClsIcon, value: f.name, onChange: (e) => set("name", e.target.value), placeholder: "เช่น คุณสมชาย ใจดี" })),
       h(IconField, { label: "เบอร์โทร", icon: "\uD83D\uDCDE" },
@@ -1791,7 +1802,7 @@ function CustomerForm({ open, initial, onClose, onSave }) {
       h(IconField, { label: "ที่อยู่", icon: "\uD83C\uDFE0" },
         h("input", { className: inputClsIcon, value: f.address, onChange: (e) => set("address", e.target.value), placeholder: "ที่อยู่ติดต่อ" })),
 
-      h(SectionHeader, { icon: "\uD83D\uDCCB", title: "รายละเอียดงาน" }),
+      h(SectionHeader, { icon: "\uD83D\uDCCB", title: "รายละเอียดงาน", tone: "violet" }),
       h(IconField, { label: "ประเภทลูกค้า", icon: "\uD83D\uDC64" },
         h("select", { className: inputClsIcon, value: f.type, onChange: (e) => set("type", e.target.value) }, TYPES.map((t) => h("option", { key: t }, t)))),
       h(IconField, { label: "แหล่งที่มา", icon: "\uD83D\uDCE2" },
@@ -1805,7 +1816,7 @@ function CustomerForm({ open, initial, onClose, onSave }) {
       h(IconField, { label: "มูลค่าลูกค้าโดยประมาณ (บาท)", icon: "\uD83D\uDCC8" },
         h("input", { type: "number", className: inputClsIcon, value: f.value, onChange: (e) => set("value", e.target.value), placeholder: "0" })),
 
-      h(SectionHeader, { icon: "\uD83C\uDFAF", title: "สถานะและการติดตาม" }),
+      h(SectionHeader, { icon: "\uD83C\uDFAF", title: "สถานะและการติดตาม", tone: "amber" }),
       h(IconField, { label: "ระดับความสนใจ", icon: "\uD83D\uDD25" },
         h("select", { className: inputClsIcon, value: f.heat, onChange: (e) => set("heat", e.target.value) }, HEATS.map((hh) => h("option", { key: hh.key, value: hh.key }, hh.emoji, " ", hh.label)))),
       h(IconField, { label: "สถานะ", icon: "\uD83D\uDCCC" },
@@ -1819,7 +1830,7 @@ function CustomerForm({ open, initial, onClose, onSave }) {
       h(Field, { label: "หมายเหตุ", full: true },
         h("textarea", { className: inputCls + " h-20 resize-none", value: f.note, onChange: (e) => set("note", e.target.value), placeholder: "บันทึกย่อเกี่ยวกับลูกค้า" })),
 
-      h(SectionHeader, { icon: "\uD83D\uDEE1\uFE0F", title: "การรับประกัน (กรอกเมื่อส่งมอบงานแล้ว)" }),
+      h(SectionHeader, { icon: "\uD83D\uDEE1\uFE0F", title: "การรับประกัน (กรอกเมื่อส่งมอบงานแล้ว)", tone: "emerald" }),
       h(IconField, { label: "วันที่ติดตั้งเสร็จ / ส่งมอบงาน", icon: "\u2705" },
         h("input", { type: "date", className: inputClsIcon, value: f.installDate, onChange: (e) => set("installDate", e.target.value) })),
       h(IconField, { label: "ระยะเวลารับประกัน (ปี)", icon: "\uD83D\uDEE1\uFE0F" },
