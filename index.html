@@ -7027,7 +7027,7 @@ function LoginScreen() {
     React.createElement("div", { style: { borderRadius: "26.5px", overflow: "hidden", background: "rgba(10,14,25,.92)" } },
     React.createElement("div", { ref: cardRef, className: "lgn-card", "data-modal": "", style: { maxWidth: "none", borderRadius: "0", border: "none", boxShadow: "none", background: "transparent", backdropFilter: "none" } },
       React.createElement("div", { className: "lgn-logo", style: { borderRadius: "50%", border: "3px solid #fbbf24", boxShadow: "0 0 30px -6px rgba(251,191,36,.7)" } }, React.createElement("img", { src: "https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png", alt: "SolarCRM", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" } })),
-      React.createElement("h1", { className: "lgn-title" }, authMode === "signup" ? "สมัครสมาชิก" : "ยินดีต้อนรับ \uD83D\uDC4B"),
+      React.createElement("h1", { className: "lgn-title" }, authMode === "signup" ? "สมัครสมาชิก" : React.createElement(React.Fragment, null, "ยินดีต้อนรับ ", React.createElement("span", { style: { WebkitTextFillColor: "initial", filter: "none" } }, "\uD83D\uDC4B"))),
       React.createElement("p", { className: "lgn-sub" }, authMode === "signup" ? "สร้างบัญชี SolarCRM ใหม่" : "เข้าสู่ระบบ SolarCRM"),
       React.createElement("div", { style: { width: "100%", marginTop: "8px" } },
         React.createElement("input", {
@@ -7200,7 +7200,7 @@ function RoleSelectScreen({ onSelect }) {
     React.createElement("div", { className: "lgn-aurora" }, React.createElement("i", { className: "lgn-a1" }), React.createElement("i", { className: "lgn-a2" }), React.createElement("i", { className: "lgn-a3" })),
     React.createElement("div", { className: "lgn-grid" }),
     React.createElement("div", { className: "lgn-card", style: { maxWidth: "600px" } },
-      React.createElement("h1", { className: "lgn-title" }, "ยินดีต้อนรับ 👋"),
+      React.createElement("h1", { className: "lgn-title" }, "ยินดีต้อนรับ ", React.createElement("span", { style: { WebkitTextFillColor: "initial", filter: "none" } }, "👋")),
       React.createElement("p", { className: "lgn-sub" }, "เข้ามาใช้งานในฐานะอะไรครับ?"),
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginTop: "24px", width: "100%" } },
         React.createElement("button", {
