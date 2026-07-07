@@ -6991,7 +6991,7 @@ function LoginScreen() {
     sparks,
     React.createElement("div", { style: { position: "relative", zIndex: 5, display: "flex", alignItems: "flex-start", gap: "28px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1500px", margin: "0 auto", padding: "24px 16px" } },
     React.createElement(LoginMarketingPanel, null),
-    React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "20px", width: "min(460px, 100%)" } },
+    React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "20px", width: "min(460px, 100%)", alignSelf: "stretch" } },
     React.createElement("div", { style: { borderRadius: "28px", padding: "1.5px", background: "linear-gradient(160deg,#fbbf24,#f59e0b 30%,rgba(245,158,11,.15) 60%,rgba(96,165,250,.4))", boxShadow: "0 30px 80px -20px rgba(0,0,0,.6)" } },
     React.createElement("div", { style: { borderRadius: "26.5px", overflow: "hidden", background: "rgba(10,14,25,.92)" } },
     React.createElement("div", { ref: cardRef, className: "lgn-card", "data-modal": "", style: { maxWidth: "none", borderRadius: "0", border: "none", boxShadow: "none", background: "transparent", backdropFilter: "none" } },
@@ -7098,21 +7098,26 @@ function LoginMarketingPanel() {
 function LoginAnnouncementsPanel() {
   const items = [
     { tag: "NEW", tone: "#3b82f6", icon: "\uD83D\uDCE3", title: "อัปเดตระบบใหม่!", desc: "เพิ่มฟีเจอร์วิเคราะห์เป็นมอบหมายธุรกิจและติดตามสถานะงานได้ง่ายขึ้น" },
-    { tag: null, tone: "#10b981", icon: "\u2705", title: "ฟีเจอร์คลังสินค้า", desc: "จัดการสต๊อกสินค้า แจ้งเตือนสินค้าใกล้หมดอัตโนมัติ" }
+    { tag: null, tone: "#10b981", icon: "\u2705", title: "ฟีเจอร์คลังสินค้า", desc: "จัดการสต๊อกสินค้า แจ้งเตือนสินค้าใกล้หมดอัตโนมัติ" },
+    { tag: null, tone: "#8b5cf6", icon: "\uD83D\uDCB0", title: "ระบบบัญชีบริษัท", desc: "ติดตามรายรับ-รายจ่าย พร้อมกราฟสรุปภาพรวมอัตโนมัติ" },
+    { tag: null, tone: "#f59e0b", icon: "\uD83D\uDCC4", title: "ใบเสนอราคา BOQ", desc: "สร้างใบเสนอราคาและติดตามงวดชำระเงินได้ในที่เดียว" },
+    { tag: null, tone: "#ef4444", icon: "\uD83D\uDD14", title: "แจ้งเตือนอัจฉริยะ", desc: "เตือนติดตามลูกค้า แจ้งประกันใกล้หมด ไม่พลาดทุกโอกาส" }
   ];
-  return React.createElement("div", { className: "hidden lg:block", style: { position: "relative", zIndex: 5, width: "100%" } },
-    React.createElement("div", { style: { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "20px", padding: "18px", backdropFilter: "blur(10px)" } },
+  return React.createElement("div", { className: "hidden lg:flex", style: { position: "relative", zIndex: 5, width: "100%", flex: 1, flexDirection: "column" } },
+    React.createElement("div", { style: { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "20px", padding: "18px", backdropFilter: "blur(10px)", flex: 1, display: "flex", flexDirection: "column" } },
       React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" } },
         React.createElement("div", { style: { fontSize: "13px", fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: "6px" } }, "\uD83D\uDCE2 ประกาศ & ข่าวสาร"),
         React.createElement("span", { style: { fontSize: "11px", fontWeight: 600, color: "#6ee7b7", cursor: "pointer" } }, "ดูทั้งหมด \u2192")
       ),
-      items.map((it, i) => React.createElement("div", { key: i, style: { marginBottom: i === items.length - 1 ? 0 : "14px", paddingBottom: i === items.length - 1 ? 0 : "14px", borderBottom: i === items.length - 1 ? "none" : "1px solid rgba(255,255,255,.06)" } },
-        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" } },
-          it.tag && React.createElement("span", { style: { fontSize: "8px", fontWeight: 800, background: it.tone, color: "#fff", padding: "1px 6px", borderRadius: "4px" } }, it.tag),
-          React.createElement("span", { style: { fontSize: "12px", fontWeight: 700, color: "#fff" } }, it.icon, " ", it.title)
-        ),
-        React.createElement("div", { style: { fontSize: "10.5px", color: "rgba(255,255,255,.5)", lineHeight: 1.5 } }, it.desc)
-      ))
+      React.createElement("div", { style: { flex: 1 } },
+        items.map((it, i) => React.createElement("div", { key: i, style: { marginBottom: i === items.length - 1 ? 0 : "14px", paddingBottom: i === items.length - 1 ? 0 : "14px", borderBottom: i === items.length - 1 ? "none" : "1px solid rgba(255,255,255,.06)" } },
+          React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" } },
+            it.tag && React.createElement("span", { style: { fontSize: "8px", fontWeight: 800, background: it.tone, color: "#fff", padding: "1px 6px", borderRadius: "4px" } }, it.tag),
+            React.createElement("span", { style: { fontSize: "12px", fontWeight: 700, color: "#fff" } }, it.icon, " ", it.title)
+          ),
+          React.createElement("div", { style: { fontSize: "10.5px", color: "rgba(255,255,255,.5)", lineHeight: 1.5 } }, it.desc)
+        ))
+      )
     )
   );
 }
