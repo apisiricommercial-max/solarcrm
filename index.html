@@ -6552,8 +6552,7 @@ function PhoneGateModal({ onSaved }) {
   return h("div", { className: "fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" },
     h("div", { className: "bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" },
       h("div", { className: "w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center text-2xl mb-3" }, "\uD83D\uDCDE"),
-      h("h3", { className: "text-lg font-bold text-ink-900 mb-1" }, "ก่อนเริ่มใช้งาน กรอกเบอร์ติดต่อก่อนนะครับ"),
-      h("p", { className: "text-xs text-ink-500 mb-4 leading-relaxed" }, "ทีมงานจะโทรสอบถามความคิดเห็นเพื่อนำไปปรับปรุงระบบให้ดียิ่งขึ้น ใช้เวลากรอกแค่ครั้งเดียวเท่านั้น"),
+      h("h3", { className: "text-lg font-bold text-ink-900 mb-4" }, "ก่อนเริ่มใช้งาน กรอกเบอร์ติดต่อก่อนนะครับ"),
       h("input", {
         type: "tel", autoFocus: true, value: phone, onChange: (e) => setPhone(e.target.value), placeholder: "08x-xxx-xxxx",
         onKeyDown: (e) => { if (e.key === "Enter") submit(); },
