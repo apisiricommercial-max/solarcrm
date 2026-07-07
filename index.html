@@ -6268,7 +6268,7 @@ function WarehousePage({ customers }) {
 }
 const SUPPORT_CONTACT_KEY = "solar_support_contact_v1";
 function getSupportContact() {
-  try { const raw = localStorage.getItem(SUPPORT_CONTACT_KEY); return raw ? JSON.parse(raw) : { phone: "", line: "", email: "" }; } catch (e) { return { phone: "", line: "", email: "" }; }
+  try { const raw = localStorage.getItem(SUPPORT_CONTACT_KEY); return raw ? JSON.parse(raw) : { phone: "0928958100", line: "aptkwn", email: "" }; } catch (e) { return { phone: "0928958100", line: "aptkwn", email: "" }; }
 }
 function setSupportContact(v) { try { localStorage.setItem(SUPPORT_CONTACT_KEY, JSON.stringify(v)); } catch (e) {} }
 function SupportContactModal({ onClose }) {
@@ -6287,13 +6287,13 @@ function SupportContactModal({ onClose }) {
       editing
         ? h("div", { className: "space-y-3 mt-4" },
             h("div", null, h("label", { className: labelCls }, "เบอร์โทรศัพท์"), h("input", { value: draft.phone, onChange: (e) => setDraft((p) => ({ ...p, phone: e.target.value })), placeholder: "08x-xxx-xxxx", className: inputCls })),
-            h("div", null, h("label", { className: labelCls }, "ลิงก์ LINE OA"), h("input", { value: draft.line, onChange: (e) => setDraft((p) => ({ ...p, line: e.target.value })), placeholder: "https://lin.ee/xxxxxxx", className: inputCls })),
+            h("div", null, h("label", { className: labelCls }, "LINE ID หรือลิงก์ LINE"), h("input", { value: draft.line, onChange: (e) => setDraft((p) => ({ ...p, line: e.target.value })), placeholder: "เช่น aptkwn หรือ https://lin.ee/xxxxxxx", className: inputCls })),
             h("div", null, h("label", { className: labelCls }, "อีเมล"), h("input", { value: draft.email, onChange: (e) => setDraft((p) => ({ ...p, email: e.target.value })), placeholder: "support@yourcompany.com", className: inputCls })),
             h("button", { onClick: save, className: "w-full py-2.5 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700" }, "บันทึกข้อมูลติดต่อ")
           )
         : h("div", { className: "space-y-2 mt-4" },
             contact.phone && h("a", { href: `tel:${contact.phone}`, className: "flex items-center gap-3 p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 transition" }, h("span", { className: "text-xl" }, "\uD83D\uDCDE"), h("div", null, h("div", { className: "text-sm font-semibold text-ink-800" }, "โทรเลย"), h("div", { className: "text-xs text-ink-500" }, contact.phone))),
-            contact.line && h("a", { href: contact.line, target: "_blank", rel: "noreferrer", className: "flex items-center gap-3 p-3 rounded-xl bg-green-50 hover:bg-green-100 transition" }, h("span", { className: "text-xl" }, "\uD83D\uDCAC"), h("div", null, h("div", { className: "text-sm font-semibold text-ink-800" }, "แชททาง LINE"), h("div", { className: "text-xs text-ink-500 truncate" }, contact.line))),
+            contact.line && h("a", { href: /^https?:\/\//.test(contact.line) ? contact.line : `https://line.me/ti/p/~${contact.line.replace(/^@/, "")}`, target: "_blank", rel: "noreferrer", className: "flex items-center gap-3 p-3 rounded-xl bg-green-50 hover:bg-green-100 transition" }, h("span", { className: "text-xl" }, "\uD83D\uDCAC"), h("div", null, h("div", { className: "text-sm font-semibold text-ink-800" }, "แชททาง LINE"), h("div", { className: "text-xs text-ink-500 truncate" }, "ID: ", contact.line))),
             contact.email && h("a", { href: `mailto:${contact.email}`, className: "flex items-center gap-3 p-3 rounded-xl bg-blue-50 hover:bg-blue-100 transition" }, h("span", { className: "text-xl" }, "\u2709\uFE0F"), h("div", null, h("div", { className: "text-sm font-semibold text-ink-800" }, "ส่งอีเมล"), h("div", { className: "text-xs text-ink-500" }, contact.email))),
             h("button", { onClick: () => { setDraft(contact); setEditing(true); }, className: "w-full py-2 rounded-lg text-xs text-ink-400 hover:bg-ink-100 mt-2" }, "\u270F\uFE0F แก้ไขข้อมูลติดต่อ")
           ),
@@ -6932,11 +6932,6 @@ function LoginJobBoardPreview() {
 function LoginScreen() {
   const [busy, setBusy] = React.useState(false);
   const [role, setRole] = React.useState("company");
-  const [authMode, setAuthMode] = React.useState("signin"); // "signin" | "signup"
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [showPw, setShowPw] = React.useState(false);
-  const [remember, setRemember] = React.useState(true);
   const canvasRef = React.useRef(null);
   const cardRef = React.useRef(null);
   const go = async () => {
@@ -6945,32 +6940,6 @@ function LoginScreen() {
       try { localStorage.setItem("solar_pending_role", role); } catch (e) {}
       await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + window.location.pathname } });
     } catch (e) { alert("เข้าสู่ระบบไม่สำเร็จ: " + (e && e.message)); setBusy(false); }
-  };
-  const submitEmailAuth = async () => {
-    if (!email.trim() || !password) { alert("กรอกอีเมลและรหัสผ่านก่อนนะครับ"); return; }
-    setBusy(true);
-    try {
-      try { localStorage.setItem("solar_pending_role", role); } catch (e) {}
-      if (authMode === "signup") {
-        const { error } = await sb.auth.signUp({ email: email.trim(), password });
-        if (error) throw error;
-        alert("สมัครสมาชิกสำเร็จ! ถ้าระบบต้องยืนยันอีเมล กรุณาเช็คกล่องจดหมายก่อนเข้าสู่ระบบ ไม่งั้นลองเข้าสู่ระบบได้เลยครับ");
-        setAuthMode("signin");
-      } else {
-        const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-        if (error) throw error;
-      }
-    } catch (e) {
-      alert((authMode === "signup" ? "สมัครสมาชิกไม่สำเร็จ: " : "เข้าสู่ระบบไม่สำเร็จ: ") + (e && e.message ? e.message : "ไม่ทราบสาเหตุ"));
-    } finally { setBusy(false); }
-  };
-  const forgotPassword = async () => {
-    if (!email.trim()) { alert("กรอกอีเมลของคุณในช่องด้านบนก่อน แล้วกด \"ลืมรหัสผ่าน?\" อีกครั้งนะครับ"); return; }
-    try {
-      const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin + window.location.pathname });
-      if (error) throw error;
-      alert("ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมล " + email.trim() + " แล้วครับ กรุณาเช็คกล่องจดหมาย");
-    } catch (e) { alert("ส่งอีเมลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
   };
   // particle network
   React.useEffect(() => {
@@ -7027,44 +6996,9 @@ function LoginScreen() {
     React.createElement("div", { style: { borderRadius: "26.5px", overflow: "hidden", background: "rgba(10,14,25,.92)" } },
     React.createElement("div", { ref: cardRef, className: "lgn-card", "data-modal": "", style: { maxWidth: "none", borderRadius: "0", border: "none", boxShadow: "none", background: "transparent", backdropFilter: "none" } },
       React.createElement("div", { className: "lgn-logo", style: { borderRadius: "50%", border: "3px solid #fbbf24", boxShadow: "0 0 30px -6px rgba(251,191,36,.7)" } }, React.createElement("img", { src: "https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png", alt: "SolarCRM", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" } })),
-      React.createElement("h1", { className: "lgn-title" }, authMode === "signup" ? "สมัครสมาชิก" : React.createElement(React.Fragment, null, "ยินดีต้อนรับ ", React.createElement("span", { style: { WebkitTextFillColor: "initial", filter: "none" } }, "\uD83D\uDC4B"))),
-      React.createElement("p", { className: "lgn-sub" }, authMode === "signup" ? "สร้างบัญชี SolarCRM ใหม่" : "เข้าสู่ระบบ SolarCRM"),
-      React.createElement("div", { style: { width: "100%", marginTop: "8px" } },
-        React.createElement("input", {
-          type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "อีเมลหรือเบอร์โทรศัพท์",
-          style: { width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.05)", color: "#fff", fontSize: "13.5px", outline: "none", marginBottom: "8px" }
-        }),
-        React.createElement("div", { style: { position: "relative" } },
-          React.createElement("input", {
-            type: showPw ? "text" : "password", value: password, onChange: (e) => setPassword(e.target.value), placeholder: "รหัสผ่าน",
-            onKeyDown: (e) => { if (e.key === "Enter") submitEmailAuth(); },
-            style: { width: "100%", padding: "11px 40px 11px 14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.05)", color: "#fff", fontSize: "13.5px", outline: "none" }
-          }),
-          React.createElement("button", { type: "button", onClick: () => setShowPw((v) => !v), style: { position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(255,255,255,.5)", cursor: "pointer", fontSize: "14px" } }, showPw ? "\uD83D\uDE48" : "\uD83D\uDC41\uFE0F")
-        ),
-        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "10px", fontSize: "12px" } },
-          React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", color: "rgba(255,255,255,.6)", cursor: "pointer" } },
-            React.createElement("input", { type: "checkbox", checked: remember, onChange: (e) => setRemember(e.target.checked) }),
-            "จดจำฉัน"
-          ),
-          authMode === "signin" && React.createElement("button", { type: "button", onClick: forgotPassword, style: { background: "none", border: "none", color: "#6ee7b7", cursor: "pointer", fontSize: "12px" } }, "ลืมรหัสผ่าน?")
-        ),
-        React.createElement("button", {
-          type: "button", onClick: submitEmailAuth, disabled: busy,
-          style: { width: "100%", marginTop: "14px", padding: "12px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff", fontWeight: 700, fontSize: "14px", cursor: "pointer", opacity: busy ? .7 : 1 }
-        }, busy ? "กำลังดำเนินการ..." : (authMode === "signup" ? "สมัครสมาชิก" : "เข้าสู่ระบบ"), " \u2192"),
-        React.createElement("div", { style: { textAlign: "center", marginTop: "10px", fontSize: "12px" } },
-          React.createElement("button", { type: "button", onClick: () => setAuthMode((m) => m === "signin" ? "signup" : "signin"), style: { background: "none", border: "none", color: "rgba(255,255,255,.55)", cursor: "pointer" } },
-            authMode === "signin" ? "ยังไม่มีบัญชี? สมัครสมาชิก" : "มีบัญชีแล้ว? เข้าสู่ระบบ"
-          )
-        )
-      ),
-      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", width: "100%", margin: "16px 0" } },
-        React.createElement("div", { style: { flex: 1, height: "1px", background: "rgba(255,255,255,.12)" } }),
-        React.createElement("span", { style: { fontSize: "11px", color: "rgba(255,255,255,.4)" } }, "หรือ"),
-        React.createElement("div", { style: { flex: 1, height: "1px", background: "rgba(255,255,255,.12)" } })
-      ),
-      React.createElement("button", { onClick: go, disabled: busy, className: "lgn-btn" },
+      React.createElement("h1", { className: "lgn-title" }, React.createElement(React.Fragment, null, "ยินดีต้อนรับ ", React.createElement("span", { style: { WebkitTextFillColor: "initial", filter: "none" } }, "\uD83D\uDC4B"))),
+      React.createElement("p", { className: "lgn-sub", style: { marginBottom: "8px" } }, "เข้าสู่ระบบ SolarCRM"),
+      React.createElement("button", { onClick: go, disabled: busy, className: "lgn-btn", style: { marginTop: "16px" } },
         React.createElement("svg", { width: "20", height: "20", viewBox: "0 0 48 48" },
           React.createElement("path", { fill: "#FFC107", d: "M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.3 5.1 29.4 3 24 3 12.9 3 4 11.9 4 23s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" }),
           React.createElement("path", { fill: "#FF3D00", d: "M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.3 7.1 29.4 5 24 5 16.3 5 9.7 9.3 6.3 14.7z" }),
@@ -8361,7 +8295,23 @@ function Gate() {
     });
     return () => { try { sub.subscription.unsubscribe(); } catch (e) {} };
   }, []);
-  // เช็คว่า user คนนี้เลือกบทบาท (บริษัท/ช่าง) อะไรไว้ — เช็คเฉพาะตอน "เปลี่ยนคนละ user" จริงๆ เท่านั้น
+  // ล็อกเอาท์อัตโนมัติ ถ้าไม่มีการใช้งานเลย (ไม่คลิก/พิมพ์/เลื่อน/แตะ) เกิน 10 นาที เพื่อความปลอดภัย
+  React.useEffect(() => {
+    if (!sb || !session) return;
+    const IDLE_MS = 10 * 60 * 1000;
+    let timer;
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try { await sb.auth.signOut(); } catch (e) {}
+        alert("ไม่มีการใช้งานเกิน 10 นาที ระบบออกจากระบบให้อัตโนมัติเพื่อความปลอดภัยครับ");
+      }, IDLE_MS);
+    };
+    const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click", "wheel"];
+    events.forEach((ev) => window.addEventListener(ev, resetTimer, { passive: true }));
+    resetTimer();
+    return () => { clearTimeout(timer); events.forEach((ev) => window.removeEventListener(ev, resetTimer)); };
+  }, [session]);
   // สำคัญ: ห้ามเช็คซ้ำทุกครั้งที่ session เปลี่ยน เพราะ Supabase จะรีเฟรช token อัตโนมัติเวลาสลับกลับมาที่แท็บ
   // (เป็น user คนเดิม แค่ token ใหม่) ถ้าเช็คซ้ำทุกครั้งจะรีเซ็ต role เป็น "กำลังโหลด" ทำให้แอปทั้งหน้าถูก
   // ถอดประกอบและสร้างใหม่ (unmount/remount) หน้าที่เปิดค้างไว้ (เช่นคลังสินค้า) จะหายกลับไปแดชบอร์ดทันที — นี่คือบั๊กที่เจอ
