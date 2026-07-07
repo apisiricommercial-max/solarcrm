@@ -7554,6 +7554,7 @@ function AdminAnalyticsPage({ session }) {
   const [onlineCheckDate, setOnlineCheckDate] = useState(todayISO());
   const OFFLINE_DAYS_THRESHOLD = 3;
   const myEmail = (session && session.user && session.user.email || "").toLowerCase();
+  const [expandedId, setExpandedId] = useState(null);
 
   const loadData = async (from, to) => {
     try {
@@ -7717,13 +7718,14 @@ function AdminAnalyticsPage({ session }) {
                     h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "\u0E40\u0E27\u0E25\u0E32\u0E25\u0E47\u0E2D\u0E01\u0E2D\u0E34\u0E19\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14"),
                     h("th", { className: "text-center px-5 py-2.5 font-semibold" }, "\u0E2A\u0E16\u0E32\u0E19\u0E30")
                   )),
-                  h("tbody", null, displayRanking.map((r, i) => h("tr", { key: r.ownerId, className: "border-t border-ink-50 hover:bg-ink-50/50" },
+                  h("tbody", null, displayRanking.map((r, i) => h(React.Fragment, { key: r.ownerId },
+                    h("tr", { className: "border-t border-ink-50 hover:bg-ink-50/50 cursor-pointer", onClick: () => setExpandedId(expandedId === r.ownerId ? null : r.ownerId) },
                     h("td", { className: "px-5 py-3 text-ink-400 num" }, i + 1),
                     h("td", { className: "px-3 py-3" },
-                      h("div", { className: "font-medium text-ink-800" }, r.companyName || "(\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E15\u0E31\u0E49\u0E07\u0E0A\u0E37\u0E48\u0E2D\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17)"),
-                      h("div", { className: "text-xs text-ink-400" }, r.ownerEmail)
+                      h("div", { className: "font-medium text-ink-800 flex items-center gap-1.5" }, h("span", { className: `text-[10px] text-ink-300 transition-transform ${expandedId === r.ownerId ? "rotate-90" : ""}` }, "\u25B6"), r.companyName || "(\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E15\u0E31\u0E49\u0E07\u0E0A\u0E37\u0E48\u0E2D\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17)"),
+                      h("div", { className: "text-xs text-ink-400 ml-4" }, r.ownerEmail)
                     ),
-                    h("td", { className: "px-3 py-3 text-center text-ink-600 text-xs num" }, r.contactPhone
+                    h("td", { className: "px-3 py-3 text-center text-ink-600 text-xs num", onClick: (e) => e.stopPropagation() }, r.contactPhone
                       ? h("a", { href: `tel:${r.contactPhone}`, className: "text-brand-600 font-semibold hover:underline" }, r.contactPhone)
                       : h("span", { className: "text-ink-300" }, "\u2014")),
                     h("td", { className: "px-3 py-3 text-center num" }, r.userCount),
@@ -7735,6 +7737,27 @@ function AdminAnalyticsPage({ session }) {
                     ),
                     h("td", { className: "px-3 py-3 text-center text-ink-500 text-xs num" }, thTime(r.lastActive)),
                     h("td", { className: "px-5 py-3 text-center" }, statusBadge(r.status))
+                  ),
+                    expandedId === r.ownerId && h("tr", { className: "bg-ink-50/60 border-t border-ink-100" },
+                      h("td", { colSpan: 8, className: "px-5 py-4" },
+                        h("div", { className: "text-xs font-bold text-ink-600 mb-2" }, "\uD83D\uDC65 \u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E40\u0E1E\u0E34\u0E48\u0E07\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14 (\u0E2A\u0E39\u0E07\u0E2A\u0E38\u0E14 10 \u0E23\u0E32\u0E22)"),
+                        !r.recentCustomers || r.recentCustomers.length === 0
+                          ? h("div", { className: "text-xs text-ink-400 py-3 text-center" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E40\u0E04\u0E22\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E40\u0E25\u0E22")
+                          : h("div", { className: "bg-white rounded-xl ring-1 ring-ink-100 divide-y divide-ink-50 overflow-hidden" },
+                              r.recentCustomers.map((c, ci) => h("div", { key: ci, className: "flex items-center justify-between px-4 py-2 text-xs" },
+                                h("div", { className: "flex items-center gap-2 min-w-0" },
+                                  h(CustomerAvatar, { name: c.name, size: "sm" }),
+                                  h("span", { className: "text-ink-700 font-medium truncate" }, c.name),
+                                  c.status && h("span", { className: "text-[10px] px-1.5 py-0.5 rounded-full bg-ink-100 text-ink-400 shrink-0" }, c.status)
+                                ),
+                                h("div", { className: "flex items-center gap-3 shrink-0 text-ink-400" },
+                                  h("span", null, thDateShort(c.createdAt)),
+                                  h("span", { className: "num font-semibold text-emerald-600" }, "\u0E3F", fmt(c.value))
+                                )
+                              ))
+                            )
+                      )
+                    )
                   )))
                 )
               ),
