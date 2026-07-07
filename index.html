@@ -664,14 +664,16 @@ if (USE_SUPABASE) {
 //  ทำให้เช็คสถานะ demo_dismissed/tour_completed ไม่เจอ วนลูป seed ข้อมูลตัวอย่างซ้ำไม่รู้จบ)
 // ฟังก์ชันนี้เช็คก่อนว่ามีแถวของ user นี้อยู่แล้วหรือยัง แล้วค่อยเลือก update หรือ insert แทน
 async function upsertCompanyProfile(uidNow, patch) {
-  if (!sb || !uidNow) return;
+  if (!sb || !uidNow) return { isNew: false };
   const { data: existing } = await sb.from("company_profiles").select("user_id").eq("user_id", uidNow).maybeSingle();
   if (existing) {
     const { error } = await sb.from("company_profiles").update(patch).eq("user_id", uidNow);
     if (error) throw error;
+    return { isNew: false };
   } else {
     const { error } = await sb.from("company_profiles").insert({ user_id: uidNow, ...patch });
     if (error) throw error;
+    return { isNew: true };
   }
 }
 // กันสำรอง (fallback) ฝั่งเบราว์เซอร์: ถ้าฝั่ง Supabase (RLS/constraint) มีปัญหาจนอ่านสถานะ demo_dismissed กลับมาไม่ได้
@@ -7068,12 +7070,18 @@ function LoginJobBoardPreview() {
 function LoginScreen() {
   const [busy, setBusy] = React.useState(false);
   const [role, setRole] = React.useState("company");
+  const [phone, setPhone] = React.useState("");
+  const [hasLoggedInBefore] = React.useState(() => { try { return localStorage.getItem("solar_has_logged_in_before") === "1"; } catch (e) { return false; } });
   const canvasRef = React.useRef(null);
   const cardRef = React.useRef(null);
   const go = async () => {
+    if (!hasLoggedInBefore && !phone.trim()) { alert("กรุณากรอกเบอร์โทรติดต่อก่อนนะครับ (สำหรับผู้ใช้งานใหม่เท่านั้น)"); return; }
     setBusy(true);
     try {
-      try { localStorage.setItem("solar_pending_role", role); } catch (e) {}
+      try {
+        localStorage.setItem("solar_pending_role", role);
+        if (!hasLoggedInBefore && phone.trim()) localStorage.setItem("solar_pending_phone", phone.trim());
+      } catch (e) {}
       await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + window.location.pathname } });
     } catch (e) { alert("เข้าสู่ระบบไม่สำเร็จ: " + (e && e.message)); setBusy(false); }
   };
@@ -7134,6 +7142,14 @@ function LoginScreen() {
       React.createElement("div", { className: "lgn-logo", style: { borderRadius: "50%", border: "3px solid #fbbf24", boxShadow: "0 0 30px -6px rgba(251,191,36,.7)" } }, React.createElement("img", { src: "https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png", alt: "SolarCRM", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" } })),
       React.createElement("h1", { className: "lgn-title" }, React.createElement(React.Fragment, null, "ยินดีต้อนรับ ", React.createElement("span", { style: { WebkitTextFillColor: "initial", filter: "none" } }, "\uD83D\uDC4B"))),
       React.createElement("p", { className: "lgn-sub", style: { marginBottom: "8px" } }, "เข้าสู่ระบบ SolarCRM"),
+      !hasLoggedInBefore && React.createElement("div", { style: { width: "100%", marginTop: "10px", textAlign: "left" } },
+        React.createElement("label", { style: { fontSize: "11.5px", color: "rgba(255,255,255,.6)", display: "flex", alignItems: "center", gap: "5px", marginBottom: "6px" } }, "\uD83D\uDCDE เบอร์โทรติดต่อ ", React.createElement("span", { style: { color: "#fbbf24", fontWeight: 700 } }, "*"), React.createElement("span", { style: { fontSize: "10px", color: "rgba(255,255,255,.4)" } }, "(สำหรับผู้ใช้งานใหม่)")),
+        React.createElement("input", {
+          type: "tel", value: phone, onChange: (e) => setPhone(e.target.value), placeholder: "08x-xxx-xxxx", required: true,
+          style: { width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1px solid rgba(251,191,36,.35)", background: "rgba(255,255,255,.06)", color: "#fff", fontSize: "13.5px", outline: "none" }
+        }),
+        React.createElement("div", { style: { fontSize: "9.5px", color: "rgba(255,255,255,.35)", marginTop: "5px" } }, "เก็บไว้ติดต่อสอบถามข้อมูลเพื่อปรับปรุงระบบเท่านั้น ไม่ใช้เพื่อวัตถุประสงค์อื่น")
+      ),
       React.createElement("button", { onClick: go, disabled: busy, className: "lgn-btn", style: { marginTop: "16px" } },
         React.createElement("svg", { width: "20", height: "20", viewBox: "0 0 48 48" },
           React.createElement("path", { fill: "#FFC107", d: "M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.3 5.1 29.4 3 24 3 12.9 3 4 11.9 4 23s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" }),
@@ -8467,12 +8483,20 @@ function Gate() {
       try { pending = localStorage.getItem("solar_pending_role"); } catch (e) {}
       if (pending === "company" || pending === "technician") {
         try {
-          await upsertCompanyProfile(session.user.id, { role: pending });
-          try { localStorage.removeItem("solar_pending_role"); } catch (e) {}
+          let pendingPhone = null;
+          try { pendingPhone = localStorage.getItem("solar_pending_phone"); } catch (e) {}
+          const patch = { role: pending };
+          const { isNew } = await upsertCompanyProfile(session.user.id, patch);
+          // บันทึกเบอร์ติดต่อเฉพาะตอนเป็นผู้ใช้ใหม่จริงๆ เท่านั้น (เช็คจากฐานข้อมูลจริง ไม่ใช่แค่เดาจากเครื่อง)
+          if (isNew && pendingPhone) {
+            try { await upsertCompanyProfile(session.user.id, { contact_phone: pendingPhone }); } catch (e2) {}
+          }
+          try { localStorage.removeItem("solar_pending_role"); localStorage.removeItem("solar_pending_phone"); localStorage.setItem("solar_has_logged_in_before", "1"); } catch (e) {}
           setRole(pending);
           return;
         } catch (e) { /* บันทึกไม่สำเร็จ ให้ตกไปเช็คค่าเดิมใน DB แทน */ }
       }
+      try { localStorage.setItem("solar_has_logged_in_before", "1"); } catch (e) {}
       sb.from("company_profiles").select("role").eq("user_id", session.user.id).maybeSingle()
         .then(({ data }) => setRole(data && data.role ? data.role : null))
         .catch(() => setRole(null));
