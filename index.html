@@ -6537,6 +6537,33 @@ function NotificationBell({ rows, onOpen }) {
   )
   );
 }
+function PhoneGateModal({ onSaved }) {
+  const [phone, setPhone] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const submit = async () => {
+    const p = phone.trim();
+    if (!p || p.replace(/\D/g, "").length < 9) { alert("กรุณากรอกเบอร์โทรให้ถูกต้องก่อนนะครับ"); return; }
+    setBusy(true);
+    try {
+      await upsertCompanyProfile(currentUser.id, { contact_phone: p });
+      onSaved(p);
+    } catch (e) { alert("บันทึกไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); setBusy(false); }
+  };
+  return h("div", { className: "fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" },
+    h("div", { className: "bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" },
+      h("div", { className: "w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center text-2xl mb-3" }, "\uD83D\uDCDE"),
+      h("h3", { className: "text-lg font-bold text-ink-900 mb-1" }, "ก่อนเริ่มใช้งาน กรอกเบอร์ติดต่อก่อนนะครับ"),
+      h("p", { className: "text-xs text-ink-500 mb-4 leading-relaxed" }, "ทีมงานจะโทรสอบถามความคิดเห็นเพื่อนำไปปรับปรุงระบบให้ดียิ่งขึ้น ใช้เวลากรอกแค่ครั้งเดียวเท่านั้น"),
+      h("input", {
+        type: "tel", autoFocus: true, value: phone, onChange: (e) => setPhone(e.target.value), placeholder: "08x-xxx-xxxx",
+        onKeyDown: (e) => { if (e.key === "Enter") submit(); },
+        className: "w-full px-3.5 py-2.5 rounded-xl border border-ink-200 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 mb-4"
+      }),
+      h("button", { onClick: submit, disabled: busy, className: "w-full py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:opacity-50" }, busy ? "กำลังบันทึก..." : "ยืนยันและเข้าใช้งาน"),
+      h("p", { className: "text-[10px] text-ink-300 mt-3 text-center" }, "🔒 ข้อมูลนี้ใช้เพื่อติดต่อกลับเท่านั้น ไม่นำไปใช้เพื่อวัตถุประสงค์อื่น")
+    )
+  );
+}
 function App() {
   const [rows, setRows] = useState([]);
   const [view, setView] = useState("dash");
@@ -6710,6 +6737,15 @@ function App() {
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const [tourCompleted, setTourCompleted] = useState(null); // null = ยังเช็คไม่เสร็จ, true/false = สถานะจาก Supabase
+  // ===== บังคับกรอกเบอร์ติดต่อสำหรับบัญชีใหม่จริงๆ เท่านั้น (บัญชีเดิมก่อนหน้านี้ถูกกันไว้แล้วด้วยค่า "legacy" ตอนรัน SQL migration) =====
+  const [contactPhone, setContactPhone] = useState(undefined); // undefined = ยังเช็คไม่เสร็จ, null/"" = ยังไม่กรอก (บัญชีใหม่), string = กรอกแล้ว/เป็นบัญชีเดิม
+  useEffect(() => {
+    if (!sb || !currentUser) { setContactPhone("skip"); return; }
+    sb.from("company_profiles").select("contact_phone").eq("user_id", currentUser.id).maybeSingle()
+      .then(({ data }) => setContactPhone(data && data.contact_phone ? data.contact_phone : null))
+      .catch(() => setContactPhone("skip"));
+  }, [currentUser]);
+  const needsPhoneGate = contactPhone === null && !tourActive && (tourCompleted === true || (tourCompleted === false && !hasDemoData));
   const [reminderDismissed, setReminderDismissed] = useState(false); // ปิดแบนเนอร์เตือนแค่ใน session นี้ — ล็อกอินใหม่จะโชว์อีกถ้ายังไม่ลบข้อมูลตัวอย่าง
   useEffect(() => {
     if (!sb || !currentUser) { setTourCompleted(true); return; }
@@ -6739,6 +6775,7 @@ function App() {
   }, [view, tourActive, tourStep]);
   const markTourCompleted = async () => {
     if (sb && currentUser) { try { await upsertCompanyProfile(currentUser.id, { tour_completed: true }); } catch (e) {} }
+    setTourCompleted(true);
   };
   const skipTour = () => { setTourActive(false); markTourCompleted(); };
   // บังคับให้ลบข้อมูลตัวอย่างก่อน จึงจะเพิ่มลูกค้าจริงได้ (กันข้อมูลจริงปนกับข้อมูลตัวอย่าง)
@@ -6910,7 +6947,7 @@ function App() {
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
     setProfile(null);
     openForm(c);
-  }, onAddLog: addLog, onStatus: setStatus, onOpenBOQ: () => setBoqOpen(true), onUpdateWarranty: updateCustomerWarranty, onUpdateInstallStage: updateInstallStage, onUpdateDocuments: updateCustomerDocuments, onAssignTechnician: assignTechnician }), /* @__PURE__ */ React.createElement(BOQBuilder, { open: boqOpen, customer: liveProfile, onClose: () => setBoqOpen(false), onUpdateCustomerValue: updateCustomerValue }), /* @__PURE__ */ React.createElement("button", { id: "mobileAddFab", onClick: guardedOpenForm, className: `sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-xl ${hasDemoData ? "bg-ink-300 text-white" : "bg-brand-600 text-white"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus })), tourActive && /* @__PURE__ */ React.createElement(TourGuide, { step: tourStep, onSkip: skipTour, menuOpen, setMenuOpen }), !tourActive && hasDemoData && /* @__PURE__ */ React.createElement(ClearDemoArrow, null), !tourActive && hasDemoData && !reminderDismissed && /* @__PURE__ */ React.createElement(DemoReminderBanner, { onDismiss: () => setReminderDismissed(true) }));
+  }, onAddLog: addLog, onStatus: setStatus, onOpenBOQ: () => setBoqOpen(true), onUpdateWarranty: updateCustomerWarranty, onUpdateInstallStage: updateInstallStage, onUpdateDocuments: updateCustomerDocuments, onAssignTechnician: assignTechnician }), /* @__PURE__ */ React.createElement(BOQBuilder, { open: boqOpen, customer: liveProfile, onClose: () => setBoqOpen(false), onUpdateCustomerValue: updateCustomerValue }), /* @__PURE__ */ React.createElement("button", { id: "mobileAddFab", onClick: guardedOpenForm, className: `sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-xl ${hasDemoData ? "bg-ink-300 text-white" : "bg-brand-600 text-white"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus })), tourActive && /* @__PURE__ */ React.createElement(TourGuide, { step: tourStep, onSkip: skipTour, menuOpen, setMenuOpen }), !tourActive && hasDemoData && /* @__PURE__ */ React.createElement(ClearDemoArrow, null), !tourActive && hasDemoData && !reminderDismissed && /* @__PURE__ */ React.createElement(DemoReminderBanner, { onDismiss: () => setReminderDismissed(true) }), needsPhoneGate && /* @__PURE__ */ React.createElement(PhoneGateModal, { onSaved: (p) => setContactPhone(p) }));
 }
 const guestBoardDb = {
   async listOpenCombined(limit) {
@@ -7070,18 +7107,12 @@ function LoginJobBoardPreview() {
 function LoginScreen() {
   const [busy, setBusy] = React.useState(false);
   const [role, setRole] = React.useState("company");
-  const [phone, setPhone] = React.useState("");
-  const [hasLoggedInBefore] = React.useState(() => { try { return localStorage.getItem("solar_has_logged_in_before") === "1"; } catch (e) { return false; } });
   const canvasRef = React.useRef(null);
   const cardRef = React.useRef(null);
   const go = async () => {
-    if (!hasLoggedInBefore && !phone.trim()) { alert("กรุณากรอกเบอร์โทรติดต่อก่อนนะครับ (สำหรับผู้ใช้งานใหม่เท่านั้น)"); return; }
     setBusy(true);
     try {
-      try {
-        localStorage.setItem("solar_pending_role", role);
-        if (!hasLoggedInBefore && phone.trim()) localStorage.setItem("solar_pending_phone", phone.trim());
-      } catch (e) {}
+      try { localStorage.setItem("solar_pending_role", role); } catch (e) {}
       await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + window.location.pathname } });
     } catch (e) { alert("เข้าสู่ระบบไม่สำเร็จ: " + (e && e.message)); setBusy(false); }
   };
@@ -7142,14 +7173,6 @@ function LoginScreen() {
       React.createElement("div", { className: "lgn-logo", style: { borderRadius: "50%", border: "3px solid #fbbf24", boxShadow: "0 0 30px -6px rgba(251,191,36,.7)" } }, React.createElement("img", { src: "https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png", alt: "SolarCRM", style: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" } })),
       React.createElement("h1", { className: "lgn-title" }, React.createElement(React.Fragment, null, "ยินดีต้อนรับ ", React.createElement("span", { style: { WebkitTextFillColor: "initial", filter: "none" } }, "\uD83D\uDC4B"))),
       React.createElement("p", { className: "lgn-sub", style: { marginBottom: "8px" } }, "เข้าสู่ระบบ SolarCRM"),
-      !hasLoggedInBefore && React.createElement("div", { style: { width: "100%", marginTop: "10px", textAlign: "left" } },
-        React.createElement("label", { style: { fontSize: "11.5px", color: "rgba(255,255,255,.6)", display: "flex", alignItems: "center", gap: "5px", marginBottom: "6px" } }, "\uD83D\uDCDE เบอร์โทรติดต่อ ", React.createElement("span", { style: { color: "#fbbf24", fontWeight: 700 } }, "*"), React.createElement("span", { style: { fontSize: "10px", color: "rgba(255,255,255,.4)" } }, "(สำหรับผู้ใช้งานใหม่)")),
-        React.createElement("input", {
-          type: "tel", value: phone, onChange: (e) => setPhone(e.target.value), placeholder: "08x-xxx-xxxx", required: true,
-          style: { width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1px solid rgba(251,191,36,.35)", background: "rgba(255,255,255,.06)", color: "#fff", fontSize: "13.5px", outline: "none" }
-        }),
-        React.createElement("div", { style: { fontSize: "9.5px", color: "rgba(255,255,255,.35)", marginTop: "5px" } }, "เก็บไว้ติดต่อสอบถามข้อมูลเพื่อปรับปรุงระบบเท่านั้น ไม่ใช้เพื่อวัตถุประสงค์อื่น")
-      ),
       React.createElement("button", { onClick: go, disabled: busy, className: "lgn-btn", style: { marginTop: "16px" } },
         React.createElement("svg", { width: "20", height: "20", viewBox: "0 0 48 48" },
           React.createElement("path", { fill: "#FFC107", d: "M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.3 5.1 29.4 3 24 3 12.9 3 4 11.9 4 23s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" }),
