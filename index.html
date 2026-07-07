@@ -6744,7 +6744,7 @@ function App() {
       .then(({ data }) => setContactPhone(data && data.contact_phone ? data.contact_phone : null))
       .catch(() => setContactPhone("skip"));
   }, [currentUser]);
-  const needsPhoneGate = contactPhone === null && !tourActive && (tourCompleted === true || (tourCompleted === false && !hasDemoData));
+  const needsPhoneGate = contactPhone === null;
   const [reminderDismissed, setReminderDismissed] = useState(false); // ปิดแบนเนอร์เตือนแค่ใน session นี้ — ล็อกอินใหม่จะโชว์อีกถ้ายังไม่ลบข้อมูลตัวอย่าง
   useEffect(() => {
     if (!sb || !currentUser) { setTourCompleted(true); return; }
@@ -6752,14 +6752,16 @@ function App() {
       .then(({ data }) => setTourCompleted(!!(data && data.tour_completed)))
       .catch(() => setTourCompleted(true));
   }, [currentUser]);
-  // เริ่มทัวร์อัตโนมัติเมื่อรู้สถานะครบแล้วว่า: มีข้อมูลตัวอย่างอยู่ + ยังไม่เคยดูทัวร์นี้จบมาก่อน
+  // เริ่มทัวร์อัตโนมัติเมื่อรู้สถานะครบแล้วว่า: กรอกเบอร์ติดต่อแล้ว + มีข้อมูลตัวอย่างอยู่ + ยังไม่เคยดูทัวร์นี้จบมาก่อน
+  // (ต้องรอให้กรอกเบอร์ก่อนเสมอ ทัวร์แนะนำเมนูถึงจะเริ่มได้ ตามลำดับที่ต้องการ)
   useEffect(() => {
+    if (needsPhoneGate) return;
     if (tourCompleted === null || tourCompleted) return;
     if (!hasDemoData) return;
     if (tourActive) return;
     setTourStep(0);
     setTourActive(true);
-  }, [tourCompleted, hasDemoData]);
+  }, [tourCompleted, hasDemoData, needsPhoneGate]);
   // เดินหน้าทัวร์อัตโนมัติเมื่อผู้ใช้กดเมนูที่ทัวร์ชี้อยู่ถูกต้อง — จบครบทุกขั้นแล้วให้ปิดทัวร์ (แบนเนอร์เตือนด้านล่างจะรับช่วงต่อ)
   useEffect(() => {
     if (!tourActive) return;
