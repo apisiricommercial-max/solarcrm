@@ -2991,39 +2991,96 @@ function monthlyBuckets(rows, dateField, months) {
   });
   return buckets.map((b) => b.sum);
 }
+function greetingNow() {
+  const hr = new Date().getHours();
+  if (hr >= 5 && hr < 12) return "\u0e2a\u0e27\u0e31\u0e2a\u0e14\u0e35\u0e15\u0e2d\u0e19\u0e40\u0e0a\u0e49\u0e32 \u2600\ufe0f";
+  if (hr >= 12 && hr < 17) return "\u0e2a\u0e27\u0e31\u0e2a\u0e14\u0e35\u0e15\u0e2d\u0e19\u0e1a\u0e48\u0e32\u0e22 \ud83c\udf24\ufe0f";
+  if (hr >= 17 && hr < 20) return "\u0e2a\u0e27\u0e31\u0e2a\u0e14\u0e35\u0e15\u0e2d\u0e19\u0e40\u0e22\u0e47\u0e19 \ud83c\udf07";
+  return "\u0e2a\u0e27\u0e31\u0e2a\u0e14\u0e35\u0e15\u0e2d\u0e19\u0e14\u0e36\u0e01 \ud83c\udf19";
+}
+function MiniDonutRing({ pct, color }) {
+  const R = 15, C = 2 * Math.PI * R;
+  return h("svg", { viewBox: "0 0 36 36", className: "w-9 h-9 -rotate-90" },
+    h("circle", { cx: 18, cy: 18, r: R, fill: "none", stroke: "#e2e8f0", strokeWidth: 5 }),
+    h("circle", { cx: 18, cy: 18, r: R, fill: "none", stroke: color, strokeWidth: 5, strokeLinecap: "round", strokeDasharray: C, strokeDashoffset: C - (pct / 100) * C })
+  );
+}
+function FunnelChart({ stages }) {
+  const maxCount = Math.max(...stages.map((s) => s.count), 1);
+  return h("div", { className: "space-y-2" }, stages.map((s, i) => {
+    const widthPct = s.count > 0 ? Math.max(22, (s.count / maxCount) * 100) : 8;
+    return h("div", { key: i, className: "flex items-center gap-2" },
+      h("span", { className: "text-[11px] text-ink-300 w-4 shrink-0" }, i + 1, "."),
+      h("div", { className: "flex-1 min-w-0" },
+        h("div", { className: "h-8 rounded-lg flex items-center px-2.5 text-white text-[11px] font-semibold truncate transition-all", style: { width: widthPct + "%", background: s.color } }, s.label)
+      ),
+      h("div", { className: "text-right shrink-0" }, h("div", { className: "text-[11px] font-bold text-ink-800" }, s.count, " \u0e14\u0e35\u0e25"), h("div", { className: "text-[9px] text-ink-400" }, baht(s.value)))
+    );
+  }));
+}
 function Dashboard({ rows, onOpen }) {
+  const [cfRows, setCfRows] = useState([]);
+  useEffect(() => { cashflowDb.list().then(setCfRows); }, []);
+
   const total = rows.length;
   const isNew = rows.filter((r) => r.status === "new").length;
   const following = rows.filter((r) => FOLLOWING.includes(r.status)).length;
   const won = rows.filter((r) => r.status === "won" || r.status === "warranty");
-  const totalValue = rows.reduce((s, r) => s + (r.value || 0), 0);
   const curMonth = todayISO().slice(0, 7);
   const lastMonthKey = (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
-  const closedThisMonth = rows.filter((r) => (r.status === "won" || r.status === "warranty") && (!r.wonAt || r.wonAt.slice(0, 7) === curMonth));
-  const closedThisMonthValue = closedThisMonth.reduce((s, r) => s + (r.value || 0), 0);
   const monthLabelTh = new Date().toLocaleDateString("th-TH", { month: "long", year: "numeric" });
-  const statusData = STATUSES.filter((s) => s.key !== "lost").map((s) => ({ label: s.label, value: rows.filter((r) => r.status === s.key).length, color: { new: "#3b82f6", talking: "#6366f1", sent: "#06b6d4", waiting: "#f59e0b", won: "#10b981", warranty: "#14b8a6" }[s.key] }));
+
+  // ===== การเงินจริงจากบัญชีบริษัท (เดือนนี้ เทียบเดือนก่อน) =====
+  const incomeThisMonth = cfRows.filter((r) => r.type === "income" && (r.date || "").slice(0, 7) === curMonth).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const expenseThisMonth = cfRows.filter((r) => r.type === "expense" && (r.date || "").slice(0, 7) === curMonth).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const netThisMonth = incomeThisMonth - expenseThisMonth;
+  const incomeLastMonth = cfRows.filter((r) => r.type === "income" && (r.date || "").slice(0, 7) === lastMonthKey).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const expenseLastMonth = cfRows.filter((r) => r.type === "expense" && (r.date || "").slice(0, 7) === lastMonthKey).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const netLastMonth = incomeLastMonth - expenseLastMonth;
+  const pctTrend = (cur, prev) => prev > 0 ? Math.round((cur - prev) / prev * 100) : (cur > 0 ? 100 : 0);
+  const incomeCount = cfRows.filter((r) => r.type === "income" && (r.date || "").slice(0, 7) === curMonth).length;
+  const expenseCount = cfRows.filter((r) => r.type === "expense" && (r.date || "").slice(0, 7) === curMonth).length;
+  const cfMonthly = monthlyBuckets(cfRows.filter((r) => r.type === "income"), "date", 6);
+  const cfMonthlyExpense = monthlyBuckets(cfRows.filter((r) => r.type === "expense"), "date", 6);
+  const cfMonthlyNet = cfMonthly.map((v, i) => v - cfMonthlyExpense[i]);
+
+  // ===== เทรนด์ลูกค้า/โครงการ จริงเทียบเดือนก่อนหน้า =====
+  const newThisMonthCount = rows.filter((r) => r.createdAt && r.createdAt.slice(0, 7) === curMonth).length;
+  const newLastMonthCount = rows.filter((r) => r.createdAt && r.createdAt.slice(0, 7) === lastMonthKey).length;
+  const totalUpToLastMonth = rows.filter((r) => !r.createdAt || r.createdAt.slice(0, 7) <= lastMonthKey).length;
+  const totalTrend = totalUpToLastMonth > 0 ? Math.round((total - totalUpToLastMonth) / totalUpToLastMonth * 100) : 0;
+
+  // ===== โครงการ (ลูกค้าที่ปิดการขายแล้ว แบ่งตามขั้นตอนติดตั้งจริง) =====
+  const projectStages = INSTALL_STAGES.map((s) => ({ ...s, count: won.filter((r) => (r.installStage || "survey") === s.key).length }));
+  const doneCount = projectStages.find((s) => s.key === "done")?.count || 0;
+  const donePct = won.length > 0 ? Math.round((doneCount / won.length) * 100) : 0;
+  const projectDonutData = projectStages.filter((s) => s.count > 0).map((s) => ({ label: s.icon + " " + s.label, value: s.count, color: { survey: "#3b82f6", permit: "#8b5cf6", installing: "#f59e0b", inspect: "#06b6d4", done: "#10b981" }[s.key] }));
+
+  // ===== Pipeline Funnel (ตามขั้นตอนขายจริง + ปิดการขายแล้วทั้งหมด) =====
+  const funnelData = [
+    { key: "new", label: "\ud83c\udd95 \u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e43\u0e2b\u0e21\u0e48", color: "#3b82f6" },
+    { key: "talking", label: "\ud83d\udcac \u0e01\u0e33\u0e25\u0e31\u0e07\u0e04\u0e38\u0e22", color: "#6366f1" },
+    { key: "sent", label: "\ud83d\udce4 \u0e2a\u0e48\u0e07\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e41\u0e25\u0e49\u0e27", color: "#06b6d4" },
+    { key: "waiting", label: "\u23f3 \u0e23\u0e2d\u0e42\u0e2d\u0e19", color: "#f59e0b" },
+    { key: "won", label: "\u2705 \u0e1b\u0e34\u0e14\u0e01\u0e32\u0e23\u0e02\u0e32\u0e22", color: "#10b981" }
+  ].map((s) => {
+    const list = s.key === "won" ? won : rows.filter((r) => r.status === s.key);
+    return { ...s, count: list.length, value: list.reduce((sum, r) => sum + (r.value || 0), 0) };
+  });
+  const pipelineTotal = funnelData.slice(0, 4).reduce((s, f) => s + f.value, 0);
+  const pipelineDealCount = funnelData.slice(0, 4).reduce((s, f) => s + f.count, 0);
+
   const srcData = SOURCES.map((s) => ({ label: s, value: rows.filter((r) => r.source === s).length })).sort((a, b) => b.value - a.value);
   const maxSrc = Math.max(...srcData.map((s) => s.value), 1);
   const overdueFollow = rows.filter((r) => r.nextFollowup && daysUntil(r.nextFollowup) < 0 && !["won", "warranty", "lost"].includes(r.status));
   const todayFollow = rows.filter((r) => r.nextFollowup && daysUntil(r.nextFollowup) === 0 && !["won", "warranty", "lost"].includes(r.status));
   const warrantyAlertsToday = rows.map((r) => ({ r, w: warrantyInfo(r) })).filter(({ w }) => w && (w.soon || w.expired));
   const taskItems = [
-    ...overdueFollow.map((r) => ({ id: "o" + r.id, customer: r, order: 0, icon: "\u{1F534}", label: `\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21 ${Math.abs(daysUntil(r.nextFollowup))} \u0E27\u0E31\u0E19`, tone: "red" })),
-    ...todayFollow.map((r) => ({ id: "t" + r.id, customer: r, order: 1, icon: "\u{1F7E1}", label: "\u0E04\u0E23\u0E1A\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49", tone: "amber" })),
-    ...warrantyAlertsToday.map(({ r, w }) => ({ id: "w" + r.id, customer: r, order: 2, icon: w.expired ? "\u26A0\uFE0F" : "\u{1F6E1}\uFE0F", label: w.expired ? `\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E41\u0E25\u0E49\u0E27 ${Math.abs(w.daysLeft)} \u0E27\u0E31\u0E19` : `\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19\u0E43\u0E01\u0E25\u0E49\u0E2B\u0E21\u0E14 (\u0E40\u0E2B\u0E25\u0E37\u0E2D ${w.daysLeft} \u0E27\u0E31\u0E19)`, tone: w.expired ? "red" : "orange" }))
+    ...overdueFollow.map((r) => ({ id: "o" + r.id, customer: r, order: 0, icon: "\ud83d\udcde", label: `\u0E40\u0E25\u0E22\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21 ${Math.abs(daysUntil(r.nextFollowup))} \u0E27\u0E31\u0E19`, tone: "red" })),
+    ...todayFollow.map((r) => ({ id: "t" + r.id, customer: r, order: 1, icon: "\u2709\ufe0f", label: "\u0E04\u0E23\u0E1A\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49", tone: "amber" })),
+    ...warrantyAlertsToday.map(({ r, w }) => ({ id: "w" + r.id, customer: r, order: 2, icon: "\ud83d\udcc5", label: w.expired ? `\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E41\u0E25\u0E49\u0E27 ${Math.abs(w.daysLeft)} \u0E27\u0E31\u0E19` : `\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19\u0E43\u0E01\u0E25\u0E49\u0E2B\u0E21\u0E14 (\u0E40\u0E2B\u0E25\u0E37\u0E2D ${w.daysLeft} \u0E27\u0E31\u0E19)`, tone: w.expired ? "red" : "orange" }))
   ].sort((a, b) => a.order - b.order);
 
-  // ===== เทรนด์จริงเทียบเดือนที่แล้ว (คำนวณจากข้อมูลจริงทั้งหมด ไม่มีตัวเลขปลอม) =====
-  const newThisMonthCount = rows.filter((r) => r.createdAt && r.createdAt.slice(0, 7) === curMonth).length;
-  const newLastMonthCount = rows.filter((r) => r.createdAt && r.createdAt.slice(0, 7) === lastMonthKey).length;
-  const newTrend = newLastMonthCount > 0 ? Math.round((newThisMonthCount - newLastMonthCount) / newLastMonthCount * 100) : (newThisMonthCount > 0 ? 100 : 0);
-  const totalUpToLastMonth = rows.filter((r) => !r.createdAt || r.createdAt.slice(0, 7) <= lastMonthKey).length;
-  const totalTrend = totalUpToLastMonth > 0 ? Math.round((total - totalUpToLastMonth) / totalUpToLastMonth * 100) : 0;
-  const closedLastMonthCount = rows.filter((r) => (r.status === "won" || r.status === "warranty") && r.wonAt && r.wonAt.slice(0, 7) === lastMonthKey).length;
-  const closedTrend = closedLastMonthCount > 0 ? Math.round((closedThisMonth.length - closedLastMonthCount) / closedLastMonthCount * 100) : (closedThisMonth.length > 0 ? 100 : 0);
-
-  // ===== ตัวเลขสรุปด้านล่าง (คำนวณจากดีลที่ปิดจริงทั้งหมด) =====
   const avgDealValue = won.length > 0 ? Math.round(won.reduce((s, r) => s + (r.value || 0), 0) / won.length) : 0;
   const daysToCloseList = won.filter((r) => r.createdAt && r.wonAt).map((r) => Math.max(0, Math.round((new Date(r.wonAt) - new Date(r.createdAt)) / 86400000)));
   const avgDaysToClose = daysToCloseList.length > 0 ? Math.round(daysToCloseList.reduce((a, b) => a + b, 0) / daysToCloseList.length) : null;
@@ -3032,48 +3089,72 @@ function Dashboard({ rows, onOpen }) {
   const wonThisYear = won.filter((r) => r.wonAt && new Date(r.wonAt).getFullYear() === curYear);
   const revenueThisYear = wonThisYear.reduce((s, r) => s + (r.value || 0), 0);
 
-  const salesSpark = monthlyBuckets(won.map((r) => ({ ...r, createdAt: r.wonAt })), "createdAt", 6);
-  const pipelineSpark = monthlyBuckets(rows, "createdAt", 6);
-
-  // ===== กิจกรรมล่าสุด (รวม timeline จริงของทุกลูกค้า ไม่ใช่ข้อมูลตัวอย่าง) =====
   const activityFeed = rows.flatMap((r) => (r.timeline || []).map((t) => ({ ...t, customerName: r.name, customer: r })))
-    .filter((t) => t.date)
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
-    .slice(0, 5);
-
-  const todayThaiFull = new Date().toLocaleDateString("th-TH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    .filter((t) => t.date).sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 5);
 
   return h("div", { className: "space-y-5 fade-in" },
-    h("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4" },
-      h(Stat, { label: "ลูกค้าทั้งหมด", value: fmt(total), sub: "ในระบบ", icon: I.users, tone: "blue", trend: totalTrend }),
-      h(Stat, { label: "ลูกค้าใหม่", value: fmt(isNew), sub: "ยังไม่ได้ติดต่อ", icon: I.plus, tone: "violet", trend: newTrend }),
-      h(Stat, { label: "กำลังติดตาม", value: fmt(following), sub: "อยู่ในไปป์ไลน์", icon: I.bell, tone: "amber" }),
-      h(Stat, { label: "ปิดการขายแล้ว", value: fmt(won.length), sub: `อัตราปิด ${conversionRate}%`, icon: I.check, tone: "green", trend: closedTrend })
-    ),
-    h("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-4" },
-      h("div", { className: "sheen rounded-2xl p-5 text-white shadow-sm relative overflow-hidden", style: { background: "linear-gradient(135deg, var(--grad-from), var(--grad-to))" } },
-        h("div", { className: "flex items-center justify-between relative z-10" },
-          h("div", { className: "text-sm text-white/80" }, "ยอดขายที่ปิดได้"),
-          h("div", { className: "text-[10px] text-white/70 bg-white/15 rounded-full px-2 py-0.5 flex items-center gap-1" }, h(Icon, { d: I.clock, cls: "w-3 h-3" }), monthLabelTh)
+    h("div", { className: "grid grid-cols-2 lg:grid-cols-5 gap-4" },
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm" },
+        h("div", { className: "flex items-center justify-between" }, h("span", { className: "w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-base" }, "\ud83d\udcb0"), h("span", { className: `text-[11px] font-semibold ${incomeThisMonth >= incomeLastMonth ? "text-emerald-600" : "text-red-500"}` }, incomeThisMonth >= incomeLastMonth ? "\u2191" : "\u2193", " ", Math.abs(pctTrend(incomeThisMonth, incomeLastMonth)), "%")),
+        h("div", { className: "text-xs text-ink-500 mt-2" }, "\u0e23\u0e32\u0e22\u0e23\u0e31\u0e1a\u0e23\u0e27\u0e21"),
+        h("div", { className: "num text-xl font-extrabold text-ink-900 mt-0.5" }, baht(incomeThisMonth)),
+        h("div", { className: "text-[10px] text-ink-400 mt-0.5" }, "\u0e08\u0e32\u0e01 ", incomeCount, " \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23"),
+        h("div", { className: "mt-2 text-emerald-500" }, h(Sparkline, { data: cfMonthly, stroke: "currentColor" }))
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm" },
+        h("div", { className: "flex items-center justify-between" }, h("span", { className: "w-9 h-9 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-base" }, "\ud83d\udcc9"), h("span", { className: `text-[11px] font-semibold ${expenseThisMonth <= expenseLastMonth ? "text-emerald-600" : "text-red-500"}` }, expenseThisMonth <= expenseLastMonth ? "\u2193" : "\u2191", " ", Math.abs(pctTrend(expenseThisMonth, expenseLastMonth)), "%")),
+        h("div", { className: "text-xs text-ink-500 mt-2" }, "\u0e23\u0e32\u0e22\u0e08\u0e48\u0e32\u0e22\u0e23\u0e27\u0e21"),
+        h("div", { className: "num text-xl font-extrabold text-ink-900 mt-0.5" }, baht(expenseThisMonth)),
+        h("div", { className: "text-[10px] text-ink-400 mt-0.5" }, "\u0e08\u0e32\u0e01 ", expenseCount, " \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23"),
+        h("div", { className: "mt-2 text-red-400" }, h(Sparkline, { data: cfMonthlyExpense, stroke: "currentColor" }))
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm" },
+        h("div", { className: "flex items-center justify-between" }, h("span", { className: "w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-base" }, "\ud83d\udcbc"), h("span", { className: `text-[11px] font-semibold ${netThisMonth >= netLastMonth ? "text-emerald-600" : "text-red-500"}` }, netThisMonth >= netLastMonth ? "\u2191" : "\u2193", " ", Math.abs(pctTrend(netThisMonth, netLastMonth)), "%")),
+        h("div", { className: "text-xs text-ink-500 mt-2" }, "\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d\u0e2a\u0e38\u0e17\u0e18\u0e34"),
+        h("div", { className: `num text-xl font-extrabold mt-0.5 ${netThisMonth >= 0 ? "text-ink-900" : "text-red-600"}` }, baht(netThisMonth)),
+        h("div", { className: "text-[10px] text-ink-400 mt-0.5" }, "\u0e01\u0e33\u0e44\u0e23\u0e2a\u0e38\u0e17\u0e18\u0e34"),
+        h("div", { className: "mt-2 text-blue-400" }, h(Sparkline, { data: cfMonthlyNet, stroke: "currentColor" }))
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm" },
+        h("div", { className: "flex items-center justify-between" }, h("span", { className: "w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-base" }, "\ud83d\udc65"), h("span", { className: `text-[11px] font-semibold ${totalTrend >= 0 ? "text-emerald-600" : "text-red-500"}` }, totalTrend >= 0 ? "\u2191" : "\u2193", " ", Math.abs(totalTrend), "%")),
+        h("div", { className: "text-xs text-ink-500 mt-2" }, "\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14"),
+        h("div", { className: "num text-xl font-extrabold text-ink-900 mt-0.5" }, fmt(total), h("span", { className: "text-xs font-normal text-ink-400" }, " \u0e23\u0e32\u0e22")),
+        h("div", { className: "text-[10px] text-ink-400 mt-0.5" }, "\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e43\u0e2b\u0e21\u0e48 ", newThisMonthCount, " \u0e23\u0e32\u0e22"),
+        h("div", { className: "mt-2 text-amber-400" }, h(Sparkline, { data: monthlyBuckets(rows.map((r) => ({ ...r, value: 1 })), "createdAt", 6), stroke: "currentColor" }))
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-4 shadow-sm" },
+        h("div", { className: "flex items-center justify-between" },
+          h("span", { className: "w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center text-base" }, "\ud83d\udcca"),
+          h(MiniDonutRing, { pct: donePct, color: "#8b5cf6" })
         ),
-        h("div", { className: "num text-3xl font-extrabold mt-1 relative z-10", style: { WebkitTextFillColor: "#fff" } }, baht(closedThisMonthValue)),
-        h("div", { className: "text-xs text-white/80 mt-1 relative z-10" }, "จาก ", closedThisMonth.length, " ดีลที่ปิดสำเร็จ (รวมอยู่ในประกัน)"),
-        h("div", { className: "mt-2 text-white/90" }, h(Sparkline, { data: salesSpark, stroke: "#fff", fill: "rgba(255,255,255,.18)" }))
-      ),
-      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-        h("div", { className: "text-sm text-ink-500" }, "มูลค่ารวมทั้งหมด (Pipeline)"),
-        h("div", { className: "num text-3xl font-extrabold text-ink-900 mt-1" }, baht(totalValue)),
-        h("div", { className: "text-xs text-ink-400 mt-1" }, "รวมทุกสถานะ"),
-        h("div", { className: "mt-2 text-brand-500" }, h(Sparkline, { data: pipelineSpark, stroke: "currentColor", fill: "rgba(124,58,237,.08)" }))
-      ),
-      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-        h("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "สรุปสถานะลูกค้า"),
-        h(Donut, { data: statusData, unit: "ราย" })
+        h("div", { className: "text-xs text-ink-500 mt-2" }, "\u0e42\u0e04\u0e23\u0e07\u0e01\u0e32\u0e23\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14"),
+        h("div", { className: "num text-xl font-extrabold text-ink-900 mt-0.5" }, won.length, h("span", { className: "text-xs font-normal text-ink-400" }, " \u0e42\u0e04\u0e23\u0e07\u0e01\u0e32\u0e23")),
+        h("div", { className: "text-[10px] text-ink-400 mt-0.5" }, "\u0e40\u0e2a\u0e23\u0e47\u0e08\u0e41\u0e25\u0e49\u0e27 ", doneCount, " \u0e42\u0e04\u0e23\u0e07\u0e01\u0e32\u0e23 (", donePct, "%)")
       )
     ),
+
     h("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-4" },
       h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-        h("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "ลูกค้าตามแหล่งที่มา"),
+        h("div", { className: "flex items-center justify-between mb-4" }, h("h4", { className: "text-sm font-semibold text-ink-700" }, "\u0e41\u0e19\u0e27\u0e42\u0e19\u0e49\u0e21\u0e23\u0e32\u0e22\u0e23\u0e31\u0e1a-\u0e23\u0e32\u0e22\u0e08\u0e48\u0e32\u0e22"), h("span", { className: "text-[11px] text-ink-400" }, "6 \u0e40\u0e14\u0e37\u0e2d\u0e19\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14")),
+        h(ComboBarLineChart, { data: cfMonthly.map((v, i) => { const dt = new Date(); dt.setDate(1); dt.setMonth(dt.getMonth() - (5 - i)); return { month: dt.toLocaleDateString("th-TH", { month: "short" }), income: v, expense: cfMonthlyExpense[i], net: cfMonthlyNet[i] }; }) })
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("div", { className: "flex items-center justify-between mb-1" }, h("h4", { className: "text-sm font-semibold text-ink-700" }, "\u0e21\u0e39\u0e25\u0e04\u0e48\u0e32\u0e23\u0e27\u0e21\u0e43\u0e19 Pipeline")),
+        h("div", { className: "num text-xl font-extrabold text-brand-600 mb-1" }, baht(pipelineTotal)),
+        h("div", { className: "text-[11px] text-ink-400 mb-3" }, "\u0e23\u0e27\u0e21 ", pipelineDealCount, " \u0e14\u0e35\u0e25"),
+        h(FunnelChart, { stages: funnelData })
+      ),
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("h4", { className: "text-sm font-semibold text-ink-700 mb-4" }, "\u0e2a\u0e23\u0e38\u0e1b\u0e2a\u0e16\u0e32\u0e19\u0e30\u0e42\u0e04\u0e23\u0e07\u0e01\u0e32\u0e23"),
+        won.length === 0
+          ? h("div", { className: "text-xs text-ink-400 text-center py-10" }, "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e42\u0e04\u0e23\u0e07\u0e01\u0e32\u0e23\u0e17\u0e35\u0e48\u0e1b\u0e34\u0e14\u0e01\u0e32\u0e23\u0e02\u0e32\u0e22\u0e41\u0e25\u0e49\u0e27")
+          : h(Donut, { data: projectDonutData, unit: "\u0e42\u0e04\u0e23\u0e07\u0e01\u0e32\u0e23" })
+      )
+    ),
+
+    h("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-4" },
+      h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
+        h("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e15\u0e32\u0e21\u0e41\u0e2b\u0e25\u0e48\u0e07\u0e17\u0e35\u0e48\u0e21\u0e32"),
         h("div", { className: "space-y-2.5" }, srcData.map((s) => h("div", { key: s.label, className: "flex items-center gap-3" },
           h("span", { className: "text-xs text-ink-500 w-20 shrink-0 truncate" }, s.label),
           h("div", { className: "flex-1 h-2.5 rounded-full bg-ink-100 overflow-hidden" }, h("div", { className: "h-full rounded-full", style: { width: `${s.value / maxSrc * 100}%`, background: "linear-gradient(90deg, var(--grad-from), var(--grad-to))" } })),
@@ -3081,11 +3162,11 @@ function Dashboard({ rows, onOpen }) {
         )))
       ),
       h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 p-5 shadow-sm" },
-        h("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "กิจกรรมล่าสุด"),
+        h("h4", { className: "text-sm font-semibold text-ink-700 mb-3" }, "\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14"),
         activityFeed.length === 0
-          ? h("div", { className: "text-xs text-ink-400 text-center py-8" }, "ยังไม่มีกิจกรรมล่าสุด")
+          ? h("div", { className: "text-xs text-ink-400 text-center py-8" }, "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14")
           : h("div", { className: "space-y-3" }, activityFeed.map((a) => h("button", { key: a.id, onClick: () => onOpen(a.customer), className: "w-full flex items-start gap-2.5 text-left hover:bg-ink-50 rounded-lg p-1.5 -m-1.5 transition" },
-              h("span", { className: "w-7 h-7 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-xs shrink-0 mt-0.5" }, "\uD83D\uDCDD"),
+              h("span", { className: "w-7 h-7 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-xs shrink-0 mt-0.5" }, "\ud83d\udcdd"),
               h("div", { className: "min-w-0 flex-1" },
                 h("div", { className: "text-xs font-medium text-ink-700 truncate" }, a.topic || "\u2014"),
                 h("div", { className: "text-[11px] text-ink-400" }, a.customerName, " \xB7 ", thDate(a.date))
@@ -3094,24 +3175,25 @@ function Dashboard({ rows, onOpen }) {
       ),
       h("div", { className: "bg-white rounded-2xl ring-1 ring-ink-100 shadow-sm overflow-hidden flex flex-col" },
         h("div", { className: "px-5 py-3.5 border-b border-ink-50 flex items-center justify-between" },
-          h("h4", { className: "text-sm font-semibold text-ink-700" }, "งานที่ต้องทำวันนี้"),
+          h("h4", { className: "text-sm font-semibold text-ink-700" }, "\u0e07\u0e32\u0e19\u0e17\u0e35\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e17\u0e33\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49"),
           h("span", { className: `text-xs font-black num px-2.5 py-0.5 rounded-full ${taskItems.length > 0 ? "bg-red-500 text-white" : "bg-emerald-500 text-white"}` }, taskItems.length)
         ),
         taskItems.length === 0
-          ? h("div", { className: "py-8 text-center flex-1" }, h("div", { className: "text-3xl mb-1" }, "\uD83C\uDF89"), h("div", { className: "text-ink-500 text-xs font-medium" }, "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E07\u0E32\u0E19\u0E04\u0E49\u0E32\u0E07\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49!"))
+          ? h("div", { className: "py-8 text-center flex-1" }, h("div", { className: "text-3xl mb-1" }, "\ud83c\udf89"), h("div", { className: "text-ink-500 text-xs font-medium" }, "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E07\u0E32\u0E19\u0E04\u0E49\u0E32\u0E07\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49!"))
           : h("div", { className: "divide-y divide-ink-50 max-h-[220px] overflow-y-auto" }, taskItems.slice(0, 5).map((t) => h("button", { key: t.id, onClick: () => onOpen(t.customer), className: "w-full flex items-center gap-2.5 px-5 py-2.5 hover:bg-ink-50 transition text-left" },
               h("span", { className: "text-base shrink-0" }, t.icon),
               h("div", { className: "min-w-0 flex-1" }, h("div", { className: "font-medium text-ink-800 text-xs truncate" }, t.customer.name)),
               h("span", { className: `text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${t.tone === "red" ? "bg-red-50 text-red-600" : t.tone === "amber" ? "bg-amber-50 text-amber-600" : "bg-orange-50 text-orange-600"}` }, t.label)
             ))),
-        taskItems.length > 5 && h("div", { className: "px-5 py-2 text-center border-t border-ink-50" }, h("span", { className: "text-xs text-brand-600 font-semibold" }, "+", taskItems.length - 5, " งานเพิ่มเติม"))
+        taskItems.length > 5 && h("div", { className: "px-5 py-2 text-center border-t border-ink-50" }, h("span", { className: "text-xs text-brand-600 font-semibold" }, "+", taskItems.length - 5, " \u0e07\u0e32\u0e19\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e40\u0e15\u0e34\u0e21"))
       )
     ),
+
     h("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4" },
-      h(Stat, { label: "มูลค่าเฉลี่ยต่อดีล", value: baht(avgDealValue), sub: `จากดีลที่ปิดแล้ว ${won.length} ดีล`, icon: I.money, tone: "violet" }),
-      h(Stat, { label: "ระยะเวลาปิดดีลเฉลี่ย", value: avgDaysToClose != null ? avgDaysToClose + " วัน" : "\u2014", sub: "นับจากวันที่เพิ่มลูกค้า", icon: I.clock, tone: "blue" }),
-      h(Stat, { label: "อัตราการแปลงลูกค้า", value: conversionRate + "%", sub: "ปิดการขายสำเร็จ", icon: I.check, tone: "green" }),
-      h(Stat, { label: "รายได้รวมปีนี้", value: baht(revenueThisYear), sub: `จาก ${wonThisYear.length} ดีล`, icon: I.money, tone: "amber" })
+      h(Stat, { label: "\u0e21\u0e39\u0e25\u0e04\u0e48\u0e32\u0e40\u0e09\u0e25\u0e35\u0e48\u0e22\u0e15\u0e48\u0e2d\u0e14\u0e35\u0e25", value: baht(avgDealValue), sub: `\u0e08\u0e32\u0e01\u0e14\u0e35\u0e25\u0e17\u0e35\u0e48\u0e1b\u0e34\u0e14\u0e41\u0e25\u0e49\u0e27 ${won.length} \u0e14\u0e35\u0e25`, icon: I.money, tone: "violet" }),
+      h(Stat, { label: "\u0e23\u0e30\u0e22\u0e30\u0e40\u0e27\u0e25\u0e32\u0e1b\u0e34\u0e14\u0e14\u0e35\u0e25\u0e40\u0e09\u0e25\u0e35\u0e48\u0e22", value: avgDaysToClose != null ? avgDaysToClose + " \u0e27\u0e31\u0e19" : "\u2014", sub: "\u0e19\u0e31\u0e1a\u0e08\u0e32\u0e01\u0e27\u0e31\u0e19\u0e17\u0e35\u0e48\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32", icon: I.clock, tone: "blue" }),
+      h(Stat, { label: "\u0e2d\u0e31\u0e15\u0e23\u0e32\u0e01\u0e32\u0e23\u0e41\u0e1b\u0e25\u0e07\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32", value: conversionRate + "%", sub: "\u0e1b\u0e34\u0e14\u0e01\u0e32\u0e23\u0e02\u0e32\u0e22\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08", icon: I.check, tone: "green" }),
+      h(Stat, { label: "\u0e23\u0e32\u0e22\u0e44\u0e14\u0e49\u0e23\u0e27\u0e21\u0e1b\u0e35\u0e19\u0e35\u0e49", value: baht(revenueThisYear), sub: `\u0e08\u0e32\u0e01 ${wonThisYear.length} \u0e14\u0e35\u0e25`, icon: I.money, tone: "amber" })
     )
   );
 }
@@ -6798,7 +6880,7 @@ function App() {
   return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.filter((n) => n.key !== "leads").map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, "data-tour": n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
-  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", techteam: "จัดการรายชื่อช่าง เชื่อมต่อ LINE เพื่อรับแจ้งเตือนงานประจำวันอัตโนมัติ", jobboard: "ประกาศงานหาช่างอิสระ ดูโปรไฟล์ผู้สมัครพร้อมรีวิวและผลงาน", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", warehouse: "ติดตามสต๊อกสินค้าและใบสั่งซื้ออุปกรณ์ เชื่อมกับบัญชีบริษัทอัตโนมัติ", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(SupportContactButton, null), /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), hasDemoData && /* @__PURE__ */ React.createElement("button", { onClick: () => clearDemoData(), "data-tour": "clearDemo", className: "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100", style: { animation: "tourBounceLeft 1.8s ease-in-out infinite" }, title: "ข้อมูลตัวอย่างสำหรับสอนการใช้งาน — กดเพื่อลบออกทั้งหมด" }, "🧹", /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "ล้างข้อมูลตัวอย่าง")), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: guardedOpenForm, title: hasDemoData ? "ลบข้อมูลตัวอย่างก่อน (ปุ่ม 🧹 มุมขวาบน) จึงจะเพิ่มลูกค้าจริงได้" : "", className: `hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition ${hasDemoData ? "bg-ink-100 text-ink-400 hover:bg-ink-200" : "bg-brand-600 text-white hover:bg-brand-700"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: guardedOpenForm, locked: hasDemoData }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "techteam" && /* @__PURE__ */ React.createElement(TechTeamPage, null), view === "jobboard" && /* @__PURE__ */ React.createElement(CompanyJobBoardPage, null), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null), view === "warehouse" && /* @__PURE__ */ React.createElement(WarehousePage, { customers: rows })))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
+  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, view === "dash" ? greetingNow() : NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, view === "dash" ? ("ยินดีต้อนรับกลับมา " + ((window.__userEmail || "").split("@")[0] || "คุณ")) : { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", techteam: "จัดการรายชื่อช่าง เชื่อมต่อ LINE เพื่อรับแจ้งเตือนงานประจำวันอัตโนมัติ", jobboard: "ประกาศงานหาช่างอิสระ ดูโปรไฟล์ผู้สมัครพร้อมรีวิวและผลงาน", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", warehouse: "ติดตามสต๊อกสินค้าและใบสั่งซื้ออุปกรณ์ เชื่อมกับบัญชีบริษัทอัตโนมัติ", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(SupportContactButton, null), /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), hasDemoData && /* @__PURE__ */ React.createElement("button", { onClick: () => clearDemoData(), "data-tour": "clearDemo", className: "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100", style: { animation: "tourBounceLeft 1.8s ease-in-out infinite" }, title: "ข้อมูลตัวอย่างสำหรับสอนการใช้งาน — กดเพื่อลบออกทั้งหมด" }, "🧹", /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "ล้างข้อมูลตัวอย่าง")), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: guardedOpenForm, title: hasDemoData ? "ลบข้อมูลตัวอย่างก่อน (ปุ่ม 🧹 มุมขวาบน) จึงจะเพิ่มลูกค้าจริงได้" : "", className: `hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition ${hasDemoData ? "bg-ink-100 text-ink-400 hover:bg-ink-200" : "bg-brand-600 text-white hover:bg-brand-700"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: guardedOpenForm, locked: hasDemoData }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "techteam" && /* @__PURE__ */ React.createElement(TechTeamPage, null), view === "jobboard" && /* @__PURE__ */ React.createElement(CompanyJobBoardPage, null), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null), view === "warehouse" && /* @__PURE__ */ React.createElement(WarehousePage, { customers: rows })))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
     upsert(c);
     setFormOpen(false);
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
