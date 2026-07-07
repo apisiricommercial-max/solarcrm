@@ -2965,21 +2965,39 @@ function SkeletonGrid() {
     )
   );
 }
+function smoothPath(pts) {
+  if (pts.length < 3) return pts.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)} `;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? 0 : i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += `C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)} `;
+  }
+  return d;
+}
 function Sparkline({ data, stroke, fill }) {
   const w = 200, hgt = 56;
   if (!data || data.length < 2) return null;
   const max = Math.max(...data, 1);
   const min = Math.min(...data, 0);
   const range = max - min || 1;
-  const pts = data.map((v, i) => [(i / (data.length - 1)) * w, hgt - ((v - min) / range) * (hgt - 6) - 3]);
-  const path = pts.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  const pts = data.map((v, i) => [(i / (data.length - 1)) * w, hgt - ((v - min) / range) * (hgt - 10) - 5]);
+  const path = smoothPath(pts);
   const areaPath = path + ` L${w},${hgt} L0,${hgt} Z`;
   return h("svg", { viewBox: `0 0 ${w} ${hgt}`, className: "w-full h-14", preserveAspectRatio: "none" },
     fill && h("path", { d: areaPath, fill, stroke: "none" }),
-    h("path", { d: path, fill: "none", stroke: stroke || "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" })
+    h("path", { d: path, fill: "none", stroke: stroke || "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }),
+    pts.map((p, i) => h("circle", { key: i, cx: p[0], cy: p[1], r: 2, fill: stroke || "currentColor", opacity: i === pts.length - 1 ? 1 : 0.5 }))
   );
 }
-function monthlyBuckets(rows, dateField, months) {
+function monthlyBuckets(rows, dateField, months, valueField) {
+  const vf = valueField || "value";
   const buckets = [];
   const now = new Date();
   for (let i = months - 1; i >= 0; i--) {
@@ -2991,7 +3009,7 @@ function monthlyBuckets(rows, dateField, months) {
     if (!dv) return;
     const key = String(dv).slice(0, 7);
     const b = buckets.find((x) => x.key === key);
-    if (b) b.sum += Number(r.value) || 0;
+    if (b) b.sum += Number(r[vf]) || 0;
   });
   return buckets.map((b) => b.sum);
 }
@@ -3044,8 +3062,8 @@ function Dashboard({ rows, onOpen }) {
   const pctTrend = (cur, prev) => prev > 0 ? Math.round((cur - prev) / prev * 100) : (cur > 0 ? 100 : 0);
   const incomeCount = cfRows.filter((r) => r.type === "income" && (r.date || "").slice(0, 7) === curMonth).length;
   const expenseCount = cfRows.filter((r) => r.type === "expense" && (r.date || "").slice(0, 7) === curMonth).length;
-  const cfMonthly = monthlyBuckets(cfRows.filter((r) => r.type === "income"), "date", 6);
-  const cfMonthlyExpense = monthlyBuckets(cfRows.filter((r) => r.type === "expense"), "date", 6);
+  const cfMonthly = monthlyBuckets(cfRows.filter((r) => r.type === "income"), "date", 6, "amount");
+  const cfMonthlyExpense = monthlyBuckets(cfRows.filter((r) => r.type === "expense"), "date", 6, "amount");
   const cfMonthlyNet = cfMonthly.map((v, i) => v - cfMonthlyExpense[i]);
 
   // ===== เทรนด์ลูกค้า/โครงการ จริงเทียบเดือนก่อนหน้า =====
@@ -5259,7 +5277,7 @@ function ComboBarLineChart({ data }) {
   const yOfBar = (v) => H_ - PAD - (v / maxBar) * (H_ - PAD * 2);
   const yOfNet = (v) => H_ - PAD - ((v - minNet) / netRange) * (H_ - PAD * 2);
   const points = data.map((d, i) => [PAD + groupW * i + groupW / 2, yOfNet(d.net)]);
-  const linePath = points.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  const linePath = smoothPath(points);
   return h("div", { className: "w-full" },
     h("svg", { viewBox: `0 0 ${W} ${H_}`, className: "w-full h-56", preserveAspectRatio: "none" },
       data.map((d, i) => {
