@@ -4312,8 +4312,10 @@ function SolarROI() {
     const payback = useBat ? paybackBat : paybackSolar;
     const netFinal = useBat ? cumBat - totalInvest : cumSolar - solarCost;
     const roi = (netFinal / totalInvest) * 100;
+    // ผลตอบแทนเฉลี่ยต่อปีแบบทบต้น (CAGR) — ประมาณการ ไม่ใช่ IRR ที่คำนวณจากกระแสเงินสดรายปีจริง
+    const annualizedReturn = netFinal > 0 ? (Math.pow((netFinal + totalInvest) / totalInvest, 1 / 25) - 1) * 100 : 0;
     const year1saving = genYear1 * rate + (useBat ? batCap * 365 * batUsage * batEff * rate : 0);
-    return { totalInvest, genYear1, year1saving, netFinal, payback, roi, years };
+    return { totalInvest, genYear1, year1saving, netFinal, payback, roi, annualizedReturn, years };
   }, [vals]);
 
   // SVG กราฟกระแสเงินสดสะสม
@@ -4478,22 +4480,54 @@ ${vals.useBat?`<div class="ig"><div class="il">แบตเตอรี่</div>
     if (!w) alert("กรุณาอนุญาต popup ในเบราว์เซอร์ก่อน");
   };
 
+  const PaybackDonut = ({ years: yrs }) => {
+    const pct = Math.min(100, (yrs / 25) * 100);
+    const R = 54, C = 2 * Math.PI * R;
+    return h("div", { className: "relative w-40 h-40 mx-auto shrink-0" },
+      h("svg", { viewBox: "0 0 140 140", className: "w-40 h-40 -rotate-90" },
+        h("circle", { cx: 70, cy: 70, r: R, fill: "none", stroke: "#e2e8f0", strokeWidth: 14 }),
+        h("circle", { cx: 70, cy: 70, r: R, fill: "none", stroke: "url(#paybackGrad)", strokeWidth: 14, strokeLinecap: "round", strokeDasharray: C, strokeDashoffset: C - (pct / 100) * C, style: { transition: "stroke-dashoffset 1s cubic-bezier(.2,.8,.3,1)" } }),
+        h("defs", null, h("linearGradient", { id: "paybackGrad", x1: "0%", y1: "0%", x2: "100%", y2: "100%" }, h("stop", { offset: "0%", stopColor: "#10b981" }), h("stop", { offset: "100%", stopColor: "#6366f1" })))
+      ),
+      h("div", { className: "absolute inset-0 flex flex-col items-center justify-center" },
+        h("div", { className: "text-[11px] text-ink-400 font-medium" }, "ระยะคืนทุน"),
+        h("div", { className: "text-3xl font-black text-ink-900 leading-none mt-1" }, yrs ? yrs.toFixed(1) : ">25"),
+        h("div", { className: "text-xs text-ink-400 mt-0.5" }, "ปี")
+      )
+    );
+  };
+  const HeroHouseIllustration = () => h("svg", { viewBox: "0 0 220 120", className: "w-full h-full" },
+    h("rect", { x: 20, y: 60, width: 100, height: 55, rx: 3, fill: "#0f2b22" }),
+    h("polygon", { points: "20,60 70,28 120,60", fill: "#134a37" }),
+    h("rect", { x: 32, y: 34, width: 76, height: 22, rx: 2, fill: "#0ea5e9", opacity: 0.9 }),
+    [0, 1, 2, 3].map((i) => h("line", { key: i, x1: 32, y1: 40 + i * 5, x2: 108, y2: 40 + i * 5, stroke: "#082f49", strokeWidth: 0.6 })),
+    h("rect", { x: 50, y: 78, width: 14, height: 37, fill: "#0a1f19" }),
+    h("rect", { x: 78, y: 78, width: 14, height: 20, fill: "#fbbf24", opacity: 0.65 }),
+    h("circle", { cx: 170, cy: 34, r: 16, fill: "#fde047", opacity: 0.9 }),
+    [...Array(8)].map((_, i) => h("line", { key: i, x1: 170 + Math.cos(i * Math.PI / 4) * 22, y1: 34 + Math.sin(i * Math.PI / 4) * 22, x2: 170 + Math.cos(i * Math.PI / 4) * 28, y2: 34 + Math.sin(i * Math.PI / 4) * 28, stroke: "#fde047", strokeWidth: 2, strokeLinecap: "round" })),
+    h("circle", { cx: 150, cy: 95, r: 12, fill: "#166534", opacity: 0.8 }),
+    h("circle", { cx: 195, cy: 100, r: 9, fill: "#166534", opacity: 0.7 })
+  );
+
   return h("div", { className: "space-y-5 fade-in" },
     // Hero banner
-    h("div", { className: "rounded-2xl p-5", style: { background: "linear-gradient(135deg,#064e3b 0%,#065f46 50%,#047857 100%)" } },
-      h("div", { className: "flex items-center gap-4 flex-wrap" },
-        h("div", { className: "w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0 text-2xl" }, "☀️"),
-        h("div", { className: "flex-1 min-w-0" },
-          h("div", { className: "text-white font-bold text-base" }, "คำนวณผลตอบแทนโซลาร์เซลล์"),
-          h("div", { className: "text-emerald-200 text-xs mt-0.5" }, "ประมาณการคืนทุน · ประหยัดค่าไฟ · ROI 25 ปี")
+    h("div", { className: "rounded-2xl p-5 relative overflow-hidden", style: { background: "linear-gradient(135deg,#064e3b 0%,#065f46 50%,#047857 100%)" } },
+      h("div", { className: "flex items-center justify-between gap-4 flex-wrap relative z-10" },
+        h("div", { className: "flex items-center gap-3 min-w-0" },
+          h("div", { className: "w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0 text-2xl" }, "☀️"),
+          h("div", { className: "min-w-0" },
+            h("div", { className: "text-white font-bold text-base" }, "คำนวณผลตอบแทนโซลาร์เซลล์"),
+            h("div", { className: "text-emerald-200 text-xs mt-0.5" }, "ประเมินการลงทุน · ประหยัดค่าไฟ · ROI ตลอด 25 ปี")
+          )
         ),
-        result && h("div", { className: "shrink-0 text-right" },
-          h("div", { className: "text-emerald-200 text-[10px] font-semibold tracking-wider uppercase" }, "คืนทุนภายใน"),
-          h("div", { className: "text-amber-300 font-black text-3xl leading-none mt-0.5" }, result.payback ? result.payback.toFixed(1) : ">25"),
-          h("div", { className: "text-white/60 text-xs" }, "ปี")
+        result && h("div", { className: "flex items-center gap-2 flex-wrap" },
+          h("div", { className: "bg-white/10 rounded-xl px-3.5 py-2 flex items-center gap-2" }, h("span", { className: "text-lg" }, "⏱️"), h("div", null, h("div", { className: "text-[10px] text-emerald-200" }, "ระยะเวลาคืนทุน"), h("div", { className: "text-white font-bold text-sm" }, result.payback ? result.payback.toFixed(1) + " ปี" : ">25 ปี"))),
+          h("div", { className: "bg-white/10 rounded-xl px-3.5 py-2 flex items-center gap-2" }, h("span", { className: "text-lg" }, "📈"), h("div", null, h("div", { className: "text-[10px] text-emerald-200" }, "ผลตอบแทนรวม 25 ปี"), h("div", { className: "text-white font-bold text-sm" }, "\u0e3f" + fmtB(result.netFinal)))),
+          h("div", { className: "bg-white/10 rounded-xl px-3.5 py-2 flex items-center gap-2" }, h("span", { className: "text-lg" }, "%"), h("div", null, h("div", { className: "text-[10px] text-emerald-200" }, "ผลตอบแทนเฉลี่ย/ปี"), h("div", { className: "text-white font-bold text-sm" }, result.annualizedReturn.toFixed(1) + "%")))
         )
       ),
-      result && h("div", { className: "mt-4 pt-4 border-t border-white/15 flex justify-end" },
+      h("div", { className: "absolute right-0 bottom-0 w-56 h-32 opacity-90 hidden sm:block" }, h(HeroHouseIllustration, null)),
+      result && h("div", { className: "mt-4 pt-4 border-t border-white/15 flex justify-end relative z-10" },
         h("button", {
           onClick: exportPDF,
           className: "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:brightness-110 shadow-sm"
@@ -4513,7 +4547,7 @@ ${vals.useBat?`<div class="ig"><div class="il">แบตเตอรี่</div>
         h("div", { className: "bg-white rounded-2xl p-5 shadow-sm ring-1 ring-ink-100" },
           h("div", { className: "flex items-center gap-2 mb-4" },
             h("div", { className: "w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-sm" }, "⚡"),
-            h("span", { className: "text-sm font-semibold text-ink-800" }, "ข้อมูลระบบโซลาร์")
+            h("span", { className: "text-sm font-semibold text-ink-800" }, "ข้อมูลระบบโซลาร์เซลล์")
           ),
           h("div", { className: "grid grid-cols-2 gap-3 mb-4" },
             h("div", null,
@@ -4567,83 +4601,59 @@ ${vals.useBat?`<div class="ig"><div class="il">แบตเตอรี่</div>
             sliderRow("ใช้พลังงานจากแบต", "batUsage", 10, 90, 5, "%"),
             sliderRow("ประสิทธิภาพแบต", "batEff", 70, 98, 1, "%")
           )
+        ),
+        h("div", { className: "bg-emerald-50 ring-1 ring-emerald-100 rounded-xl px-4 py-3 text-xs text-emerald-700 flex items-center gap-2" },
+          "💡 หมายเหตุ: ผลการคำนวณเป็นการประเมินเบื้องต้น อาจมีความคลาดเคลื่อนขึ้นอยู่กับสภาพแวดล้อมและพฤติกรรมการใช้งานจริง"
         )
       ),
 
       // Results panel
       h("div", { className: "space-y-5" },
         !result
-          ? h("div", { className: "bg-white rounded-2xl p-8 shadow-sm ring-1 ring-ink-100 flex flex-col items-center justify-center text-center gap-3", style: { minHeight: 200 } },
+          ? h("div", { className: "bg-white rounded-2xl p-8 shadow-sm ring-1 ring-ink-100 flex flex-col items-center justify-center text-center gap-3", style: { minHeight: 300 } },
               h("div", { className: "text-4xl" }, "🌤️"),
               h("div", { className: "text-ink-500 text-sm" }, "กรอกข้อมูลด้านซ้ายเพื่อเริ่มคำนวณ"),
               h("div", { className: "text-ink-300 text-xs" }, "ขนาดระบบ · ราคาติดตั้ง · ค่าไฟ · ผลผลิตไฟ/วัน")
             )
-          : h(React.Fragment, null,
-              // Metrics grid
-              h("div", { className: "grid grid-cols-2 gap-3" },
-                [
-                  { icon: "💰", label: "ลงทุนรวม", val: fmtB(result.totalInvest), sub: "บาท", color: "bg-amber-50 ring-amber-100" },
-                  { icon: "📅", label: "ประหยัด/เดือน", val: fmtB(result.year1saving / 12), sub: "บาท/เดือน", color: "bg-blue-50 ring-blue-100" },
-                  { icon: "📈", label: "ประหยัดปีแรก", val: fmtB(result.year1saving), sub: "บาท/ปี", color: "bg-emerald-50 ring-emerald-100" },
-                  { icon: "⚡", label: "ผลิตไฟปีแรก", val: fmtB(result.genYear1), sub: "หน่วย/ปี", color: "bg-violet-50 ring-violet-100" },
-                  { icon: "🏆", label: "ประหยัด 25 ปี (สุทธิ)", val: fmtB(result.netFinal), sub: "บาท", color: "bg-green-50 ring-green-100" },
-                  { icon: "🎯", label: "ROI 25 ปี", val: `${Math.round(result.roi)}%`, sub: "ผลตอบแทน", color: "bg-rose-50 ring-rose-100" }
-                ].map(m => h("div", { key: m.label, className: `rounded-xl p-3.5 ring-1 ${m.color}` },
-                  h("div", { className: "flex items-center gap-1.5 mb-1.5" },
-                    h("span", { className: "text-base" }, m.icon),
-                    h("span", { className: "text-[10px] font-semibold text-ink-500 uppercase tracking-wide" }, m.label)
-                  ),
-                  h("div", { className: "text-xl font-black text-ink-900 leading-none" }, m.val),
-                  h("div", { className: "text-[11px] text-ink-400 mt-0.5" }, m.sub)
-                ))
+          : h("div", { className: "bg-white rounded-2xl p-5 shadow-sm ring-1 ring-ink-100" },
+              h("div", { className: "flex items-center gap-2 mb-4" },
+                h("div", { className: "w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center text-sm" }, "📊"),
+                h("span", { className: "text-sm font-semibold text-ink-800" }, "ผลลัพธ์โดยสรุป")
               ),
-
-              // Payback highlight
-              h("div", { className: "rounded-2xl p-4 ring-1 ring-emerald-200", style: { background: "linear-gradient(135deg,#ecfdf5,#d1fae5)" } },
-                h("div", { className: "flex items-center justify-between" },
-                  h("div", null,
-                    h("div", { className: "text-xs font-semibold text-emerald-700 uppercase tracking-wider" }, "⏱ ระยะเวลาคืนทุน"),
-                    h("div", { className: "text-emerald-900 text-xs mt-0.5" },
-                      result.payback
-                        ? `ครบทุนในปีที่ ${result.payback.toFixed(1)} จาก 25 ปี`
-                        : "ยังไม่คืนทุนภายใน 25 ปี"
-                    )
-                  ),
-                  h("div", { className: "text-right" },
-                    h("div", { className: "text-4xl font-black text-emerald-800" }, result.payback ? result.payback.toFixed(1) : ">25"),
-                    h("div", { className: "text-emerald-600 text-xs" }, "ปี")
-                  )
-                ),
-                result.payback && h("div", { className: "mt-3" },
-                  h("div", { className: "h-2 bg-emerald-100 rounded-full overflow-hidden" },
-                    h("div", { className: "h-full bg-emerald-500 rounded-full transition-all", style: { width: `${Math.min((result.payback / 25) * 100, 100)}%` } })
-                  ),
-                  h("div", { className: "flex justify-between mt-1" },
-                    h("span", { className: "text-[10px] text-emerald-600" }, "ปี 0"),
-                    h("span", { className: "text-[10px] text-emerald-600 font-bold" }, `คืนทุน ปีที่ ${result.payback.toFixed(1)}`),
-                    h("span", { className: "text-[10px] text-emerald-600" }, "ปี 25")
-                  )
+              h("div", { className: "flex flex-col sm:flex-row items-center gap-5" },
+                h(PaybackDonut, { years: result.payback }),
+                h("div", { className: "flex-1 w-full space-y-2.5" },
+                  [
+                    { icon: "🐷", label: "ประหยัดค่าไฟปีแรก", val: "\u0e3f" + fmtB(result.year1saving), sub: "/ ปี", bg: "bg-amber-50" },
+                    { icon: "🏦", label: "ประหยัดรวม 25 ปี", val: "\u0e3f" + fmtB(result.year1saving * 25), sub: "", bg: "bg-blue-50" },
+                    { icon: "💰", label: "กำไรรวม (หลังหักค่าติดตั้ง)", val: "\u0e3f" + fmtB(result.netFinal), sub: "", bg: "bg-emerald-50" },
+                    { icon: "%", label: "ผลตอบแทนเฉลี่ยต่อปี", val: result.annualizedReturn.toFixed(1) + "%", sub: "", bg: "bg-violet-50" }
+                  ].map((m) => h("div", { key: m.label, className: `flex items-center justify-between rounded-xl px-3.5 py-2.5 ${m.bg}` },
+                    h("div", { className: "flex items-center gap-2 min-w-0" }, h("span", { className: "text-base shrink-0" }, m.icon), h("span", { className: "text-xs text-ink-600 truncate" }, m.label)),
+                    h("span", { className: "text-sm font-bold text-ink-900 shrink-0" }, m.val, m.sub && h("span", { className: "text-[10px] font-normal text-ink-400" }, " ", m.sub))
+                  ))
                 )
-              )
-            )
-      )
-    ),
+              ),
+              h("div", { className: "mt-4 bg-emerald-50 ring-1 ring-emerald-100 rounded-xl px-4 py-2.5 text-xs text-emerald-700 text-center" }, "🌱 ลงทุนวันนี้ เพื่ออนาคตที่ยั่งยืน ประหยัดค่าไฟ และเป็นมิตรต่อสิ่งแวดล้อม 🌿")
+            ),
 
-    // กราฟ 25 ปี
-    result && h("div", { className: "bg-white rounded-2xl p-5 shadow-sm ring-1 ring-ink-100" },
-      h("div", { className: "flex items-center justify-between mb-4" },
-        h("div", { className: "flex items-center gap-2" },
-          h("div", { className: "w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-sm" }, "📊"),
-          h("span", { className: "text-sm font-semibold text-ink-800" }, "กระแสเงินสดสะสม 25 ปี")
-        ),
-        h("div", { className: "flex items-center gap-3 text-xs text-ink-400" },
-          h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-3 h-3 rounded bg-emerald-400 inline-block" }), "กำไรสะสม"),
-          h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-3 h-3 rounded bg-red-300 inline-block" }), "ยังขาดทุน")
+        // กราฟ 25 ปี
+        result && h("div", { className: "bg-white rounded-2xl p-5 shadow-sm ring-1 ring-ink-100" },
+          h("div", { className: "flex items-center justify-between mb-4" },
+            h("div", { className: "flex items-center gap-2" },
+              h("div", { className: "w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-sm" }, "📈"),
+              h("span", { className: "text-sm font-semibold text-ink-800" }, "กราฟกระแสเงินสด (Cash Flow)")
+            ),
+            h("div", { className: "flex items-center gap-3 text-xs text-ink-400" },
+              h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-3 h-3 rounded bg-emerald-400 inline-block" }), "กำไรสะสม"),
+              h("span", { className: "flex items-center gap-1" }, h("span", { className: "w-3 h-3 rounded bg-red-300 inline-block" }), "ยังขาดทุน")
+            )
+          ),
+          h(Chart25, { years: result.years }),
+          h("p", { className: "text-[10px] text-ink-300 mt-3" },
+            "* ระบบ On-Grid อายุการใช้งาน 25 ปี ค่าประมาณการอาจแตกต่างตามพื้นที่และผู้ติดตั้งจริง · กรอกผลผลิตไฟ/วันที่แม่นยำจากแอปอินเวอร์เตอร์จริงเพื่อความถูกต้องสูงสุด"
+          )
         )
-      ),
-      h(Chart25, { years: result.years }),
-      h("p", { className: "text-[10px] text-ink-300 mt-3" },
-        "* ระบบ On-Grid อายุการใช้งาน 25 ปี ค่าประมาณการอาจแตกต่างตามพื้นที่และผู้ติดตั้งจริง · กรอกผลผลิตไฟ/วันที่แม่นยำจากแอปอินเวอร์เตอร์จริงเพื่อความถูกต้องสูงสุด"
       )
     )
   );
@@ -4950,22 +4960,39 @@ table{width:100%;border-collapse:collapse;margin-bottom:18px}
     if (!w) alert("กรุณาอนุญาต popup ในเบราว์เซอร์ก่อน");
   };
 
+  const HeroLoadIllustration = () => h("svg", { viewBox: "0 0 220 120", className: "w-full h-full" },
+    h("rect", { x: 90, y: 55, width: 100, height: 60, rx: 3, fill: "#0c2340" }),
+    h("polygon", { points: "90,55 140,22 190,55", fill: "#123a63" }),
+    h("rect", { x: 102, y: 30, width: 76, height: 20, rx: 2, fill: "#38bdf8", opacity: 0.9 }),
+    h("rect", { x: 120, y: 74, width: 14, height: 41, fill: "#08192e" }),
+    h("rect", { x: 148, y: 74, width: 14, height: 22, fill: "#fbbf24", opacity: 0.6 }),
+    h("circle", { cx: 42, cy: 50, r: 15, fill: "#fde047", opacity: 0.85 }),
+    [...Array(8)].map((_, i) => h("line", { key: i, x1: 42 + Math.cos(i * Math.PI / 4) * 20, y1: 50 + Math.sin(i * Math.PI / 4) * 20, x2: 42 + Math.cos(i * Math.PI / 4) * 26, y2: 50 + Math.sin(i * Math.PI / 4) * 26, stroke: "#fde047", strokeWidth: 2, strokeLinecap: "round" })),
+    h("path", { d: "M35 78 L45 78 L38 92 L48 92 L32 112 L37 96 L28 96 Z", fill: "#38bdf8" }),
+    h("circle", { cx: 200, cy: 95, r: 10, fill: "#0369a1", opacity: 0.6 }),
+    h("circle", { cx: 20, cy: 100, r: 8, fill: "#0369a1", opacity: 0.5 })
+  );
+  const totalHoursAll = rows.reduce((s, r) => s + (parseFloat(r.hours) || 0), 0);
+
   return h("div", { className: "space-y-5 fade-in" },
     // Hero banner
-    h("div", { className: "rounded-2xl p-5", style: { background: "linear-gradient(135deg,#0c4a6e 0%,#075985 50%,#0369a1 100%)" } },
-      h("div", { className: "flex items-center gap-4 flex-wrap" },
-        h("div", { className: "w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0 text-2xl" }, "🔌"),
-        h("div", { className: "flex-1 min-w-0" },
-          h("div", { className: "text-white font-bold text-base" }, "คำนวณโหลดไฟฟ้าในบ้าน"),
-          h("div", { className: "text-sky-200 text-xs mt-0.5" }, "แนะนำขนาดโซลาร์ · แบตเตอรี่ · อินเวอร์เตอร์ ให้เหมาะกับการใช้งานจริง")
+    h("div", { className: "rounded-2xl p-5 relative overflow-hidden", style: { background: "linear-gradient(135deg,#0c4a6e 0%,#075985 50%,#0369a1 100%)" } },
+      h("div", { className: "flex items-center justify-between gap-4 flex-wrap relative z-10" },
+        h("div", { className: "flex items-center gap-3 min-w-0" },
+          h("div", { className: "w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0 text-2xl" }, "🔌"),
+          h("div", { className: "min-w-0" },
+            h("div", { className: "text-white font-bold text-base" }, "คำนวณโหลดไฟฟ้าในบ้าน"),
+            h("div", { className: "text-sky-200 text-xs mt-0.5" }, "แนะนำขนาดโซลาร์ · แบตเตอรี่ · อินเวอร์เตอร์ ให้เหมาะกับการใช้งานจริง")
+          )
         ),
-        result && h("div", { className: "shrink-0 text-right" },
-          h("div", { className: "text-sky-200 text-[10px] font-semibold tracking-wider uppercase" }, "แนะนำโซลาร์"),
-          h("div", { className: "text-amber-300 font-black text-3xl leading-none mt-0.5" }, fmt1(result.solarKWp)),
-          h("div", { className: "text-white/60 text-xs" }, "kWp")
+        h("div", { className: "flex items-center gap-2 flex-wrap" },
+          h("div", { className: "bg-white/10 rounded-xl px-3.5 py-2 flex items-center gap-2" }, h("span", { className: "text-lg" }, "⚡"), h("div", null, h("div", { className: "text-[10px] text-sky-200" }, "โหลดรวมทั้งหมด"), h("div", { className: "text-white font-bold text-sm" }, result ? fmt1(result.totalKWh) + " kWh/วัน" : "0 kWh/วัน"))),
+          h("div", { className: "bg-white/10 rounded-xl px-3.5 py-2 flex items-center gap-2" }, h("span", { className: "text-lg" }, "⏱️"), h("div", null, h("div", { className: "text-[10px] text-sky-200" }, "ชั่วโมงการใช้งานรวม"), h("div", { className: "text-white font-bold text-sm" }, fmt1(totalHoursAll) + " ชม./วัน"))),
+          h("div", { className: "bg-white/10 rounded-xl px-3.5 py-2 flex items-center gap-2" }, h("span", { className: "text-lg" }, "📈"), h("div", null, h("div", { className: "text-[10px] text-sky-200" }, "กำลังไฟสูงสุด"), h("div", { className: "text-white font-bold text-sm" }, result ? fmt1(result.peakKW * 1000) + " W" : "0 W")))
         )
       ),
-      result && h("div", { className: "mt-4 pt-4 border-t border-white/15 flex justify-end" },
+      h("div", { className: "absolute right-0 bottom-0 w-56 h-32 opacity-90 hidden sm:block" }, h(HeroLoadIllustration, null)),
+      result && h("div", { className: "mt-4 pt-4 border-t border-white/15 flex justify-end relative z-10" },
         h("button", {
           onClick: exportPDF,
           className: "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-sky-500 to-blue-500 text-white hover:brightness-110 shadow-sm"
@@ -5025,6 +5052,11 @@ table{width:100%;border-collapse:collapse;margin-bottom:18px}
             "+ เพิ่มเครื่องใช้ไฟฟ้า"
           )
         )
+      ),
+      result && h("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-ink-100" },
+        h("div", { className: "flex items-center gap-2" }, h("span", { className: "text-lg" }, "⚡"), h("div", null, h("div", { className: "text-[10px] text-ink-400" }, "พลังงานรวมทั้งหมด"), h("div", { className: "text-sm font-bold text-ink-900" }, fmt1(result.totalKWh), " kWh/วัน"))),
+        h("div", { className: "flex items-center gap-2" }, h("span", { className: "text-lg" }, "📈"), h("div", null, h("div", { className: "text-[10px] text-ink-400" }, "กำลังไฟสูงสุดรวม"), h("div", { className: "text-sm font-bold text-ink-900" }, fmt1(result.peakKW * 1000), " W"))),
+        h("div", { className: "flex items-center gap-2" }, h("span", { className: "text-lg" }, "🛡️"), h("div", null, h("div", { className: "text-[10px] text-ink-400" }, "แนะนำเผื่อความปลอดภัย 20%"), h("div", { className: "text-sm font-bold text-brand-600" }, fmt1(result.peakKW * 1000 * 1.2), " W")))
       )
     ),
 
