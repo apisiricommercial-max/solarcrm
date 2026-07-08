@@ -658,9 +658,9 @@ const USE_SUPABASE = !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY && windo
 let sb = null;
 let currentUser = null;
 if (USE_SUPABASE) {
-  // persistSession: false = ไม่จำการล็อกอินข้ามการเปิดหน้าเว็บใหม่ ต้องล็อกอินใหม่ทุกครั้งที่เปิด/รีเฟรชหน้า
-  // (ยังคงอยู่ในระบบได้ตามปกติตราบใดที่ไม่ปิดแท็บ/รีเฟรชหน้า เพราะเป็นแอปหน้าเดียว ไม่มีการโหลดหน้าใหม่ระหว่างใช้งาน)
-  try { sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: true } }); }
+  // persistSession: true = จำการล็อกอินไว้ รีเฟรชหน้า/เปิดใหม่ไม่ต้องล็อกอินซ้ำ
+  // (ระบบจะออกจากระบบให้อัตโนมัติก็ต่อเมื่อไม่มีการใช้งานเลยนานเกิน 5 นาที ดูจุดเช็ค idle timeout ใน Gate())
+  try { sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } }); }
   catch (e) { console.error("Supabase init failed:", e); }
 }
 // เขียนข้อมูลลง company_profiles แบบไม่พึ่ง unique constraint / onConflict ของ Supabase
@@ -8699,16 +8699,16 @@ function Gate() {
     });
     return () => { try { sub.subscription.unsubscribe(); } catch (e) {} };
   }, []);
-  // ล็อกเอาท์อัตโนมัติ ถ้าไม่มีการใช้งานเลย (ไม่คลิก/พิมพ์/เลื่อน/แตะ) เกิน 10 นาที เพื่อความปลอดภัย
+  // ล็อกเอาท์อัตโนมัติ ถ้าไม่มีการใช้งานเลย (ไม่คลิก/พิมพ์/เลื่อน/แตะ) เกิน 5 นาที เพื่อความปลอดภัย
   React.useEffect(() => {
     if (!sb || !session) return;
-    const IDLE_MS = 10 * 60 * 1000;
+    const IDLE_MS = 5 * 60 * 1000;
     let timer;
     const resetTimer = () => {
       clearTimeout(timer);
       timer = setTimeout(async () => {
         try { await sb.auth.signOut(); } catch (e) {}
-        alert("ไม่มีการใช้งานเกิน 10 นาที ระบบออกจากระบบให้อัตโนมัติเพื่อความปลอดภัยครับ");
+        alert("ไม่มีการใช้งานเกิน 5 นาที ระบบออกจากระบบให้อัตโนมัติเพื่อความปลอดภัยครับ");
       }, IDLE_MS);
     };
     const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click", "wheel"];
