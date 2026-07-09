@@ -1161,6 +1161,50 @@ function categoryBreakdown(rows, type) {
     .map(([label, value], i) => ({ label, value, color: CASHFLOW_CHART_COLORS[i % CASHFLOW_CHART_COLORS.length] }))
     .sort((a, b) => b.value - a.value);
 }
+// ===================== ระบบทดลองใช้ฟรี 30 วัน + ชำระเงิน =====================
+function trialInfo(profile) {
+  if (!profile) return { daysLeft: 30, expired: false, active: false, status: "trial" };
+  if (profile.subscription_status === "active") {
+    const exp = profile.subscription_expires_at ? new Date(profile.subscription_expires_at) : null;
+    if (!exp || exp.getTime() > Date.now()) return { daysLeft: null, expired: false, active: true, status: "active", expiresAt: profile.subscription_expires_at };
+    return { daysLeft: 0, expired: true, active: false, status: "expired" }; // ชำระแล้วแต่หมดอายุ ต้องต่ออายุ
+  }
+  const start = profile.trial_started_at ? new Date(profile.trial_started_at) : new Date();
+  const daysUsed = Math.floor((Date.now() - start.getTime()) / 86400000);
+  const daysLeft = 30 - daysUsed;
+  return { daysLeft, expired: daysLeft <= 0, active: false, status: "trial" };
+}
+const subscriptionDb = {
+  async getMyProfile() {
+    if (!sb || !currentUser) return null;
+    const { data } = await sb.from("company_profiles").select("trial_started_at, subscription_status, subscription_expires_at, plan").eq("user_id", currentUser.id).maybeSingle();
+    return data;
+  },
+  async submitPayment(amount, plan, slipDataUrl, note) {
+    if (!sb || !currentUser) return;
+    const row = { id: uid(), user_id: currentUser.id, amount: Number(amount) || 0, plan, slip_image_url: slipDataUrl || null, note: note || null, status: "pending" };
+    const { error } = await sb.from("payment_submissions").insert(row);
+    if (error) throw error;
+  },
+  async myLatestSubmission() {
+    if (!sb || !currentUser) return null;
+    const { data } = await sb.from("payment_submissions").select("*").eq("user_id", currentUser.id).order('"submittedAt"', { ascending: false }).limit(1).maybeSingle();
+    return data || null;
+  },
+  async approvePayment(submissionId, action, note) {
+    if (!sb || !window.SUPABASE_URL) throw new Error("ยังไม่ได้ตั้งค่า Supabase");
+    const { data: sessionData } = await sb.auth.getSession();
+    const token = sessionData && sessionData.session ? sessionData.session.access_token : window.SUPABASE_ANON_KEY;
+    const res = await fetch(`${window.SUPABASE_URL}/functions/v1/approve-payment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token, "apikey": window.SUPABASE_ANON_KEY },
+      body: JSON.stringify({ submissionId, action, note })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "ดำเนินการไม่สำเร็จ");
+    return data;
+  }
+};
 const cashflowDb = {
   async list() {
     if (sb) {
@@ -6732,6 +6776,96 @@ function NotificationBell({ rows, onOpen }) {
   )
   );
 }
+function PaywallModal({ trial, onClose }) {
+  const [submission, setSubmission] = useState(undefined); // undefined=กำลังโหลด, null=ยังไม่เคยส่ง, object=เคยส่งแล้ว
+  const [plan, setPlan] = useState("monthly");
+  const [slipUrl, setSlipUrl] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const fileRef = useRef(null);
+  const PLANS = { monthly: { label: "รายเดือน", price: 299 }, yearly: { label: "รายปี (คุ้มกว่า)", price: 2990 } };
+
+  const refresh = () => subscriptionDb.myLatestSubmission().then(setSubmission);
+  useEffect(() => { refresh(); }, []);
+
+  const onPickSlip = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try { setSlipUrl(await resizeImageFile(file, 1200, 0.75)); }
+    catch (err) { alert("อัปโหลดสลิปไม่สำเร็จ: " + (err && err.message ? err.message : "")); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
+  };
+  const submit = async () => {
+    if (!slipUrl) { alert("กรุณาแนบรูปสลิปการโอนเงินก่อนนะครับ"); return; }
+    setSubmitting(true);
+    try {
+      await subscriptionDb.submitPayment(PLANS[plan].price, plan, slipUrl, note.trim());
+      await refresh();
+    } catch (e) { alert("ส่งข้อมูลไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setSubmitting(false); }
+  };
+
+  const pendingReview = submission && submission.status === "pending";
+  const wasRejected = submission && submission.status === "rejected";
+
+  return h("div", { className: "fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm overflow-y-auto" },
+    h("div", { className: "bg-white rounded-2xl shadow-2xl w-full max-w-md my-4" },
+      h("div", { className: "px-6 pt-6 pb-4 rounded-t-2xl text-center", style: { background: "linear-gradient(135deg,#7c3aed,#4f46e5)" } },
+        h("div", { className: "w-14 h-14 rounded-full bg-white/15 flex items-center justify-center text-3xl mx-auto mb-2" }, "\u23F3"),
+        h("h3", { className: "text-lg font-bold text-white" }, trial.status === "expired" ? "แผนการใช้งานหมดอายุแล้ว" : "หมดระยะเวลาทดลองใช้ฟรีแล้ว"),
+        h("p", { className: "text-xs text-white/80 mt-1" }, "ชำระเงินเพื่อใช้งานระบบต่อ ครบทุกฟีเจอร์เหมือนเดิม")
+      ),
+      h("div", { className: "p-6" },
+        pendingReview
+          ? h("div", { className: "text-center py-4" },
+              h("div", { className: "text-4xl mb-3" }, "\u23F3"),
+              h("div", { className: "font-bold text-ink-800 mb-1" }, "ส่งข้อมูลการชำระเงินแล้ว"),
+              h("div", { className: "text-sm text-ink-500" }, "กำลังรอทีมงานตรวจสอบสลิป — ปกติใช้เวลาไม่เกิน 24 ชั่วโมง เมื่ออนุมัติแล้วระบบจะปลดล็อกให้อัตโนมัติ"),
+              h("button", { onClick: refresh, className: "mt-4 px-4 py-2 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 text-sm font-semibold" }, "\uD83D\uDD04 เช็คสถานะอีกครั้ง")
+            )
+          : h(React.Fragment, null,
+              wasRejected && h("div", { className: "bg-red-50 ring-1 ring-red-100 rounded-xl p-3 mb-4 text-xs text-red-600" }, "\u274C คำขอก่อนหน้าไม่ผ่านการตรวจสอบ", submission.reviewed_note ? ": " + submission.reviewed_note : "", " กรุณาส่งใหม่อีกครั้ง"),
+              h("div", { className: "grid grid-cols-2 gap-2 mb-4" },
+                Object.entries(PLANS).map(([key, p]) => h("button", {
+                  key, type: "button", onClick: () => setPlan(key),
+                  className: `p-3 rounded-xl ring-2 text-left transition ${plan === key ? "ring-brand-500 bg-brand-50" : "ring-ink-100 bg-white hover:ring-ink-200"}`
+                },
+                  h("div", { className: "text-xs font-semibold text-ink-500" }, p.label),
+                  h("div", { className: "text-lg font-black text-ink-900" }, "\u0e3f", p.price.toLocaleString("th-TH"))
+                ))
+              ),
+              h("div", { className: "bg-ink-50 rounded-xl p-3.5 mb-4 text-xs text-ink-600 space-y-1" },
+                h("div", { className: "font-semibold text-ink-700 mb-1" }, "\uD83C\uDFE6 โอนเงินมาที่บัญชี"),
+                h("div", null, "ธนาคาร: (ใส่ชื่อธนาคารของคุณที่นี่)"),
+                h("div", null, "เลขบัญชี: (ใส่เลขบัญชีของคุณที่นี่)"),
+                h("div", null, "ชื่อบัญชี: (ใส่ชื่อบัญชีของคุณที่นี่)")
+              ),
+              h("input", { ref: fileRef, type: "file", accept: "image/*", className: "hidden", onChange: onPickSlip }),
+              slipUrl
+                ? h("div", { className: "relative mb-3" },
+                    h("img", { src: slipUrl, className: "w-full max-h-40 object-contain rounded-xl ring-1 ring-ink-100 bg-ink-50" }),
+                    h("button", { onClick: () => setSlipUrl(null), className: "absolute top-2 right-2 w-7 h-7 rounded-full bg-white shadow text-ink-500 hover:text-red-500" }, "\u2715")
+                  )
+                : h("button", { onClick: () => fileRef.current && fileRef.current.click(), disabled: uploading, className: "w-full py-3 rounded-xl border-2 border-dashed border-ink-200 text-ink-400 text-sm font-medium hover:border-brand-300 hover:text-brand-600 transition mb-3" }, uploading ? "กำลังอัปโหลด..." : "\uD83D\uDCF7 แนบรูปสลิปการโอนเงิน"),
+              h("input", { value: note, onChange: (e) => setNote(e.target.value), placeholder: "หมายเหตุ (ไม่บังคับ)", className: "w-full px-3 py-2 rounded-lg border border-ink-200 text-sm outline-none focus:border-brand-500 mb-4" }),
+              h("button", { onClick: submit, disabled: submitting, className: "w-full py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:opacity-50" }, submitting ? "กำลังส่ง..." : "\u2705 ส่งข้อมูลการชำระเงิน")
+            ),
+        h("p", { className: "text-[10px] text-ink-300 mt-4 text-center" }, "\uD83D\uDCDE มีปัญหาการชำระเงิน ติดต่อเจ้าหน้าที่ได้ที่ปุ่มมุมขวาบนหลังปิดหน้าต่างนี้")
+      )
+    )
+  );
+}
+function TrialBanner({ daysLeft, onClose }) {
+  return h("div", { className: "bg-amber-50 ring-1 ring-amber-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap mb-4" },
+    h("div", { className: "flex items-center gap-2.5" },
+      h("span", { className: "text-xl" }, "\u23F3"),
+      h("div", { className: "text-sm text-amber-800" }, h("b", null, "เหลือเวลาทดลองใช้ฟรีอีก ", daysLeft, " วัน"), " — ชำระเงินตอนนี้เพื่อใช้งานต่อเนื่องไม่มีสะดุด")
+    ),
+    h("button", { onClick: onClose, className: "text-amber-400 hover:text-amber-600 text-sm" }, "\u2715")
+  );
+}
 function PhoneGateModal({ onSaved }) {
   const [phone, setPhone] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -6940,6 +7074,15 @@ function App() {
       .catch(() => setContactPhone("skip"));
   }, [currentUser]);
   const needsPhoneGate = contactPhone === null;
+  // ===== ระบบทดลองใช้ฟรี 30 วัน =====
+  const [subProfile, setSubProfile] = useState(undefined); // undefined = ยังไม่เช็ค
+  const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
+  useEffect(() => {
+    if (!sb || !currentUser) { setSubProfile(null); return; }
+    subscriptionDb.getMyProfile().then(setSubProfile).catch(() => setSubProfile(null));
+  }, [currentUser]);
+  const trial = trialInfo(subProfile);
+  const showPaywall = subProfile !== undefined && trial.expired && !needsPhoneGate;
   const [reminderDismissed, setReminderDismissed] = useState(false); // ปิดแบนเนอร์เตือนแค่ใน session นี้ — ล็อกอินใหม่จะโชว์อีกถ้ายังไม่ลบข้อมูลตัวอย่าง
   useEffect(() => {
     if (!sb || !currentUser) { setTourCompleted(true); return; }
@@ -7137,13 +7280,13 @@ function App() {
   return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex flex-col lg:flex-row" }, /* @__PURE__ */ React.createElement("aside", { className: "lg:w-60 lg:shrink-0 bg-ink-900 text-ink-300 lg:min-h-screen" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (window.__openProfile) window.__openProfile(); }, title: "ตั้งค่าโปรไฟล์ / ชื่อบริษัท", className: "avatar-btn w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-brand-500 to-emerald-500 text-white font-extrabold shrink-0 hover:scale-105 transition" }, /* @__PURE__ */ React.createElement("span", { className: "avatar-slot flex items-center justify-center w-full h-full text-lg", "data-default": "S" }, "S")), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "company-name text-white font-bold leading-tight truncate" }, "SolarCRM"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] text-ink-400" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E42\u0E0B\u0E25\u0E32\u0E23\u0E4C\u0E40\u0E0B\u0E25\u0E25\u0E4C"), teamRole && React.createElement("span", { className: "inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300" }, "\u{1F465} \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen((v) => !v), className: "lg:hidden text-ink-300" }, /* @__PURE__ */ React.createElement(Icon, { d: I.menu }))), /* @__PURE__ */ React.createElement("nav", { className: `${menuOpen ? "block" : "hidden"} lg:block px-3 pb-4` }, NAV.filter((n) => n.key !== "leads").map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, "data-tour": n.key, onClick: () => {
     setView(n.key);
     setMenuOpen(false);
-  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, view === "dash" ? greetingNow() : NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, view === "dash" ? ("ยินดีต้อนรับกลับมา " + ((window.__userEmail || "").split("@")[0] || "คุณ")) : { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", techteam: "จัดการรายชื่อช่าง เชื่อมต่อ LINE เพื่อรับแจ้งเตือนงานประจำวันอัตโนมัติ", jobboard: "ประกาศงานหาช่างอิสระ ดูโปรไฟล์ผู้สมัครพร้อมรีวิวและผลงาน", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", warehouse: "ติดตามสต๊อกสินค้าและใบสั่งซื้ออุปกรณ์ เชื่อมกับบัญชีบริษัทอัตโนมัติ", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(SupportContactButton, null), /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), hasDemoData && /* @__PURE__ */ React.createElement("button", { onClick: () => clearDemoData(), "data-tour": "clearDemo", className: "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100", style: { animation: "tourBounceLeft 1.8s ease-in-out infinite" }, title: "ข้อมูลตัวอย่างสำหรับสอนการใช้งาน — กดเพื่อลบออกทั้งหมด" }, "🧹", /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "ล้างข้อมูลตัวอย่าง")), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: guardedOpenForm, title: hasDemoData ? "ลบข้อมูลตัวอย่างก่อน (ปุ่ม 🧹 มุมขวาบน) จึงจะเพิ่มลูกค้าจริงได้" : "", className: `hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition ${hasDemoData ? "bg-ink-100 text-ink-400 hover:bg-ink-200" : "bg-brand-600 text-white hover:bg-brand-700"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: guardedOpenForm, locked: hasDemoData }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "techteam" && /* @__PURE__ */ React.createElement(TechTeamPage, null), view === "jobboard" && /* @__PURE__ */ React.createElement(CompanyJobBoardPage, null), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null), view === "warehouse" && /* @__PURE__ */ React.createElement(WarehousePage, { customers: rows })))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
+  }, className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition relative overflow-hidden ${view === n.key ? n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-active text-white shadow-lg" : "bg-brand-600 text-white" : n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-glow text-emerald-300 hover:text-white" : "text-ink-300 hover:bg-ink-800"}` }, /* @__PURE__ */ React.createElement(Icon, { d: n.icon, cls: `w-5 h-5 ${n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? "nav-leads-icon" : ""}` }), n.label, n.key === "leads" && leads.filter((l) => l.status !== "accepted").length > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, leads.filter((l) => l.status !== "accepted").length) : n.key === "follow" && followUrgentCount > 0 ? /* @__PURE__ */ React.createElement("span", { className: "ml-auto text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold nav-leads-badge" }, followUrgentCount) : null)), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 mt-2 shadow" }, /* @__PURE__ */ React.createElement(Icon, { d: I.download, cls: "w-5 h-5" }), "\u0E2A\u0E48\u0E07\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E22\u0E07\u0E32\u0E19 Excel"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 pt-3 border-t border-ink-800" }, /* @__PURE__ */ React.createElement(EstimatorMenu, { onOpen: openQuote, onCopy: copyQuoteLink, onSetUrl: setQuoteUrl, leadsCount: leads.filter((l) => l.status !== "accepted").length, isLeadsView: view === "leads", onGoLeads: () => { setView("leads"); setMenuOpen(false); } })))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("header", { className: "bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between sticky top-0 z-30" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-lg font-bold text-ink-900" }, view === "dash" ? greetingNow() : NAV.find((n) => n.key === view).label), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-ink-400" }, view === "dash" ? ("ยินดีต้อนรับกลับมา " + ((window.__userEmail || "").split("@")[0] || "คุณ")) : { dash: "\u0E20\u0E32\u0E1E\u0E23\u0E27\u0E21\u0E18\u0E38\u0E23\u0E01\u0E34\u0E08\u0E41\u0E25\u0E30\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32", leads: "ลูกค้าที่กรอกข้อมูลจากหน้าประเมินราคาเว็บไซต์ รอเพิ่มเข้าระบบ", cust: "\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14 \u0E04\u0E49\u0E19\u0E2B\u0E32\u0E41\u0E25\u0E30\u0E01\u0E23\u0E2D\u0E07\u0E44\u0E14\u0E49", pipe: "\u0E25\u0E32\u0E01\u0E01\u0E32\u0E23\u0E4C\u0E14\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E02\u0E32\u0E22", follow: "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E44\u0E21\u0E48\u0E43\u0E2B\u0E49\u0E1E\u0E25\u0E32\u0E14\u0E14\u0E35\u0E25", techteam: "จัดการรายชื่อช่าง เชื่อมต่อ LINE เพื่อรับแจ้งเตือนงานประจำวันอัตโนมัติ", jobboard: "ประกาศงานหาช่างอิสระ ดูโปรไฟล์ผู้สมัครพร้อมรีวิวและผลงาน", profit: "\u0E04\u0E33\u0E19\u0E27\u0E13\u0E15\u0E49\u0E19\u0E17\u0E38\u0E19 \u0E04\u0E48\u0E32\u0E0A\u0E48\u0E32\u0E07 \u0E20\u0E32\u0E29\u0E35 \u0E41\u0E25\u0E30\u0E01\u0E33\u0E44\u0E23\u0E2A\u0E38\u0E17\u0E18\u0E34\u0E15\u0E48\u0E2D\u0E07\u0E32\u0E19", cashflow: "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A-\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1A\u0E23\u0E34\u0E29\u0E31\u0E17 (Cash Flow)", warehouse: "ติดตามสต๊อกสินค้าและใบสั่งซื้ออุปกรณ์ เชื่อมกับบัญชีบริษัทอัตโนมัติ", roi: "ประมาณการคืนทุน ประหยัดค่าไฟ และ ROI ตลอด 25 ปี", loadcalc: "คำนวณโหลดไฟฟ้าในบ้าน แนะนำขนาดโซลาร์ แบตเตอรี่ และอินเวอร์เตอร์", install: "ติดตามตั้งแต่ลูกค้าใหม่จนถึงติดตั้งเสร็จ ในหน้าเดียวต่อเนื่อง" }[view])), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(SupportContactButton, null), /* @__PURE__ */ React.createElement(NotificationBell, { rows, onOpen: openProfile }), hasDemoData && /* @__PURE__ */ React.createElement("button", { onClick: () => clearDemoData(), "data-tour": "clearDemo", className: "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100", style: { animation: "tourBounceLeft 1.8s ease-in-out infinite" }, title: "ข้อมูลตัวอย่างสำหรับสอนการใช้งาน — กดเพื่อลบออกทั้งหมด" }, "🧹", /* @__PURE__ */ React.createElement("span", { className: "hidden sm:inline" }, "ล้างข้อมูลตัวอย่าง")), ["dash", "leads", "install", "follow"].includes(view) && /* @__PURE__ */ React.createElement("button", { onClick: guardedOpenForm, title: hasDemoData ? "ลบข้อมูลตัวอย่างก่อน (ปุ่ม 🧹 มุมขวาบน) จึงจะเพิ่มลูกค้าจริงได้" : "", className: `hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition ${hasDemoData ? "bg-ink-100 text-ink-400 hover:bg-ink-200" : "bg-brand-600 text-white hover:bg-brand-700"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus, cls: "w-4 h-4" }), "\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32"))), /* @__PURE__ */ React.createElement("div", { className: "p-4 sm:p-6 max-w-7xl mx-auto" }, trial.status === "trial" && trial.daysLeft > 0 && trial.daysLeft <= 7 && !trialBannerDismissed && /* @__PURE__ */ React.createElement(TrialBanner, { daysLeft: trial.daysLeft, onClose: () => setTrialBannerDismissed(true) }), !loaded ? /* @__PURE__ */ React.createElement(SkeletonGrid, null) : /* @__PURE__ */ React.createElement(React.Fragment, null, view === "dash" && /* @__PURE__ */ React.createElement(Dashboard, { rows, onOpen: openProfile }), view === "leads" && /* @__PURE__ */ React.createElement(Leads, { leads, loading: leadsLoading, onAccept: acceptLead, onAcceptMany: acceptMany, onDelete: deleteLead, onDeleteMany: deleteManyLeads, onRefresh: loadLeads }), view === "cust" && /* @__PURE__ */ React.createElement(Customers, { rows, onOpen: openProfile, onEdit: openForm, onDelete: remove, onAdd: guardedOpenForm, locked: hasDemoData }), view === "install" && /* @__PURE__ */ React.createElement(PipelineBoard, { rows, onOpen: openProfile, onStatus: setStatus, onUpdateInstallStage: updateInstallStage }), view === "follow" && /* @__PURE__ */ React.createElement(FollowUp, { rows, onOpen: openProfile }), view === "techteam" && /* @__PURE__ */ React.createElement(TechTeamPage, null), view === "jobboard" && /* @__PURE__ */ React.createElement(CompanyJobBoardPage, null), view === "profit" && /* @__PURE__ */ React.createElement(ProfitCalc, null), view === "roi" && /* @__PURE__ */ React.createElement(SolarROI, null), view === "loadcalc" && /* @__PURE__ */ React.createElement(LoadCalc, null), view === "cashflow" && /* @__PURE__ */ React.createElement(CashFlow, null), view === "warehouse" && /* @__PURE__ */ React.createElement(WarehousePage, { customers: rows })))), /* @__PURE__ */ React.createElement(CustomerForm, { open: formOpen, initial: editing, onClose: () => setFormOpen(false), onSave: (c) => {
     upsert(c);
     setFormOpen(false);
   } }), /* @__PURE__ */ React.createElement(CustomerProfile, { open: !!liveProfile, customer: liveProfile, onClose: () => setProfile(null), onEdit: (c) => {
     setProfile(null);
     openForm(c);
-  }, onAddLog: addLog, onStatus: setStatus, onOpenBOQ: () => setBoqOpen(true), onUpdateWarranty: updateCustomerWarranty, onUpdateInstallStage: updateInstallStage, onUpdateDocuments: updateCustomerDocuments, onAssignTechnician: assignTechnician }), /* @__PURE__ */ React.createElement(BOQBuilder, { open: boqOpen, customer: liveProfile, onClose: () => setBoqOpen(false), onUpdateCustomerValue: updateCustomerValue }), /* @__PURE__ */ React.createElement("button", { id: "mobileAddFab", onClick: guardedOpenForm, className: `sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-xl ${hasDemoData ? "bg-ink-300 text-white" : "bg-brand-600 text-white"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus })), tourActive && /* @__PURE__ */ React.createElement(TourGuide, { step: tourStep, onSkip: skipTour, menuOpen, setMenuOpen }), !tourActive && hasDemoData && /* @__PURE__ */ React.createElement(ClearDemoArrow, null), !tourActive && hasDemoData && !reminderDismissed && /* @__PURE__ */ React.createElement(DemoReminderBanner, { onDismiss: () => setReminderDismissed(true) }), needsPhoneGate && /* @__PURE__ */ React.createElement(PhoneGateModal, { onSaved: (p) => setContactPhone(p) }));
+  }, onAddLog: addLog, onStatus: setStatus, onOpenBOQ: () => setBoqOpen(true), onUpdateWarranty: updateCustomerWarranty, onUpdateInstallStage: updateInstallStage, onUpdateDocuments: updateCustomerDocuments, onAssignTechnician: assignTechnician }), /* @__PURE__ */ React.createElement(BOQBuilder, { open: boqOpen, customer: liveProfile, onClose: () => setBoqOpen(false), onUpdateCustomerValue: updateCustomerValue }), /* @__PURE__ */ React.createElement("button", { id: "mobileAddFab", onClick: guardedOpenForm, className: `sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-xl ${hasDemoData ? "bg-ink-300 text-white" : "bg-brand-600 text-white"}` }, hasDemoData ? "🔒" : /* @__PURE__ */ React.createElement(Icon, { d: I.plus })), tourActive && /* @__PURE__ */ React.createElement(TourGuide, { step: tourStep, onSkip: skipTour, menuOpen, setMenuOpen }), !tourActive && hasDemoData && /* @__PURE__ */ React.createElement(ClearDemoArrow, null), !tourActive && hasDemoData && !reminderDismissed && /* @__PURE__ */ React.createElement(DemoReminderBanner, { onDismiss: () => setReminderDismissed(true) }), needsPhoneGate && /* @__PURE__ */ React.createElement(PhoneGateModal, { onSaved: (p) => setContactPhone(p) }), showPaywall && /* @__PURE__ */ React.createElement(PaywallModal, { trial, onClose: () => {} }));
 }
 const guestBoardDb = {
   async listOpenCombined(limit) {
@@ -7576,6 +7719,22 @@ function AdminAnalyticsPage({ session }) {
     }
   };
 
+  const [reviewingId, setReviewingId] = useState(null);
+  const doApprove = async (id) => {
+    if (!confirm("ยืนยันอนุมัติรายการนี้? ระบบจะปลดล็อกบัญชีให้ใช้งานต่อทันที")) return;
+    setReviewingId(id);
+    try { await subscriptionDb.approvePayment(id, "approve"); await loadData(fromDate || null, toDate || null); alert("อนุมัติเรียบร้อยแล้วครับ"); }
+    catch (e) { alert("ไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setReviewingId(null); }
+  };
+  const doReject = async (id) => {
+    const note = prompt("เหตุผลที่ปฏิเสธ (ไม่บังคับ)") || "";
+    setReviewingId(id);
+    try { await subscriptionDb.approvePayment(id, "reject", note); await loadData(fromDate || null, toDate || null); }
+    catch (e) { alert("ไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
+    finally { setReviewingId(null); }
+  };
+
   useEffect(() => {
     loadData(null, null).finally(() => setLoading(false));
   }, []);
@@ -7666,6 +7825,26 @@ function AdminAnalyticsPage({ session }) {
           h("div", { className: "text-2xl font-black num" }, c.val),
           h("div", { className: "text-[11px] font-medium opacity-80 mt-0.5" }, c.label)
         ))
+      ),
+      data.pendingPayments && data.pendingPayments.length > 0 && h("div", { className: "bg-white rounded-2xl shadow-sm ring-1 ring-amber-200 overflow-hidden border-t-4 border-amber-400" },
+        h("div", { className: "px-5 py-4 border-b border-ink-100" },
+          h("h2", { className: "text-sm font-semibold text-ink-800 flex items-center gap-2" }, "\uD83D\uDCB3 รายการชำระเงินที่รอตรวจสอบ", h("span", { className: "text-xs font-black num bg-amber-500 text-white rounded-full px-2 py-0.5" }, data.pendingPayments.length))
+        ),
+        h("div", { className: "divide-y divide-ink-50" },
+          data.pendingPayments.map((p) => h("div", { key: p.id, className: "px-5 py-4 flex flex-col sm:flex-row gap-4 items-start" },
+            p.slipImageUrl && h("img", { src: p.slipImageUrl, className: "w-20 h-20 rounded-lg object-cover ring-1 ring-ink-100 shrink-0 cursor-pointer", onClick: () => window.open(p.slipImageUrl, "_blank") }),
+            h("div", { className: "flex-1 min-w-0" },
+              h("div", { className: "font-semibold text-ink-800" }, p.companyName || "(ยังไม่ได้ตั้งชื่อบริษัท)"),
+              h("div", { className: "text-xs text-ink-400" }, p.ownerEmail),
+              h("div", { className: "text-xs text-ink-500 mt-1" }, "แผน: ", p.plan === "yearly" ? "รายปี" : "รายเดือน", " \u00b7 ยอด \u0e3f", fmt(p.amount), " \u00b7 ส่งเมื่อ ", thDateShort(p.submittedAt)),
+              p.note && h("div", { className: "text-xs text-ink-400 mt-1" }, "หมายเหตุ: ", p.note)
+            ),
+            h("div", { className: "flex gap-2 shrink-0" },
+              h("button", { onClick: () => doApprove(p.id), disabled: reviewingId === p.id, className: "px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50" }, "\u2705 อนุมัติ"),
+              h("button", { onClick: () => doReject(p.id), disabled: reviewingId === p.id, className: "px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 disabled:opacity-50" }, "\u274C ปฏิเสธ")
+            )
+          ))
+        )
       ),
       h("div", { className: "bg-white rounded-2xl shadow-sm ring-1 ring-ink-100 overflow-hidden" },
         h("div", { className: "px-5 py-4 border-b border-ink-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" },
