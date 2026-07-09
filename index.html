@@ -6776,6 +6776,37 @@ function NotificationBell({ rows, onOpen }) {
   )
   );
 }
+// ===================== สร้าง QR PromptPay มาตรฐานธนาคารแห่งประเทศไทย (EMV QR) =====================
+function crc16CCITT(str) {
+  let crc = 0xFFFF;
+  for (let c = 0; c < str.length; c++) {
+    crc ^= str.charCodeAt(c) << 8;
+    for (let i = 0; i < 8; i++) {
+      crc = (crc & 0x8000) !== 0 ? ((crc << 1) ^ 0x1021) : (crc << 1);
+      crc &= 0xFFFF;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, "0");
+}
+function tlv(id, value) {
+  return id + String(value.length).padStart(2, "0") + value;
+}
+function generatePromptPayPayload(target, amount) {
+  const digits = String(target).replace(/\D/g, "");
+  let proxyType, proxyValue;
+  if (digits.length === 13) { proxyType = "02"; proxyValue = digits; } // เลขบัตรประชาชน / เลขนิติบุคคล
+  else { proxyType = "01"; proxyValue = "0066" + digits.replace(/^0/, ""); } // เบอร์โทร
+  const merchantInfo = tlv("00", "A000000677010111") + tlv(proxyType, proxyValue);
+  let payload = tlv("00", "01") + tlv("01", amount ? "12" : "11") + tlv("29", merchantInfo) + tlv("53", "764");
+  if (amount) payload += tlv("54", Number(amount).toFixed(2));
+  payload += tlv("58", "TH") + "6304";
+  return payload + crc16CCITT(payload);
+}
+function PromptPayQR({ target, amount, size }) {
+  const payload = generatePromptPayPayload(target, amount);
+  const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size || 200}x${size || 200}&data=${encodeURIComponent(payload)}`;
+  return h("img", { src, alt: "PromptPay QR", className: "mx-auto rounded-lg ring-1 ring-ink-100", width: size || 200, height: size || 200 });
+}
 function PaywallModal({ trial, onClose }) {
   const [submission, setSubmission] = useState(undefined); // undefined=กำลังโหลด, null=ยังไม่เคยส่ง, object=เคยส่งแล้ว
   const [plan, setPlan] = useState("monthly");
@@ -6784,7 +6815,8 @@ function PaywallModal({ trial, onClose }) {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef(null);
-  const PLANS = { monthly: { label: "รายเดือน", price: 299 }, yearly: { label: "รายปี (คุ้มกว่า)", price: 2990 } };
+  const PLANS = { monthly: { label: "รายเดือน", price: 1290 }, yearly: { label: "รายปี (ลด 5%)", price: 14706 } };
+  const PROMPTPAY_ID = "1141200158242";
 
   const refresh = () => subscriptionDb.myLatestSubmission().then(setSubmission);
   useEffect(() => { refresh(); }, []);
@@ -6836,12 +6868,14 @@ function PaywallModal({ trial, onClose }) {
                   h("div", { className: "text-lg font-black text-ink-900" }, "\u0e3f", p.price.toLocaleString("th-TH"))
                 ))
               ),
-              h("div", { className: "bg-ink-50 rounded-xl p-3.5 mb-4 text-xs text-ink-600 space-y-1" },
-                h("div", { className: "font-semibold text-ink-700 mb-1" }, "\uD83C\uDFE6 โอนเงินมาที่บัญชี"),
-                h("div", null, "ธนาคาร: (ใส่ชื่อธนาคารของคุณที่นี่)"),
-                h("div", null, "เลขบัญชี: (ใส่เลขบัญชีของคุณที่นี่)"),
-                h("div", null, "ชื่อบัญชี: (ใส่ชื่อบัญชีของคุณที่นี่)")
+              h("div", { className: "bg-ink-50 rounded-xl p-4 mb-4 text-center" },
+                h("div", { className: "font-semibold text-ink-700 text-xs mb-3 flex items-center justify-center gap-1.5" }, "\uD83D\uDCF1 สแกนจ่ายผ่าน PromptPay"),
+                h(PromptPayQR, { target: PROMPTPAY_ID, amount: PLANS[plan].price, size: 200 }),
+                h("div", { className: "text-lg font-black text-ink-900 mt-3" }, "\u0e3f", PLANS[plan].price.toLocaleString("th-TH")),
+                h("div", { className: "text-[11px] text-ink-400 mt-1" }, "พร้อมเพย์: ", PROMPTPAY_ID),
+                h("div", { className: "text-[10px] text-ink-400 mt-1" }, "ยอดจะเปลี่ยนอัตโนมัติตามแผนที่เลือกด้านบน")
               ),
+              h("div", { className: "text-center text-xs text-ink-400 mb-4" }, "\u2014 หรือแคปหน้าจอ/สลิปที่โอนแล้วแนบด้านล่าง \u2014"),
               h("input", { ref: fileRef, type: "file", accept: "image/*", className: "hidden", onChange: onPickSlip }),
               slipUrl
                 ? h("div", { className: "relative mb-3" },
