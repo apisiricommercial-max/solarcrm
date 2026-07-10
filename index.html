@@ -7810,9 +7810,10 @@ function AccountChip({ session }) {
 
 function AdminDaysLeftBadge({ r }) {
   const t = trialInfo({ subscription_status: r.subscriptionStatus, subscription_expires_at: r.subscriptionExpiresAt, trial_started_at: r.trialStartedAt });
-  if (t.active) return h("span", { className: "text-[11px] font-semibold text-emerald-600" }, t.expiresAt ? "\u0E16\u0E36\u0E07 " + thDateShort(t.expiresAt) : "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38");
-  if (t.expired) return h("span", { className: "text-[11px] font-semibold text-red-500" }, "\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E41\u0E25\u0E49\u0E27");
-  return h("span", { className: `text-[11px] font-semibold ${t.daysLeft <= 7 ? "text-amber-600" : "text-ink-500"}` }, "\u0E40\u0E2B\u0E25\u0E37\u0E2D ", t.daysLeft, " \u0E27\u0E31\u0E19");
+  const debugLine = h("div", { className: "text-[9px] text-ink-300 mt-0.5", title: "ข้อมูลดิบจาก API สำหรับตรวจสอบ" }, "[", r.subscriptionStatus || "?", "]");
+  if (t.active) return h("div", null, h("span", { className: "text-[11px] font-semibold text-emerald-600" }, t.expiresAt ? "\u0E16\u0E36\u0E07 " + thDateShort(t.expiresAt) : "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38"), debugLine);
+  if (t.expired) return h("div", null, h("span", { className: "text-[11px] font-semibold text-red-500" }, "\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E41\u0E25\u0E49\u0E27"), debugLine);
+  return h("div", null, h("span", { className: `text-[11px] font-semibold ${t.daysLeft <= 7 ? "text-amber-600" : "text-ink-500"}` }, "\u0E40\u0E2B\u0E25\u0E37\u0E2D ", t.daysLeft, " \u0E27\u0E31\u0E19"), debugLine);
 }
 function ExtendDaysModal({ target, onClose, onConfirm, busy }) {
   const [days, setDays] = useState("30");
