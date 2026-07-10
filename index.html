@@ -7191,7 +7191,12 @@ function App() {
   const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
   useEffect(() => {
     if (!sb || !currentUser) { setSubProfile(null); return; }
-    subscriptionDb.getMyProfile().then(setSubProfile).catch(() => setSubProfile(null));
+    const fetchProfile = () => { subscriptionDb.getMyProfile().then(setSubProfile).catch(() => setSubProfile(null)); };
+    fetchProfile();
+    // แก้บั๊ก: เดิมดึงข้อมูลแค่ครั้งเดียวตอนโหลดหน้า ถ้าแอดมินปรับวันใช้งานหรือรันคำสั่งอื่นระหว่างที่เปิดแท็บนี้ค้างไว้
+    // ตัวเลขจะไม่อัปเดตให้เลยจนกว่าจะรีเฟรชหน้าเอง — ตอนนี้ดึงซ้ำอัตโนมัติทุก 60 วินาทีแทน
+    const interval = setInterval(fetchProfile, 60000);
+    return () => clearInterval(interval);
   }, [currentUser]);
   const trial = trialInfo(subProfile);
   const showPaywall = subProfile !== undefined && trial.expired && !needsPhoneGate;
