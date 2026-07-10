@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8"> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SolarCRM · ระบบจัดการลูกค้าธุรกิจโซลาร์เซลล์</title>
 <link rel="icon" href="https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png">
@@ -6881,7 +6881,9 @@ function PaywallModal({ trial, onClose, dismissible }) {
   const fileRef = useRef(null);
   const PLANS = {
     monthly: { label: "รายเดือน", price: 1290, sub: "ต่ออายุทุก 30 วัน" },
-    yearly: { label: "รายปี (ลด 5%)", price: 14706, sub: "ประหยัด " + (1290 * 12 - 14706).toLocaleString("th-TH") + " บาท/ปี" }
+    quarterly: { label: "ราย 3 เดือน", price: 3790, sub: "ประหยัด " + (1290 * 3 - 3790).toLocaleString("th-TH") + " บาท" },
+    semiannual: { label: "ราย 6 เดือน", price: 7470, sub: "ประหยัด " + (1290 * 6 - 7470).toLocaleString("th-TH") + " บาท" },
+    yearly: { label: "รายปี (คุ้มสุด)", price: 14706, sub: "ประหยัด " + (1290 * 12 - 14706).toLocaleString("th-TH") + " บาท/ปี" }
   };
   const PROMPTPAY_ID = "1141200158242";
 
@@ -6941,7 +6943,7 @@ function PaywallModal({ trial, onClose, dismissible }) {
                 },
                   h("div", { className: "text-[10px] font-semibold text-ink-500" }, p.label),
                   h("div", { className: "text-base font-black text-ink-900" }, "\u0e3f", p.price.toLocaleString("th-TH")),
-                  h("div", { className: `text-[9px] mt-0.5 font-medium ${key === "yearly" ? "text-emerald-600" : "text-ink-400"}` }, p.sub)
+                  h("div", { className: `text-[9px] mt-0.5 font-medium ${key !== "monthly" ? "text-emerald-600" : "text-ink-400"}` }, p.sub)
                 ))
               ),
               h("button", { type: "button", onClick: () => setShowFeatures((v) => !v), className: "w-full text-center text-[11px] font-semibold text-brand-600 hover:underline mb-2.5" }, showFeatures ? "\u25B2 ซ่อนรายละเอียด" : "\u2139\uFE0F ทุกแพ็กเกจได้อะไรบ้าง? ดูรายละเอียด"),
@@ -7231,7 +7233,10 @@ function App() {
   }, [currentUser]);
   // เริ่มทัวร์อัตโนมัติเมื่อรู้สถานะครบแล้วว่า: กรอกเบอร์ติดต่อแล้ว + มีข้อมูลตัวอย่างอยู่ + ยังไม่เคยดูทัวร์นี้จบมาก่อน
   // (ต้องรอให้กรอกเบอร์ก่อนเสมอ ทัวร์แนะนำเมนูถึงจะเริ่มได้ ตามลำดับที่ต้องการ)
+  // ปิดระบบไกด์แนะนำ (ทัวร์) สำหรับผู้ใช้ใหม่ไว้ก่อนตามที่ขอ — ไม่เริ่มทัวร์อัตโนมัติอีกต่อไป
+  // (ซ่อนไว้แบบนี้แทนการลบโค้ดทิ้ง เผื่ออนาคตอยากเปิดกลับมาใช้ใหม่ จะได้เรียกคืนได้เร็ว)
   useEffect(() => {
+    return; // eslint-disable-line
     if (needsPhoneGate) return;
     if (tourCompleted === null || tourCompleted) return;
     if (!hasDemoData) return;
