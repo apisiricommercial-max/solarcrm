@@ -9438,7 +9438,7 @@ try {
             box.textContent='⛔ หมดอายุการใช้งานแล้ว'; box.style.background='rgba(239,68,68,.3)'; box.style.color='#fff';
           } else {
             var start = p.trial_started_at ? new Date(p.trial_started_at).getTime() : now;
-            var daysLeft = 30 - Math.floor((now-start)/DAY);
+            var daysLeft = 14 - Math.floor((now-start)/DAY);
             if(daysLeft<=0){ box.textContent='⛔ หมดระยะเวลาทดลองใช้ฟรีแล้ว'; box.style.background='rgba(239,68,68,.3)'; box.style.color='#fff'; }
             else { box.textContent='🎁 ทดลองใช้ฟรี เหลือ '+daysLeft+' วัน'; box.style.background = daysLeft<=7?'rgba(245,158,11,.3)':'rgba(255,255,255,.2)'; box.style.color='#fff'; }
           }
