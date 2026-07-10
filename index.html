@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8"> 
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SolarCRM · ระบบจัดการลูกค้าธุรกิจโซลาร์เซลล์</title>
 <link rel="icon" href="https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png">
@@ -1161,7 +1161,7 @@ function categoryBreakdown(rows, type) {
     .map(([label, value], i) => ({ label, value, color: CASHFLOW_CHART_COLORS[i % CASHFLOW_CHART_COLORS.length] }))
     .sort((a, b) => b.value - a.value);
 }
-// ===================== ระบบทดลองใช้ฟรี 15 วัน + ชำระเงิน =====================
+// ===================== ระบบทดลองใช้ฟรี 14 วัน + ชำระเงิน =====================
 function trialInfo(profile) {
   if (!profile) return { daysLeft: 30, expired: false, active: false, status: "trial" };
   if (profile.subscription_status === "active") {
@@ -1176,7 +1176,7 @@ function trialInfo(profile) {
   }
   const start = profile.trial_started_at ? new Date(profile.trial_started_at) : new Date();
   const daysUsed = Math.floor((Date.now() - start.getTime()) / 86400000);
-  const daysLeft = 15 - daysUsed;
+  const daysLeft = 14 - daysUsed;
   return { daysLeft, expired: daysLeft <= 0, active: false, status: "trial" };
 }
 const subscriptionDb = {
@@ -7198,7 +7198,7 @@ function App() {
       .catch(() => setContactPhone("skip"));
   }, [currentUser]);
   const needsPhoneGate = contactPhone === null;
-  // ===== ระบบทดลองใช้ฟรี 15 วัน =====
+  // ===== ระบบทดลองใช้ฟรี 14 วัน =====
   const [subProfile, setSubProfile] = useState(undefined); // undefined = ยังไม่เช็ค
   const [trialBannerDismissed, setTrialBannerDismissed] = useState(() => {
     try { return localStorage.getItem("solar_trial_banner_dismissed_date") === todayISO(); } catch (e) { return false; }
