@@ -7779,6 +7779,39 @@ function AccountChip({ session }) {
   return null;
 }
 
+function AdminDaysLeftBadge({ r }) {
+  const t = trialInfo({ subscription_status: r.subscriptionStatus, subscription_expires_at: r.subscriptionExpiresAt, trial_started_at: r.trialStartedAt });
+  if (t.active) return h("span", { className: "text-[11px] font-semibold text-emerald-600" }, t.expiresAt ? "\u0E16\u0E36\u0E07 " + thDateShort(t.expiresAt) : "\u0E44\u0E21\u0E48\u0E21\u0E35\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38");
+  if (t.expired) return h("span", { className: "text-[11px] font-semibold text-red-500" }, "\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E41\u0E25\u0E49\u0E27");
+  return h("span", { className: `text-[11px] font-semibold ${t.daysLeft <= 7 ? "text-amber-600" : "text-ink-500"}` }, "\u0E40\u0E2B\u0E25\u0E37\u0E2D ", t.daysLeft, " \u0E27\u0E31\u0E19");
+}
+function ExtendDaysModal({ target, onClose, onConfirm, busy }) {
+  const [days, setDays] = useState("30");
+  const submit = () => {
+    const n = Number(days);
+    if (!n || isNaN(n)) { alert("กรุณากรอกตัวเลขที่ถูกต้อง"); return; }
+    onConfirm(target, n);
+  };
+  return h(Modal, { open: true, onClose },
+    h("div", { className: "p-6" },
+      h("h3", { className: "text-lg font-semibold text-ink-800 mb-1" }, "\u2795 เพิ่ม/ลดวันใช้งาน"),
+      h("p", { className: "text-xs text-ink-400 mb-4" }, target.companyName || target.ownerEmail),
+      h("label", { className: "block text-xs font-medium text-ink-500 mb-1" }, "จำนวนวัน (ใส่ค่าติดลบเพื่อลดวัน เช่น -7)"),
+      h("input", {
+        type: "number", autoFocus: true, value: days, onChange: (e) => setDays(e.target.value),
+        onKeyDown: (e) => { if (e.key === "Enter") submit(); },
+        className: "w-full px-3.5 py-2.5 rounded-xl border border-ink-200 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 mb-1"
+      }),
+      h("div", { className: "flex gap-1.5 flex-wrap mb-4" },
+        [7, 30, 90, 365].map((n) => h("button", { key: n, type: "button", onClick: () => setDays(String(n)), className: "text-[11px] px-2.5 py-1 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 font-semibold" }, "+", n, " วัน"))
+      ),
+      h("div", { className: "flex justify-end gap-2" },
+        h("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm text-ink-600 hover:bg-ink-100" }, "ยกเลิก"),
+        h("button", { onClick: submit, disabled: busy, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50" }, busy ? "กำลังบันทึก..." : "\u2705 ยืนยัน")
+      )
+    )
+  );
+}
 function AdminAnalyticsPage({ session }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -7827,15 +7860,13 @@ function AdminAnalyticsPage({ session }) {
     catch (e) { alert("ไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
     finally { setReviewingId(null); }
   };
-  const doExtend = async (r) => {
-    const input = prompt(`เพิ่มวันใช้งานให้ "${r.companyName || r.ownerEmail}"\n\nกรอกจำนวนวัน (ใส่ - เพื่อลดวัน เช่น -7):`, "30");
-    if (input === null) return;
-    const days = Number(input);
-    if (!days || isNaN(days)) { alert("กรุณากรอกตัวเลขที่ถูกต้อง"); return; }
+  const [extendTarget, setExtendTarget] = useState(null);
+  const doExtendConfirm = async (r, days) => {
     setReviewingId(r.ownerId);
     try {
       const res = await subscriptionDb.extendSubscription(r.ownerId, days);
       await loadData(fromDate || null, toDate || null);
+      setExtendTarget(null);
       alert(`สำเร็จ! วันหมดอายุใหม่: ${thDateShort(res.newExpiry)}`);
     } catch (e) { alert("ไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
     finally { setReviewingId(null); }
@@ -8001,6 +8032,7 @@ function AdminAnalyticsPage({ session }) {
                     h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "\u0E43\u0E1A\u0E40\u0E2A\u0E19\u0E2D\u0E23\u0E32\u0E04\u0E32"),
                     h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "\u0E43\u0E0A\u0E49\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14"),
                     h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "\u0E40\u0E27\u0E25\u0E32\u0E25\u0E47\u0E2D\u0E01\u0E2D\u0E34\u0E19\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14"),
+                    h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "\u0E27\u0E31\u0E19\u0E43\u0E0A\u0E49\u0E07\u0E32\u0E19\u0E04\u0E07\u0E40\u0E2B\u0E25\u0E37\u0E2D"),
                     h("th", { className: "text-center px-5 py-2.5 font-semibold" }, "\u0E2A\u0E16\u0E32\u0E19\u0E30"),
                     h("th", { className: "text-center px-3 py-2.5 font-semibold" }, "\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23")
                   )),
@@ -8022,13 +8054,14 @@ function AdminAnalyticsPage({ session }) {
                       viewFilter === "offline3d" && h("div", { className: "text-red-500 font-semibold mt-0.5" }, r.lastActive ? `\u0E40\u0E01\u0E34\u0E19 ${daysSinceActive(r.lastActive)} \u0E27\u0E31\u0E19` : "\u0E44\u0E21\u0E48\u0E40\u0E04\u0E22 active")
                     ),
                     h("td", { className: "px-3 py-3 text-center text-ink-500 text-xs num" }, thTime(r.lastActive)),
+                    h("td", { className: "px-3 py-3 text-center" }, h(AdminDaysLeftBadge, { r })),
                     h("td", { className: "px-5 py-3 text-center" }, statusBadge(r.status)),
                     h("td", { className: "px-3 py-3 text-center", onClick: (e) => e.stopPropagation() },
-                      h("button", { onClick: () => doExtend(r), disabled: reviewingId === r.ownerId, className: "px-2.5 py-1.5 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 text-[11px] font-semibold whitespace-nowrap disabled:opacity-50" }, "\u2795 เพิ่มวัน")
+                      h("button", { onClick: () => setExtendTarget(r), disabled: reviewingId === r.ownerId, className: "px-2.5 py-1.5 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 text-[11px] font-semibold whitespace-nowrap disabled:opacity-50" }, "\u2795 เพิ่มวัน")
                     )
                   ),
                     expandedId === r.ownerId && h("tr", { className: "bg-ink-50/60 border-t border-ink-100" },
-                      h("td", { colSpan: 9, className: "px-5 py-4" },
+                      h("td", { colSpan: 10, className: "px-5 py-4" },
                         h("div", { className: "text-xs font-bold text-ink-600 mb-2" }, "\uD83D\uDC65 \u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E17\u0E35\u0E48\u0E40\u0E1E\u0E34\u0E48\u0E07\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14 (\u0E2A\u0E39\u0E07\u0E2A\u0E38\u0E14 10 \u0E23\u0E32\u0E22)"),
                         !r.recentCustomers || r.recentCustomers.length === 0
                           ? h("div", { className: "text-xs text-ink-400 py-3 text-center" }, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E40\u0E04\u0E22\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E40\u0E25\u0E22")
@@ -8064,6 +8097,7 @@ function AdminAnalyticsPage({ session }) {
                     ),
                     statusBadge(r.status)
                   ),
+                  h("div", { className: "flex justify-center mb-2" }, h(AdminDaysLeftBadge, { r })),
                   h("div", { className: "grid grid-cols-5 gap-2 text-center" },
                     h("div", null, h("div", { className: "num font-bold text-ink-700 text-sm" }, r.userCount), h("div", { className: "text-[10px] text-ink-400" }, "\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49")),
                     h("div", null, h("div", { className: "num font-bold text-ink-700 text-sm" }, fmt(r.customerCount)), h("div", { className: "text-[10px] text-ink-400" }, "\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32")),
@@ -8071,12 +8105,13 @@ function AdminAnalyticsPage({ session }) {
                     h("div", null, h("div", { className: "text-ink-500 text-xs" }, thDateShort(r.lastActive)), h("div", { className: "text-[10px] text-ink-400" }, viewFilter === "offline3d" ? (r.lastActive ? `\u0E40\u0E01\u0E34\u0E19 ${daysSinceActive(r.lastActive)} \u0E27\u0E31\u0E19` : "\u0E44\u0E21\u0E48\u0E40\u0E04\u0E22 active") : "\u0E43\u0E0A\u0E49\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14")),
                     h("div", null, h("div", { className: "num font-bold text-ink-700 text-sm" }, thTime(r.lastActive)), h("div", { className: "text-[10px] text-ink-400" }, "\u0E40\u0E27\u0E25\u0E32\u0E25\u0E47\u0E2D\u0E01\u0E2D\u0E34\u0E19"))
                   ),
-                  h("button", { onClick: () => doExtend(r), disabled: reviewingId === r.ownerId, className: "w-full mt-3 py-2 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-semibold disabled:opacity-50" }, "\u2795 เพิ่มวันใช้งาน")
+                  h("button", { onClick: () => setExtendTarget(r), disabled: reviewingId === r.ownerId, className: "w-full mt-3 py-2 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-semibold disabled:opacity-50" }, "\u2795 เพิ่มวันใช้งาน")
                 ))
               )
             )
       )
-    )
+    ),
+    extendTarget && h(ExtendDaysModal, { target: extendTarget, onClose: () => setExtendTarget(null), onConfirm: doExtendConfirm, busy: reviewingId === extendTarget.ownerId })
   );
 }
 function TechnicianUpdatePage({ token }) {
