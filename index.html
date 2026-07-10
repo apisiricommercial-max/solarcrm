@@ -7903,6 +7903,10 @@ function AdminAnalyticsPage({ session }) {
 
   useEffect(() => {
     loadData(null, null).finally(() => setLoading(false));
+    // แก้บั๊ก: เดิมโหลดข้อมูลแค่ครั้งเดียวตอนเปิดหน้า ถ้าเปิดหน้านี้ค้างไว้แล้วมีการเปลี่ยนแปลงจากที่อื่น (เช่น ผู้ใช้ชำระเงิน)
+    // ตัวเลขจะไม่อัปเดตให้เอง — ตอนนี้ดึงข้อมูลซ้ำอัตโนมัติทุก 30 วินาทีแทน (เร็วกว่าแอปหลักเพราะเป็นหน้าแอดมินที่ต้องการความสดใหม่มากกว่า)
+    const interval = setInterval(() => { loadData(fromDate || null, toDate || null); }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const applyFilter = async () => {
