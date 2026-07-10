@@ -1161,7 +1161,7 @@ function categoryBreakdown(rows, type) {
     .map(([label, value], i) => ({ label, value, color: CASHFLOW_CHART_COLORS[i % CASHFLOW_CHART_COLORS.length] }))
     .sort((a, b) => b.value - a.value);
 }
-// ===================== ระบบทดลองใช้ฟรี 30 วัน + ชำระเงิน =====================
+// ===================== ระบบทดลองใช้ฟรี 15 วัน + ชำระเงิน =====================
 function trialInfo(profile) {
   if (!profile) return { daysLeft: 30, expired: false, active: false, status: "trial" };
   if (profile.subscription_status === "active") {
@@ -1176,7 +1176,7 @@ function trialInfo(profile) {
   }
   const start = profile.trial_started_at ? new Date(profile.trial_started_at) : new Date();
   const daysUsed = Math.floor((Date.now() - start.getTime()) / 86400000);
-  const daysLeft = 30 - daysUsed;
+  const daysLeft = 15 - daysUsed;
   return { daysLeft, expired: daysLeft <= 0, active: false, status: "trial" };
 }
 const subscriptionDb = {
@@ -1227,7 +1227,7 @@ const subscriptionDb = {
     const res = await fetch(`${window.SUPABASE_URL}/functions/v1/approve-payment`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token, "apikey": window.SUPABASE_ANON_KEY },
-      body: JSON.stringify({ action: "extend", userId, days: Number(days) })
+      body: JSON.stringify({ action: "extend", userId, days: days === "permanent" ? "permanent" : Number(days) })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "ดำเนินการไม่สำเร็จ");
@@ -7196,7 +7196,7 @@ function App() {
       .catch(() => setContactPhone("skip"));
   }, [currentUser]);
   const needsPhoneGate = contactPhone === null;
-  // ===== ระบบทดลองใช้ฟรี 30 วัน =====
+  // ===== ระบบทดลองใช้ฟรี 15 วัน =====
   const [subProfile, setSubProfile] = useState(undefined); // undefined = ยังไม่เช็ค
   const [trialBannerDismissed, setTrialBannerDismissed] = useState(() => {
     try { return localStorage.getItem("solar_trial_banner_dismissed_date") === todayISO(); } catch (e) { return false; }
@@ -7858,6 +7858,10 @@ function ExtendDaysModal({ target, onClose, onConfirm, busy }) {
       h("div", { className: "flex gap-1.5 flex-wrap mb-4" },
         [7, 30, 90, 365].map((n) => h("button", { key: n, type: "button", onClick: () => setDays(String(n)), className: "text-[11px] px-2.5 py-1 rounded-lg bg-ink-100 hover:bg-ink-200 text-ink-600 font-semibold" }, "+", n, " วัน"))
       ),
+      h("button", {
+        type: "button", onClick: () => onConfirm(target, "permanent"), disabled: busy,
+        className: "w-full mb-4 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-1.5"
+      }, "\u267E\uFE0F ตั้งเป็นไม่มีกำหนดหมดอายุ (ถาวร)"),
       h("div", { className: "flex justify-end gap-2" },
         h("button", { onClick: onClose, className: "px-4 py-2 rounded-lg text-sm text-ink-600 hover:bg-ink-100" }, "ยกเลิก"),
         h("button", { onClick: submit, disabled: busy, className: "px-5 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50" }, busy ? "กำลังบันทึก..." : "\u2705 ยืนยัน")
@@ -7920,7 +7924,7 @@ function AdminAnalyticsPage({ session }) {
       const res = await subscriptionDb.extendSubscription(r.ownerId, days);
       await loadData(fromDate || null, toDate || null);
       setExtendTarget(null);
-      alert(`สำเร็จ! วันหมดอายุใหม่: ${thDateShort(res.newExpiry)}`);
+      alert(res.newExpiry ? `สำเร็จ! วันหมดอายุใหม่: ${thDateShort(res.newExpiry)}` : "สำเร็จ! ตั้งเป็นใช้งานได้ไม่มีกำหนดหมดอายุแล้วครับ");
     } catch (e) { alert("ไม่สำเร็จ: " + (e && e.message ? e.message : "ไม่ทราบสาเหตุ")); }
     finally { setReviewingId(null); }
   };
