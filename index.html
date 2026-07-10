@@ -6883,7 +6883,8 @@ function PaywallModal({ trial, onClose, dismissible }) {
     monthly: { label: "รายเดือน", price: 1290, sub: "ต่ออายุทุก 30 วัน" },
     quarterly: { label: "ราย 3 เดือน", price: 3790, sub: "ประหยัด " + Math.round((1290 * 3 - 3790) / (1290 * 3) * 100) + "%" },
     semiannual: { label: "ราย 6 เดือน", price: 7470, sub: "ประหยัด " + Math.round((1290 * 6 - 7470) / (1290 * 6) * 100) + "%" },
-    yearly: { label: "รายปี (คุ้มสุด)", price: 14706, sub: "ประหยัด " + Math.round((1290 * 12 - 14706) / (1290 * 12) * 100) + "%" }
+    yearly: { label: "รายปี (คุ้มสุด)", price: 14706, sub: "ประหยัด " + Math.round((1290 * 12 - 14706) / (1290 * 12) * 100) + "%" },
+    lifetime: { label: "ซื้อขาด (ตลอดชีพ)", price: 29999, sub: "จ่ายครั้งเดียว ใช้ได้ตลอดไป ไม่ต้องต่ออายุอีกเลย" }
   };
   const PROMPTPAY_ID = "1141200158242";
 
@@ -6937,7 +6938,7 @@ function PaywallModal({ trial, onClose, dismissible }) {
           : h(React.Fragment, null,
               wasRejected && h("div", { className: "bg-red-50 ring-1 ring-red-100 rounded-xl p-2.5 mb-3 text-[11px] text-red-600" }, "\u274C คำขอก่อนหน้าไม่ผ่านการตรวจสอบ", submission.reviewed_note ? ": " + submission.reviewed_note : "", " กรุณาส่งใหม่อีกครั้ง"),
               h("div", { className: "grid grid-cols-2 gap-2 mb-2" },
-                Object.entries(PLANS).map(([key, p]) => h("button", {
+                Object.entries(PLANS).filter(([key]) => key !== "lifetime").map(([key, p]) => h("button", {
                   key, type: "button", onClick: () => setPlan(key),
                   className: `p-2.5 rounded-xl ring-2 text-left transition ${plan === key ? "ring-brand-500 bg-brand-50" : "ring-ink-100 bg-white hover:ring-ink-200"}`
                 },
@@ -6945,6 +6946,20 @@ function PaywallModal({ trial, onClose, dismissible }) {
                   h("div", { className: "text-base font-black text-ink-900" }, "\u0e3f", p.price.toLocaleString("th-TH")),
                   h("div", { className: `text-[9px] mt-0.5 font-medium ${key !== "monthly" ? "text-emerald-600" : "text-ink-400"}` }, p.sub)
                 ))
+              ),
+              h("button", {
+                type: "button", onClick: () => setPlan("lifetime"),
+                className: `w-full mb-3 p-3 rounded-xl ring-2 text-left transition relative overflow-hidden ${plan === "lifetime" ? "ring-violet-500" : "ring-violet-200 hover:ring-violet-300"}`,
+                style: { background: "linear-gradient(120deg,#ede9fe,#eff6ff)" }
+              },
+                h("span", { className: "absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-violet-600 text-white" }, "\u{1F451} คุ้มค่าที่สุด"),
+                h("div", { className: "flex items-center justify-between gap-2 pr-16" },
+                  h("div", null,
+                    h("div", { className: "text-xs font-bold text-violet-700" }, PLANS.lifetime.label),
+                    h("div", { className: "text-[10px] text-ink-500 mt-0.5" }, PLANS.lifetime.sub)
+                  ),
+                  h("div", { className: "text-lg font-black text-violet-700 shrink-0" }, "\u0e3f", PLANS.lifetime.price.toLocaleString("th-TH"))
+                )
               ),
               h("button", { type: "button", onClick: () => setShowFeatures((v) => !v), className: "w-full text-center text-[11px] font-semibold text-brand-600 hover:underline mb-2.5" }, showFeatures ? "\u25B2 ซ่อนรายละเอียด" : "\u2139\uFE0F ทุกแพ็กเกจได้อะไรบ้าง? ดูรายละเอียด"),
               showFeatures && h("div", { className: "bg-brand-50/60 ring-1 ring-brand-100 rounded-xl p-3 mb-3" },
