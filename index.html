@@ -6914,7 +6914,7 @@ function PaywallModal({ trial, onClose }) {
       h("div", { className: "px-5 pt-5 pb-3.5 text-center relative overflow-hidden", style: { background: "linear-gradient(135deg,#7c3aed,#4f46e5)" } },
         h("div", { className: "absolute inset-0 opacity-20", style: { background: "radial-gradient(circle at 30% 20%, #fff, transparent 40%)" } }),
         h("div", { className: "w-11 h-11 rounded-full bg-white/15 flex items-center justify-center text-2xl mx-auto mb-1.5 relative", style: { animation: "tourBounceLeft 2.4s ease-in-out infinite" } }, pendingReview || justSubmitted ? "\uD83C\uDF89" : "\u23F3"),
-        h("h3", { className: "text-base font-bold text-white relative" }, pendingReview || justSubmitted ? "ขอบคุณครับ!" : (trial.status === "expired" ? "แผนการใช้งานหมดอายุแล้ว" : "หมดระยะเวลาทดลองใช้ฟรีแล้ว")),
+        h("h3", { className: "text-base font-bold text-white relative" }, pendingReview || justSubmitted ? "ขอบคุณครับ!" : "แผนการใช้งานหมดอายุแล้ว"),
         h("p", { className: "text-[11px] text-white/80 mt-0.5 relative" }, pendingReview || justSubmitted ? "ทีมงานได้รับข้อมูลแล้ว กำลังตรวจสอบ" : "ชำระเงินเพื่อใช้งานระบบต่อ ครบทุกฟีเจอร์เหมือนเดิม")
       ),
       h("div", { className: "p-5 max-h-[75vh] overflow-y-auto" },
