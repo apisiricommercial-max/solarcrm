@@ -1169,6 +1169,11 @@ function trialInfo(profile) {
     if (!exp || exp.getTime() > Date.now()) return { daysLeft: null, expired: false, active: true, status: "active", expiresAt: profile.subscription_expires_at };
     return { daysLeft: 0, expired: true, active: false, status: "expired" }; // ชำระแล้วแต่หมดอายุ ต้องต่ออายุ
   }
+  // แก้บั๊กสำคัญ: เดิมไม่เคยเช็คสถานะ "expired" เลย ทำให้ตกไปคำนวณแบบ trial ใหม่ทุกครั้ง (อิง trial_started_at)
+  // ค่า subscription_expires_at ที่ตั้งไว้ตอนหมดอายุ (เช่น จากปุ่มเพิ่ม/ลดวันของแอดมิน) เลยไม่มีผลอะไรเลย
+  if (profile.subscription_status === "expired") {
+    return { daysLeft: 0, expired: true, active: false, status: "expired", expiresAt: profile.subscription_expires_at };
+  }
   const start = profile.trial_started_at ? new Date(profile.trial_started_at) : new Date();
   const daysUsed = Math.floor((Date.now() - start.getTime()) / 86400000);
   const daysLeft = 30 - daysUsed;
