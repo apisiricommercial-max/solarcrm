@@ -6818,6 +6818,18 @@ function PromptPayQR({ target, amount, size }) {
   const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size || 200}x${size || 200}&data=${encodeURIComponent(payload)}`;
   return h("img", { src, alt: "PromptPay QR", className: "mx-auto rounded-lg ring-1 ring-ink-100", width: size || 200, height: size || 200 });
 }
+const PLAN_FEATURES = [
+  "\u{1F465} จัดการลูกค้าไม่จำกัดจำนวน",
+  "\u{1F4C4} ใบเสนอราคา BOQ พร้อมส่งลิงก์ให้ลูกค้าดูออนไลน์",
+  "\u{1F4CB} ไปป์ไลน์งานขาย + ติดตามขั้นตอนติดตั้งจนเสร็จงาน",
+  "\u{1F3ED} คลังสินค้า + ใบสั่งซื้อ เชื่อมบัญชีบริษัทอัตโนมัติ",
+  "\u{1F4B0} บัญชีบริษัท (รายรับ-รายจ่าย) พร้อมกราฟสรุปทุกเดือน",
+  "\u2600\uFE0F คำนวณคืนทุน ROI และคำนวณโหลดไฟฟ้าในบ้าน",
+  "\u{1F4CA} แดชบอร์ดสรุปภาพรวมธุรกิจแบบเรียลไทม์",
+  "\u23F0 แจ้งเตือนติดตามลูกค้า และประกันใกล้หมดอายุ",
+  "\u{1F465} ใช้งานได้หลายคนในบริษัทเดียวกัน",
+  "\u{1F4DE} ซัพพอร์ตช่วยเหลือ 24 ชม."
+];
 function PaywallModal({ trial, onClose }) {
   const [submission, setSubmission] = useState(undefined); // undefined=กำลังโหลด, null=ยังไม่เคยส่ง, object=เคยส่งแล้ว
   const [plan, setPlan] = useState("monthly");
@@ -6827,8 +6839,12 @@ function PaywallModal({ trial, onClose }) {
   const [submitting, setSubmitting] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showFeatures, setShowFeatures] = useState(false);
   const fileRef = useRef(null);
-  const PLANS = { monthly: { label: "รายเดือน", price: 1290 }, yearly: { label: "รายปี (ลด 5%)", price: 14706 } };
+  const PLANS = {
+    monthly: { label: "รายเดือน", price: 1290, sub: "ต่ออายุทุก 30 วัน" },
+    yearly: { label: "รายปี (ลด 5%)", price: 14706, sub: "ประหยัด " + (1290 * 12 - 14706).toLocaleString("th-TH") + " บาท/ปี" }
+  };
   const PROMPTPAY_ID = "1141200158242";
 
   const refresh = () => subscriptionDb.myLatestSubmission().then(setSubmission);
@@ -6879,14 +6895,21 @@ function PaywallModal({ trial, onClose }) {
             )
           : h(React.Fragment, null,
               wasRejected && h("div", { className: "bg-red-50 ring-1 ring-red-100 rounded-xl p-2.5 mb-3 text-[11px] text-red-600" }, "\u274C คำขอก่อนหน้าไม่ผ่านการตรวจสอบ", submission.reviewed_note ? ": " + submission.reviewed_note : "", " กรุณาส่งใหม่อีกครั้ง"),
-              h("div", { className: "grid grid-cols-2 gap-2 mb-3" },
+              h("div", { className: "grid grid-cols-2 gap-2 mb-2" },
                 Object.entries(PLANS).map(([key, p]) => h("button", {
                   key, type: "button", onClick: () => setPlan(key),
                   className: `p-2.5 rounded-xl ring-2 text-left transition ${plan === key ? "ring-brand-500 bg-brand-50" : "ring-ink-100 bg-white hover:ring-ink-200"}`
                 },
                   h("div", { className: "text-[10px] font-semibold text-ink-500" }, p.label),
-                  h("div", { className: "text-base font-black text-ink-900" }, "\u0e3f", p.price.toLocaleString("th-TH"))
+                  h("div", { className: "text-base font-black text-ink-900" }, "\u0e3f", p.price.toLocaleString("th-TH")),
+                  h("div", { className: `text-[9px] mt-0.5 font-medium ${key === "yearly" ? "text-emerald-600" : "text-ink-400"}` }, p.sub)
                 ))
+              ),
+              h("button", { type: "button", onClick: () => setShowFeatures((v) => !v), className: "w-full text-center text-[11px] font-semibold text-brand-600 hover:underline mb-2.5" }, showFeatures ? "\u25B2 ซ่อนรายละเอียด" : "\u2139\uFE0F ทุกแพ็กเกจได้อะไรบ้าง? ดูรายละเอียด"),
+              showFeatures && h("div", { className: "bg-brand-50/60 ring-1 ring-brand-100 rounded-xl p-3 mb-3" },
+                h("div", { className: "text-[11px] font-bold text-brand-700 mb-2" }, "\u2728 ทุกแพ็กเกจได้รับครบทุกฟีเจอร์เหมือนกัน:"),
+                h("div", { className: "space-y-1" }, PLAN_FEATURES.map((f, i) => h("div", { key: i, className: "text-[11px] text-ink-600 flex items-start gap-1.5" }, h("span", { className: "text-emerald-500 shrink-0" }, "\u2713"), f))),
+                h("div", { className: "text-[10px] text-ink-400 mt-2 pt-2 border-t border-brand-100" }, "\u{1F4A1} แผนรายปีจ่ายครั้งเดียว คุ้มกว่ารายเดือน ", (1290 * 12 - 14706).toLocaleString("th-TH"), " บาท/ปี")
               ),
               h("div", { className: "bg-ink-50 rounded-xl p-3 mb-3 text-center" },
                 h("div", { className: "font-semibold text-ink-700 text-[11px] mb-2 flex items-center justify-center gap-1.5" }, "\uD83D\uDCF1 สแกนจ่ายผ่าน PromptPay"),
