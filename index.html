@@ -9078,6 +9078,11 @@ function Gate() {
           try { pendingPhone = localStorage.getItem("solar_pending_phone"); } catch (e) {}
           const patch = { role: pending };
           const { isNew } = await upsertCompanyProfile(session.user.id, patch);
+          // แก้บั๊ก: ต้องตั้ง trial_started_at ตอนสร้างบัญชีใหม่จริงๆ เท่านั้น (เดิมไม่เคยตั้งค่านี้เลย
+          // ทำให้ค่าเป็น NULL ตลอด และระบบคำนวณวันคงเหลือ fallback เป็น "เริ่มวันนี้" ทุกครั้ง = โชว์ 30 วันค้าง)
+          if (isNew) {
+            try { await upsertCompanyProfile(session.user.id, { trial_started_at: new Date().toISOString() }); } catch (e3) {}
+          }
           // บันทึกเบอร์ติดต่อเฉพาะตอนเป็นผู้ใช้ใหม่จริงๆ เท่านั้น (เช็คจากฐานข้อมูลจริง ไม่ใช่แค่เดาจากเครื่อง)
           if (isNew && pendingPhone) {
             try { await upsertCompanyProfile(session.user.id, { contact_phone: pendingPhone }); } catch (e2) {}
