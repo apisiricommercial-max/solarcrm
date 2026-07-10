@@ -7808,6 +7808,7 @@ function AccountChip({ session }) {
   return null;
 }
 
+const thDateShort = (iso) => iso ? new Date(iso).toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "2-digit" }) : "\u2014";
 function AdminDaysLeftBadge({ r }) {
   const t = trialInfo({ subscription_status: r.subscriptionStatus, subscription_expires_at: r.subscriptionExpiresAt, trial_started_at: r.trialStartedAt });
   const debugLine = h("div", { className: "text-[9px] text-ink-300 mt-0.5", title: "ข้อมูลดิบจาก API สำหรับตรวจสอบ" }, "[", r.subscriptionStatus || "?", "]");
@@ -7928,7 +7929,6 @@ function AdminAnalyticsPage({ session }) {
   };
 
   const fmt = (n) => (Number(n) || 0).toLocaleString("th-TH");
-  const thDateShort = (iso) => iso ? new Date(iso).toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "2-digit" }) : "\u2014";
   const thTime = (iso) => iso ? new Date(iso).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }) : "\u2014";
 
   if (loading) {
