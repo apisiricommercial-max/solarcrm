@@ -352,10 +352,10 @@ tailwind.config = {
   button[class*="ring-ink-100"][class*="hover:ring-brand-300"][class*="hover:bg-brand-50"]:hover{transform:translateX(3px);box-shadow:0 6px 16px -8px rgba(15,23,42,.18)}
 
   /* theme switcher widget */
-  #themeFab{position:fixed;z-index:60;bottom:1.25rem;right:1.25rem;left:auto}
+  #themeFab{position:fixed;z-index:60;bottom:4.9rem;left:1.1rem;right:auto}
   #themeFab .fab-btn{width:46px;height:46px;border-radius:9999px;display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 8px 22px -6px rgba(15,23,42,.35);border:1px solid #e2e8f0;cursor:pointer;font-size:20px;transition:transform .15s}
   #themeFab .fab-btn:hover{transform:scale(1.08) rotate(8deg)}
-  #themePop{position:absolute;bottom:56px;right:0;left:auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:12px;box-shadow:0 18px 40px -12px rgba(15,23,42,.4);display:none;width:188px}
+  #themePop{position:absolute;bottom:56px;left:0;right:auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:12px;box-shadow:0 18px 40px -12px rgba(15,23,42,.4);display:none;width:188px}
   #themePop.open{display:block;animation:pop .2s ease}
   #themePop .ttl{font-size:11px;color:#64748b;font-weight:600;margin-bottom:8px}
   #themePop .sw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
@@ -387,14 +387,10 @@ tailwind.config = {
   .pbtn-danger:hover{background:#fee2e2}
   .pemail{text-align:center;font-size:12px;color:#64748b;margin-top:4px;word-break:break-all}
 
-  /* ===== support / developer buttons ===== */
-  #fabStack{position:fixed;right:1.1rem;left:auto;bottom:4.9rem;z-index:55;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+  /* ===== floating dark/light mode button ===== */
   .fab2{width:52px;height:52px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:none;box-shadow:0 10px 26px -6px rgba(15,23,42,.4);transition:transform .15s}
   .fab2:hover{transform:scale(1.1) translateY(-2px)}
-  .fab-heart{background:linear-gradient(135deg,#fb7185,#e11d48);color:#fff;animation:heartbeat 3.2s ease-in-out infinite}
-  @keyframes heartbeat{0%,100%{transform:scale(1)}10%{transform:scale(1.08)}20%{transform:scale(1)}}
-  .sup-qr{width:188px;height:188px;border-radius:14px;object-fit:contain;margin:0 auto;display:block;background:#fff;border:1px solid #e2e8f0}
-  .sup-amt{display:inline-block;background:rgb(var(--b50));color:rgb(var(--b700));font-weight:700;border-radius:9999px;padding:4px 14px;font-size:14px;margin:8px auto 0}
+  #modeToggle{position:fixed;left:1.1rem;right:auto;bottom:1.25rem;z-index:55}
 
   /* ===== make SolarCRM brand pop ===== */
   aside .from-brand-500.to-emerald-500{background:linear-gradient(135deg,rgb(var(--b400)),rgb(var(--b600)),#10b981);background-size:200% 200%;animation:brandshift 5s ease infinite;box-shadow:0 0 0 0 rgba(var(--b500),.5);position:relative}
@@ -407,14 +403,12 @@ tailwind.config = {
 
   /* ===== mobile tweaks ===== */
   @media (max-width:640px){
-    /* กลุ่มปุ่มลอยมือถือ: แบ่ง 2 ฝั่งชัดเจน กันซ้อนทับ
-       ฝั่งขวา (ใช้บ่อยสุด): + เพิ่มลูกค้า (ล่างสุด) → 🎨 ธีม (เหนือขึ้นไป)
-       ฝั่งซ้าย (รอง): ❤️ สนับสนุน (ล่างสุด) → 🌙 สลับธีมมืด-สว่าง (เหนือขึ้นไป) */
+    /* กลุ่มปุ่มลอยมือถือ: ฝั่งขวาเป็นเพิ่มลูกค้าและธีม ฝั่งซ้ายเป็นโหมดมืด/สว่าง */
     #mobileAddFab{position:fixed!important;right:1rem!important;left:auto!important;bottom:1rem!important;top:auto!important;z-index:70!important}
-    #themeFab{position:fixed!important;right:1rem!important;left:auto!important;bottom:5.2rem!important;top:auto!important;z-index:69!important}
+    #themeFab{position:fixed!important;left:1rem!important;right:auto!important;bottom:5.2rem!important;top:auto!important;z-index:69!important}
     #themeFab .fab-btn{width:42px;height:42px;font-size:18px}
-    #themePop{right:0;left:auto;bottom:50px}
-    #fabStack{position:fixed!important;left:1rem!important;right:auto!important;bottom:1rem!important;top:auto!important;z-index:68!important;display:flex!important;flex-direction:column-reverse!important;gap:10px;align-items:flex-start!important}
+    #themePop{left:0;right:auto;bottom:50px}
+    #modeToggle{position:fixed!important;left:1rem!important;right:auto!important;bottom:1rem!important;top:auto!important;z-index:68!important}
     .fab2{width:44px;height:44px;font-size:18px}
     .avatar-btn{width:38px!important;height:38px!important}
     .sheet{max-width:none}
@@ -441,7 +435,7 @@ tailwind.config = {
   /* stat number pop */
   @keyframes numPop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
   .fade-in .num{animation:numPop .6s cubic-bezier(.2,.8,.3,1.2) both}
-  @media print{.no-print,#themeFab,#fabStack,.ov{display:none!important}}
+  @media print{.no-print,#themeFab,.ov{display:none!important}}
   .print-only{display:none}
   @media print{.print-only{display:inline!important}}
   @media print{.print-hide-zero{display:none!important}}
@@ -9283,7 +9277,7 @@ try {
 })();
 </script>
 
-<!-- ===== Profile + Support + Developer widgets (vanilla, decoupled) ===== -->
+<!-- ===== Profile widget (vanilla, decoupled) ===== -->
 <div class="ov" id="profileOv">
   <div class="sheet">
     <div class="sheet-h">
@@ -9310,37 +9304,10 @@ try {
   </div>
 </div>
 
-<div class="ov" id="supportOv">
-  <div class="sheet">
-    <div class="sheet-h" style="background:linear-gradient(135deg,#fb7185,#e11d48)">
-      <div style="font-size:30px">❤️</div>
-      <div style="font-weight:700;font-size:16px;margin-top:4px">สนับสนุนผู้พัฒนา</div>
-      <div class="pemail" style="color:rgba(255,255,255,.9)">ถ้าชอบเครื่องมือนี้ เลี้ยงกาแฟกันได้นะครับ</div>
-    </div>
-    <div class="sheet-b" style="text-align:center">
-      <img class="sup-qr" src="https://img2.pic.in.th/bab8693c-688c-49fa-98ef-6a13575ff6a1.jpeg" alt="QR พร้อมเพย์" onerror="this.style.display='none'">
-      <div class="sup-amt">☕ 49 บาท</div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:6px">สแกน QR ด้วยแอปธนาคารเพื่อสนับสนุน</div>
-      <div class="lab" style="text-align:center">ติดต่อ / ปรึกษาผู้พัฒนา</div>
-      <div class="btn-row">
-        <button class="pbtn pbtn-primary" id="devInbox" style="background:#0084ff">💬 ทักแชต Inbox</button>
-        <button class="pbtn pbtn-ghost" id="devPage">เพจ Facebook</button>
-      </div>
-      <button class="pbtn pbtn-ghost" id="closeSupport" style="width:100%;margin-top:10px">ปิด</button>
-    </div>
-  </div>
-</div>
-
-<div id="fabStack" class="no-print">
-  <button class="fab2 fab-heart" id="supportFab" title="สนับสนุน / ติดต่อผู้พัฒนา">❤️</button>
-</div>
-
 <script>
 (function(){
   var AKEY='solar_crm_avatar';
   var DEFAULT_LOGO='https://i.postimg.cc/NjPK0zSN/20bf1426-7dec-4fcd-930e-ffc16c90dbb3.png';
-  var DEV_INBOX='https://m.me/apisit.chan.73';
-  var DEV_PAGE='https://www.facebook.com/apisit.chan.73/';
   var ICONS=['🙂','😎','🦊','🐯','🦁','🐻','🐼','🦄','🐲','☀️','⚡','🔋','🏠','🌱','💡','🛠️','📈','💰','🚀','🔥','⭐','👑','🎯','🧑‍💼'];
 
   function getAv(){ try{ var v=JSON.parse(localStorage.getItem(AKEY)||'null'); return v || {type:'img',val:DEFAULT_LOGO}; }catch(e){return {type:'img',val:DEFAULT_LOGO};} }
@@ -9452,17 +9419,7 @@ try {
   pOv.onclick=function(e){ if(e.target===pOv)pOv.classList.remove('open'); };
   document.getElementById('logoutBtn').onclick=function(){ if(confirm('ออกจากระบบ?')){ if(window.__signOut)window.__signOut(); pOv.classList.remove('open'); } };
 
-  // ปุ่มสนับสนุน
-  var sOv=document.getElementById('supportOv');
-  function openSup(){ sOv.classList.add('open'); }
-  function closeSup(){ sOv.classList.remove('open'); }
-  document.getElementById('supportFab').onclick=openSup;
-  document.getElementById('closeSupport').onclick=closeSup;
-  sOv.onclick=function(e){ if(e.target===sOv)closeSup(); };
-  document.getElementById('devInbox').onclick=function(){ window.open(DEV_INBOX,'_blank'); };
-  document.getElementById('devPage').onclick=function(){ window.open(DEV_PAGE,'_blank'); };
-
-  document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ pOv.classList.remove('open'); closeSup(); } });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ pOv.classList.remove('open'); } });
 
   applyAvatar();
   applyCompany();
@@ -9473,8 +9430,6 @@ try {
 (function(){
   var KEY='solar_crm_mode';
   var btn=document.getElementById('modeToggle');
-  var stack=document.getElementById('fabStack');
-  if(stack && btn){ stack.insertBefore(btn, stack.firstChild); }
   function apply(m){
     if(m==='dark'){ document.body.classList.add('dark'); btn.textContent='☀️'; }
     else { document.body.classList.remove('dark'); btn.textContent='🌙'; }
