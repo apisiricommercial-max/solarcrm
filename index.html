@@ -1155,7 +1155,7 @@ function categoryBreakdown(rows, type) {
     .map(([label, value], i) => ({ label, value, color: CASHFLOW_CHART_COLORS[i % CASHFLOW_CHART_COLORS.length] }))
     .sort((a, b) => b.value - a.value);
 }
-// ===================== ระบบทดลองใช้ฟรี 14 วัน + ชำระเงิน =====================
+// ===================== ระบบทดลองใช้ฟรี 30 วัน + ชำระเงิน =====================
 function trialInfo(profile) {
   if (!profile) return { daysLeft: 30, expired: false, active: false, status: "trial" };
   if (profile.subscription_status === "active") {
@@ -1170,7 +1170,7 @@ function trialInfo(profile) {
   }
   const start = profile.trial_started_at ? new Date(profile.trial_started_at) : new Date();
   const daysUsed = Math.floor((Date.now() - start.getTime()) / 86400000);
-  const daysLeft = 14 - daysUsed;
+  const daysLeft = 30 - daysUsed;
   return { daysLeft, expired: daysLeft <= 0, active: false, status: "trial" };
 }
 const subscriptionDb = {
@@ -7208,7 +7208,7 @@ function App() {
       .catch(() => setContactPhone("skip"));
   }, [currentUser]);
   const needsPhoneGate = contactPhone === null;
-  // ===== ระบบทดลองใช้ฟรี 14 วัน =====
+  // ===== ระบบทดลองใช้ฟรี 30 วัน =====
   const [subProfile, setSubProfile] = useState(undefined); // undefined = ยังไม่เช็ค
   const [trialBannerDismissed, setTrialBannerDismissed] = useState(() => {
     try { return localStorage.getItem("solar_trial_banner_dismissed_date") === todayISO(); } catch (e) { return false; }
@@ -7611,7 +7611,12 @@ function LoginScreen() {
     setBusy(true);
     try {
       try { localStorage.setItem("solar_pending_role", role); } catch (e) {}
-      await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + window.location.pathname } });
+      if (!sb) throw new Error("ไม่สามารถโหลด Supabase ได้ กรุณาตรวจสอบอินเทอร์เน็ตและรีเฟรชหน้าเว็บ");
+      if (window.location.protocol === "file:") throw new Error("Google Login ไม่รองรับการเปิดไฟล์ HTML โดยตรง กรุณาเปิดผ่าน HTTPS (เช่น Netlify) หรือ localhost และตั้งค่า Redirect URL ใน Supabase");
+      const redirectTo = window.location.origin + window.location.pathname;
+      const { data, error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+      if (error) throw error;
+      if (!data || !data.url) throw new Error("Supabase ไม่ได้ส่ง URL สำหรับเข้าสู่ระบบกลับมา");
     } catch (e) { alert("เข้าสู่ระบบไม่สำเร็จ: " + (e && e.message)); setBusy(false); }
   };
   // particle network
@@ -9088,11 +9093,16 @@ function Gate() {
   }, []);
   React.useEffect(() => {
     if (!sb) { setReady(true); return; }
-    sb.auth.getSession().then(({ data }) => {
-      currentUser = data.session ? data.session.user : null;
-      setSession(data.session);
-      setReady(true);
-    });
+    sb.auth.getSession().then(({ data, error }) => {
+      if (error) console.error("Supabase getSession failed:", error);
+      const nextSession = data && data.session ? data.session : null;
+      currentUser = nextSession ? nextSession.user : null;
+      setSession(nextSession);
+    }).catch((error) => {
+      console.error("Supabase session check failed:", error);
+      currentUser = null;
+      setSession(null);
+    }).finally(() => setReady(true));
     const { data: sub } = sb.auth.onAuthStateChange((_e, s) => {
       currentUser = s ? s.user : null;
       setSession(s);
@@ -9102,13 +9112,13 @@ function Gate() {
   // ล็อกเอาท์อัตโนมัติ ถ้าไม่มีการใช้งานเลย (ไม่คลิก/พิมพ์/เลื่อน/แตะ) เกิน 5 นาที เพื่อความปลอดภัย
   React.useEffect(() => {
     if (!sb || !session) return;
-    const IDLE_MS = 5 * 60 * 1000;
+    const IDLE_MS = 30 * 60 * 1000;
     let timer;
     const resetTimer = () => {
       clearTimeout(timer);
       timer = setTimeout(async () => {
         try { await sb.auth.signOut(); } catch (e) {}
-        alert("ไม่มีการใช้งานเกิน 5 นาที ระบบออกจากระบบให้อัตโนมัติเพื่อความปลอดภัยครับ");
+        alert("ไม่มีการใช้งานเกิน 30 นาที ระบบออกจากระบบให้อัตโนมัติเพื่อความปลอดภัยครับ");
       }, IDLE_MS);
     };
     const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click", "wheel"];
